@@ -29,10 +29,9 @@ const FORWARDED_REQUEST_HEADERS = [
   'x-dev-user-email',
 ];
 
-// Allow up to 60s for Render free-tier cold starts. Hobby plan caps at 10s,
-// Pro at 60s — Vercel will silently clamp this to whatever the plan allows.
-export const maxDuration = 60;
-export const dynamic = 'force-dynamic';
+// Edge runtime: <50ms cold start vs 1-3s for Node.js serverless.
+// All we use here is Web fetch + Headers + ArrayBuffer — fully supported in Edge.
+export const runtime = 'edge';
 
 async function proxy(
   req: NextRequest,
@@ -84,10 +83,9 @@ async function proxy(
   const cd = upstream.headers.get('content-disposition');
   if (cd) responseHeaders.set('content-disposition', cd);
 
-  // Buffer the response body too — matches the request side and avoids
-  // stream-lifetime weirdness when the upstream Response is GC'd.
-  const responseBody = await upstream.arrayBuffer();
-  return new NextResponse(responseBody, {
+  // Stream the response body — Edge runtime keeps the upstream Response alive
+  // for the full stream lifetime, so no buffering needed.
+  return new NextResponse(upstream.body, {
     status: upstream.status,
     headers: responseHeaders,
   });

@@ -24,25 +24,54 @@ const IS_CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KE
 /**
  * Get the Clerk session token when Clerk is active.
  *
- * Polls until window.Clerk is defined (the SDK loads asynchronously after
- * hydration). Once loaded, returns the session token or null if not signed in.
- * Returns null in SSR or when Clerk is not configured.
+ * Caches the "Clerk SDK is loaded" wait so it only polls once across all
+ * concurrent calls. Also caches the token itself (Clerk tokens are 60s;
+ * we refresh 10s before expiry to avoid stale-token 401s).
  */
+
+let clerkReadyPromise: Promise<void> | null = null;
+
+function waitForClerk(): Promise<void> {
+  if (!clerkReadyPromise) {
+    clerkReadyPromise = new Promise<void>((resolve) => {
+      type CG = { session?: { getToken: () => Promise<string | null> } | null };
+      if ((window as typeof window & { Clerk?: CG }).Clerk !== undefined) {
+        resolve();
+        return;
+      }
+      let attempts = 0;
+      const iv = setInterval(() => {
+        attempts++;
+        if ((window as typeof window & { Clerk?: CG }).Clerk !== undefined || attempts >= 30) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 100);
+    });
+  }
+  return clerkReadyPromise;
+}
+
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
 async function getClerkToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   if (!IS_CLERK_CONFIGURED) return null;
+
+  // Return cached token if it has >10s left
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 10_000) {
+    return cachedToken.value;
+  }
+
   try {
-    type ClerkGlobal = {
-      session?: { getToken: () => Promise<string | null> } | null;
-    };
-    // Wait up to 3s for the Clerk SDK to finish loading
-    let attempts = 0;
-    while ((window as typeof window & { Clerk?: ClerkGlobal }).Clerk === undefined && attempts < 30) {
-      await new Promise((r) => setTimeout(r, 100));
-      attempts++;
+    await waitForClerk();
+    type CG = { session?: { getToken: () => Promise<string | null> } | null };
+    const clerk = (window as typeof window & { Clerk?: CG }).Clerk;
+    const token = (await clerk?.session?.getToken()) ?? null;
+    if (token) {
+      cachedToken = { value: token, expiresAt: Date.now() + 55_000 };
     }
-    const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
-    return (await clerk?.session?.getToken()) ?? null;
+    return token;
   } catch {
     return null;
   }
