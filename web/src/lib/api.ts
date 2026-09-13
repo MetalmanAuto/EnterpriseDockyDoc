@@ -24,20 +24,21 @@ const IS_CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KE
 /**
  * Get the Clerk session token when Clerk is active.
  *
- * Polls until Clerk reports loaded === true. window.Clerk is assigned before
- * the SDK finishes booting, so waiting only for the global to exist can read
- * a null session and send the request unauthenticated. Returns the session
- * token, or null in SSR, when Clerk is not configured, or when signed out.
+ * Polls until window.Clerk is defined (the SDK loads asynchronously after
+ * hydration). Once loaded, returns the session token or null if not signed in.
+ * Returns null in SSR or when Clerk is not configured.
  */
 async function getClerkToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   if (!IS_CLERK_CONFIGURED) return null;
   try {
-        type ClerkGlobal = {
+    type ClerkGlobal = {
       loaded?: boolean;
       session?: { getToken: () => Promise<string | null> } | null;
     };
-    // Wait up to 5s for Clerk to fully initialize (SDK load + session establishment)
+    // Wait up to 5s for Clerk to fully initialize (SDK load + session establishment).
+    // Checking clerk.loaded (not just clerk !== undefined) prevents grabbing a null
+    // session during the brief window between SDK mount and session resolution.
     let attempts = 0;
     while (attempts < 50) {
       const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
