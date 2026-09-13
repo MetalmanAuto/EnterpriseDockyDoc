@@ -9,6 +9,7 @@ import { PLAN_TOKEN_LIMITS } from '../workspaces/dto/ai-settings.dto';
 import { OcrService } from '../document-intelligence/ocr.service';
 import { ExtractionService } from '../document-intelligence/extraction.service';
 import type { ConfidenceByField } from '../document-intelligence/extraction.service';
+import { ReminderPlannerService } from '../reminders/reminder-planner.service';
 
 // ------------------------------------------------------------------ //
 // Metadata key constants
@@ -121,6 +122,7 @@ export class AiService {
     private readonly ocrService: OcrService,
     private readonly extractionService: ExtractionService,
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
+    private readonly reminderPlanner: ReminderPlannerService,
   ) {
     const apiKey = this.config.get<string>('ANTHROPIC_API_KEY');
     this.client = apiKey ? new Anthropic({ apiKey }) : null;
@@ -433,6 +435,9 @@ export class AiService {
 
       if (Object.keys(docUpdate).length > 0) {
         await this.prisma.document.update({ where: { id: documentId }, data: docUpdate });
+        if (docUpdate.expiryDate) {
+          await this.reminderPlanner.syncForExpiryChange(documentId, doc.expiryDate, docUpdate.expiryDate);
+        }
       }
 
       // Persist auto-applied fields list (reset each extraction — only tracks THIS run)
@@ -702,6 +707,11 @@ export class AiService {
 
     if (Object.keys(updateData).length > 0) {
       await this.prisma.document.update({ where: { id: documentId }, data: updateData });
+      if (updateData.expiryDate) {
+        await this.reminderPlanner.syncForExpiryChange(documentId, doc.expiryDate, updateData.expiryDate);
+      } else if (updateData.isReminderEnabled) {
+        await this.reminderPlanner.setEnabled(documentId, true);
+      }
     }
 
     // Merge auto-applied list

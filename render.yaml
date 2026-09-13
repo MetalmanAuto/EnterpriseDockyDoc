@@ -65,3 +65,10 @@ services:
       #   sync: false
       # - key: OPENAI_API_KEY
       #   sync: false
+      # Email reminders (Resend) — omit to disable delivery
+      # - key: RESEND_API_KEY
+      #   sync: false
+      # - key: EMAIL_FROM
+      #   value: "DockyDoc <reminders@yourdomain.com>"
+      # - key: APP_URL
+      #   value: https://enterprise-docky-doc.vercel.app

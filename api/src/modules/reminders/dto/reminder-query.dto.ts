@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ReminderChannel, ReminderStatus } from '@prisma/client';
 
 export class ReminderQueryDto {
@@ -7,6 +8,16 @@ export class ReminderQueryDto {
   @IsString()
   @IsNotEmpty()
   workspaceId!: string;
+}
+
+export class ExpiringQueryDto extends ReminderQueryDto {
+  @ApiPropertyOptional({ description: 'Look-ahead window in days (1–3650, default 90)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  days?: number;
 }
 
 export class ExpiringDocumentDto {
@@ -28,5 +39,12 @@ export class UpcomingReminderDto {
   @ApiProperty() remindAt!: Date;
   @ApiProperty({ enum: ReminderChannel }) channel!: ReminderChannel;
   @ApiProperty({ enum: ReminderStatus }) status!: ReminderStatus;
+  @ApiPropertyOptional({ nullable: true }) sentAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true }) lastError!: string | null;
   @ApiPropertyOptional({ nullable: true }) expiryDate!: Date | null;
+}
+
+export class TestEmailResultDto {
+  @ApiProperty() delivered!: boolean;
+  @ApiProperty() to!: string;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiOperation,
   ApiResponse,
@@ -9,7 +9,9 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RemindersService } from './reminders.service';
 import {
   ExpiringDocumentDto,
+  ExpiringQueryDto,
   ReminderQueryDto,
+  TestEmailResultDto,
   UpcomingReminderDto,
 } from './dto/reminder-query.dto';
 
@@ -25,10 +27,10 @@ export class RemindersController {
 
   /**
    * GET /api/v1/reminders?workspaceId=...
-   * Returns all PENDING reminders for documents in the workspace.
+   * Upcoming reminders plus recently sent / failed ones for the workspace.
    */
   @Get()
-  @ApiOperation({ summary: 'List pending reminders for a workspace' })
+  @ApiOperation({ summary: 'List upcoming and recently delivered reminders for a workspace' })
   @ApiResponse({ status: 200, type: [UpcomingReminderDto] })
   getReminders(
     @Query() query: ReminderQueryDto,
@@ -38,16 +40,30 @@ export class RemindersController {
   }
 
   /**
-   * GET /api/v1/reminders/expiring?workspaceId=...
-   * Returns documents expiring within the next 90 days (or already expired).
+   * GET /api/v1/reminders/expiring?workspaceId=...&days=90
+   * Documents expiring within `days` (default 90) or already expired.
    */
   @Get('expiring')
-  @ApiOperation({ summary: 'List expiring/expired documents in a workspace (90-day window)' })
+  @ApiOperation({ summary: 'List expiring/expired documents in a workspace' })
   @ApiResponse({ status: 200, type: [ExpiringDocumentDto] })
   getExpiring(
-    @Query() query: ReminderQueryDto,
+    @Query() query: ExpiringQueryDto,
     @CurrentUser() user: DevUserPayload,
   ): Promise<ExpiringDocumentDto[]> {
-    return this.remindersService.getExpiringDocuments(query.workspaceId, user);
+    return this.remindersService.getExpiringDocuments(query.workspaceId, user, query.days);
+  }
+
+  /**
+   * POST /api/v1/reminders/test-email?workspaceId=...
+   * Sends a sample reminder email to the calling user.
+   */
+  @Post('test-email')
+  @ApiOperation({ summary: 'Send a sample reminder email to the current user' })
+  @ApiResponse({ status: 201, type: TestEmailResultDto })
+  sendTestEmail(
+    @Query() query: ReminderQueryDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<TestEmailResultDto> {
+    return this.remindersService.sendTestEmail(query.workspaceId, user);
   }
 }

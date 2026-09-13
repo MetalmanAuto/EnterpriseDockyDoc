@@ -4,8 +4,9 @@ import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { fetchExpiringDocuments, fetchWorkspaceReminders } from '@/lib/documents';
+import { fetchExpiringDocuments, fetchWorkspaceReminders, sendTestReminderEmail } from '@/lib/documents';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 import type { ExpiringDocument, UpcomingReminder } from '@/types';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -74,12 +75,29 @@ function RemindersPageInner() {
     tabParam && ['reminders', 'expiring', 'expired'].includes(tabParam) ? tabParam : 'reminders',
   );
   const [expiringDays, setExpiringDays] = useState(31);
+  const [sendingTest, setSendingTest] = useState(false);
+  const toast = useToast();
+
+  async function handleSendTest() {
+    if (!activeWorkspace) return;
+    setSendingTest(true);
+    try {
+      const res = await sendTestReminderEmail(activeWorkspace.workspaceId);
+      if (res.delivered) toast.success(`Test reminder sent to ${res.to}`);
+      else toast.info('Email delivery is not configured yet (RESEND_API_KEY missing on the server).');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send test email.');
+    } finally {
+      setSendingTest(false);
+    }
+  }
 
   useEffect(() => {
     if (!activeWorkspace) return;
     setLoading(true);
     Promise.all([
-      fetchExpiringDocuments(activeWorkspace.workspaceId),
+      // Fetch the widest window the filter offers so client-side filtering is exact.
+      fetchExpiringDocuments(activeWorkspace.workspaceId, 365),
       fetchWorkspaceReminders(activeWorkspace.workspaceId),
     ])
       .then(([exp, rem]) => {
@@ -175,7 +193,16 @@ function RemindersPageInner() {
             <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
               <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
               <h2 className="text-sm font-semibold text-gray-900">Upcoming Reminders</h2>
-              <span className="ml-auto text-xs font-medium text-gray-400">{reminders.length}</span>
+              <span className="text-xs text-gray-400 hidden sm:inline">· emailed to owners &amp; admins</span>
+              <button
+                type="button"
+                onClick={handleSendTest}
+                disabled={sendingTest}
+                className="ml-auto text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+              >
+                {sendingTest ? 'Sending…' : 'Send me a test email'}
+              </button>
+              <span className="text-xs font-medium text-gray-400">{reminders.length}</span>
             </div>
             {reminders.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
@@ -320,9 +347,17 @@ function ExpiringDocRow({ doc }: { doc: ExpiringDocument }) {
 // Upcoming reminder row
 // ------------------------------------------------------------------ //
 
+const STATUS_STYLES: Record<UpcomingReminder['status'], { label: string; class: string }> = {
+  PENDING:   { label: 'Scheduled', class: 'bg-blue-50 text-blue-600' },
+  SENT:      { label: 'Sent',      class: 'bg-green-50 text-green-700' },
+  FAILED:    { label: 'Failed',    class: 'bg-red-50 text-red-600' },
+  CANCELLED: { label: 'Cancelled', class: 'bg-gray-100 text-gray-500' },
+};
+
 function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
   const remindAt = new Date(reminder.remindAt);
-  const isPast = remindAt < new Date();
+  const isOverdue = reminder.status === 'PENDING' && remindAt < new Date();
+  const status = STATUS_STYLES[reminder.status] ?? STATUS_STYLES.PENDING;
 
   return (
     <div className="flex items-center gap-4 px-5 py-3.5">
@@ -334,28 +369,30 @@ function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
           {reminder.documentName}
         </Link>
         <div className="flex items-center gap-2 mt-0.5">
-          <span
-            className={cn(
-              'text-[10px] font-semibold px-1.5 py-0.5 rounded',
-              reminder.channel === 'EMAIL'
-                ? 'bg-blue-50 text-blue-600'
-                : 'bg-gray-100 text-gray-500',
-            )}
-          >
-            {reminder.channel}
+          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', status.class)}>
+            {status.label}
           </span>
           {reminder.expiryDate && (
             <span className="text-xs text-gray-400">
               Expires {formatDate(reminder.expiryDate)}
             </span>
           )}
+          {reminder.status === 'FAILED' && reminder.lastError && (
+            <span className="text-xs text-red-500 truncate" title={reminder.lastError}>
+              {reminder.lastError}
+            </span>
+          )}
         </div>
       </div>
 
       <div className="flex-shrink-0 text-right">
-        <p className="text-xs text-gray-500">{formatDateTime(reminder.remindAt)}</p>
-        {isPast && (
-          <p className="text-[10px] text-orange-500 font-medium">Overdue reminder</p>
+        <p className="text-xs text-gray-500">
+          {reminder.status === 'SENT' && reminder.sentAt
+            ? `Sent ${formatDateTime(reminder.sentAt)}`
+            : formatDateTime(reminder.remindAt)}
+        </p>
+        {isOverdue && (
+          <p className="text-[10px] text-orange-500 font-medium">Sending shortly</p>
         )}
       </div>
     </div>

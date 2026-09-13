@@ -381,15 +381,24 @@ export function setDocumentReminders(
   });
 }
 
-export function fetchExpiringDocuments(workspaceId: string): Promise<ExpiringDocument[]> {
-  return apiFetch<ExpiringDocument[]>(
-    `/api/v1/reminders/expiring?workspaceId=${encodeURIComponent(workspaceId)}`,
-  );
+export function fetchExpiringDocuments(workspaceId: string, days?: number): Promise<ExpiringDocument[]> {
+  const params = new URLSearchParams({ workspaceId });
+  if (days) params.set('days', String(days));
+  return apiFetch<ExpiringDocument[]>(`/api/v1/reminders/expiring?${params.toString()}`);
 }
 
 export function fetchWorkspaceReminders(workspaceId: string): Promise<UpcomingReminder[]> {
   return apiFetch<UpcomingReminder[]>(
     `/api/v1/reminders?workspaceId=${encodeURIComponent(workspaceId)}`,
+  );
+}
+
+export function sendTestReminderEmail(
+  workspaceId: string,
+): Promise<{ delivered: boolean; to: string }> {
+  return apiFetch<{ delivered: boolean; to: string }>(
+    `/api/v1/reminders/test-email?workspaceId=${encodeURIComponent(workspaceId)}`,
+    { method: 'POST' },
   );
 }
 

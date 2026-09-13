@@ -141,14 +141,14 @@ export class SetDocumentRemindersDto {
   isReminderEnabled?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Days before expiry to remind (e.g. [30, 15, 7, 1]). Each value must be 1–365.',
+    description: 'Days before expiry to remind (e.g. [180, 30, 7]). Each value must be 1–3650.',
     type: [Number],
   })
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
   @Min(1, { each: true })
-  @Max(365, { each: true })
+  @Max(3650, { each: true })
   offsetDays?: number[];
 
   @ApiPropertyOptional({ enum: ReminderChannel })

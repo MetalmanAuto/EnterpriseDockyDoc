@@ -7,6 +7,7 @@ import type { IStorageService } from '../storage/storage.interface';
 import { SearchIndexerService } from '../search/search-indexer.service';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
 import { AiService } from '../ai/ai.service';
+import { ReminderPlannerService } from '../reminders/reminder-planner.service';
 import {
   assertWorkspaceMembership,
   assertEditorOrAbove,
@@ -81,6 +82,7 @@ export class DocumentsService {
     private readonly indexer: SearchIndexerService,
     private readonly audit: AuditService,
     private readonly aiService: AiService,
+    private readonly reminderPlanner: ReminderPlannerService,
   ) {}
 
   // ------------------------------------------------------------------ //
@@ -440,6 +442,15 @@ export class DocumentsService {
       metadata: { documentName: updated.name },
     });
 
+    const expiryChanged =
+      dto.expiryDate !== undefined &&
+      (existing.expiryDate?.getTime() ?? null) !== (updated.expiryDate?.getTime() ?? null);
+    if (expiryChanged) {
+      await this.reminderPlanner.syncForExpiryChange(id, existing.expiryDate, updated.expiryDate);
+    } else if (dto.isReminderEnabled !== undefined && dto.isReminderEnabled !== existing.isReminderEnabled) {
+      await this.reminderPlanner.setEnabled(id, dto.isReminderEnabled);
+    }
+
     return this.toListItemDto(updated);
   }
 
@@ -706,30 +717,14 @@ export class DocumentsService {
         },
       });
 
-      // Cancel existing PENDING reminders
-      await tx.documentReminder.updateMany({
-        where: { documentId: id, status: 'PENDING' },
-        data: { status: 'CANCELLED' },
-      });
-
-      // Generate new reminders from offsetDays
-      if (expiryDate && dto.offsetDays && dto.offsetDays.length > 0) {
-        const now = new Date();
-        for (const days of dto.offsetDays) {
-          const remindAt = new Date(expiryDate);
-          remindAt.setDate(remindAt.getDate() - days);
-          if (remindAt > now) {
-            await tx.documentReminder.create({
-              data: {
-                documentId: id,
-                remindAt,
-                channel: dto.channel ?? 'IN_APP',
-                status: 'PENDING',
-              },
-            });
-          }
-        }
-      }
+      const enabled = dto.isReminderEnabled ?? doc.isReminderEnabled;
+      await this.reminderPlanner.regenerate(
+        tx,
+        id,
+        enabled ? expiryDate : null,
+        dto.offsetDays ?? [],
+        dto.channel ?? 'EMAIL',
+      );
     });
 
     this.audit.log({

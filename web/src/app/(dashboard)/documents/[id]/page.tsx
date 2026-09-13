@@ -3,14 +3,14 @@
 import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, setDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
+import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
 import { apiFetch } from '@/lib/api';
 import { fetchDocumentActivity, describeAuditLog, auditActionCategory, formatAuditAction } from '@/lib/audit';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useUser } from '@/context/UserContext';
-import type { AuditLog, DocumentDetail, DocumentStatus, DocumentVersion, FolderListItem, Tag } from '@/types';
+import type { AuditLog, DocumentDetail, DocumentReminder, DocumentStatus, DocumentVersion, FolderListItem, Tag } from '@/types';
 import ShareSection from './ShareSection';
 import DocumentPreviewCard from './DocumentPreviewCard';
 
@@ -1422,15 +1422,49 @@ function MetadataSection({
 }
 
 const OFFSET_OPTIONS = [
-  { days: 30, label: '30 days before' },
-  { days: 15, label: '15 days before' },
-  { days: 7,  label: '7 days before' },
-  { days: 1,  label: '1 day before' },
+  { days: 365, label: '1 year before' },
+  { days: 180, label: '6 months before' },
+  { days: 90,  label: '3 months before' },
+  { days: 30,  label: '1 month before' },
+  { days: 14,  label: '2 weeks before' },
+  { days: 7,   label: '1 week before' },
+  { days: 1,   label: '1 day before' },
 ];
+const DEFAULT_OFFSET_DAYS = [90, 30, 7];
+const MS_PER_DAY = 86_400_000;
 
 function toDateInput(iso: string | null | undefined): string {
   if (!iso) return '';
   return iso.slice(0, 10); // 'YYYY-MM-DD'
+}
+
+function offsetLabel(days: number): string {
+  const preset = OFFSET_OPTIONS.find((o) => o.days === days);
+  if (preset) return preset.label;
+  if (days % 365 === 0) return `${days / 365} years before`;
+  if (days % 30 === 0) return `${days / 30} months before`;
+  return `${days} days before`;
+}
+
+/** Recover the "days before expiry" offsets from the pending reminder rows. */
+function deriveOffsets(reminders: DocumentReminder[], expiryIso: string | null | undefined): number[] {
+  if (!expiryIso) return [];
+  const expiry = new Date(expiryIso);
+  expiry.setUTCHours(23, 59, 59, 999);
+  const offsets = reminders
+    .filter((r) => r.status === 'PENDING')
+    .map((r) => Math.round((expiry.getTime() - new Date(r.remindAt).getTime()) / MS_PER_DAY))
+    .filter((d) => d > 0);
+  return Array.from(new Set(offsets)).sort((a, b) => b - a);
+}
+
+function reminderStatusBadge(status: DocumentReminder['status']): string {
+  switch (status) {
+    case 'SENT': return 'bg-green-50 text-green-700 border-green-200';
+    case 'FAILED': return 'bg-red-50 text-red-700 border-red-200';
+    case 'CANCELLED': return 'bg-gray-50 text-gray-500 border-gray-200';
+    default: return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
 }
 
 function ExpiryReminderSection({
@@ -1444,15 +1478,48 @@ function ExpiryReminderSection({
   const [expiryDate, setExpiryDate] = useState(toDateInput(doc.expiryDate));
   const [renewalDueDate, setRenewalDueDate] = useState(toDateInput(doc.renewalDueDate));
   const [isReminderEnabled, setIsReminderEnabled] = useState(doc.isReminderEnabled);
-  const [offsetDays, setOffsetDays] = useState<number[]>([30, 15, 7]);
+  const [offsetDays, setOffsetDays] = useState<number[]>(DEFAULT_OFFSET_DAYS);
+  const [customMonths, setCustomMonths] = useState('');
+  const [reminders, setReminders] = useState<DocumentReminder[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Hydrate the selected offsets from what is actually scheduled server-side.
+  useEffect(() => {
+    let cancelled = false;
+    fetchDocumentReminders(doc.id)
+      .then((list) => {
+        if (cancelled) return;
+        setReminders(list);
+        const derived = deriveOffsets(list, doc.expiryDate);
+        if (derived.length > 0) setOffsetDays(derived);
+      })
+      .catch(() => { /* non-fatal: fall back to defaults */ });
+    return () => { cancelled = true; };
+  }, [doc.id, doc.expiryDate]);
+
   function toggleOffset(days: number) {
     setOffsetDays((prev) =>
-      prev.includes(days) ? prev.filter((d) => d !== days) : [...prev, days],
+      (prev.includes(days) ? prev.filter((d) => d !== days) : [...prev, days]).sort((a, b) => b - a),
     );
   }
+
+  function addCustomMonths() {
+    const months = parseInt(customMonths, 10);
+    if (!Number.isInteger(months) || months < 1 || months > 120) {
+      setError('Enter a number of months between 1 and 120.');
+      return;
+    }
+    setError(null);
+    toggleOffset(months * 30);
+    setCustomMonths('');
+  }
+
+  const customOffsets = offsetDays.filter((d) => !OFFSET_OPTIONS.some((o) => o.days === d));
+  const visibleReminders = reminders
+    .filter((r) => r.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.remindAt).getTime() - new Date(b.remindAt).getTime())
+    .slice(0, 8);
 
   async function handleSave() {
     setError(null);
@@ -1481,12 +1548,14 @@ function ExpiryReminderSection({
 
     setSaving(true);
     try {
-      await setDocumentReminders(doc.id, {
+      const saved = await setDocumentReminders(doc.id, {
         expiryDate: expiryDate || null,
         renewalDueDate: renewalDueDate || null,
         isReminderEnabled,
         offsetDays: isReminderEnabled ? offsetDays : [],
+        channel: 'EMAIL',
       });
+      setReminders(saved);
       toast.success('Expiry & reminders saved.');
       onSaved();
     } catch (err) {
@@ -1545,21 +1614,87 @@ function ExpiryReminderSection({
       {isReminderEnabled && (
         <div className="mt-3 pl-6">
           <p className="text-xs text-gray-500 mb-2">
-            Remind me before expiry:
+            Email me before expiry:
           </p>
-          <div className="flex flex-wrap gap-3">
-            {OFFSET_OPTIONS.map(({ days, label }) => (
-              <label key={days} className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={offsetDays.includes(days)}
-                  onChange={() => toggleOffset(days)}
-                  className="w-3.5 h-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                />
-                <span className="text-xs text-gray-600">{label}</span>
-              </label>
+          <div className="flex flex-wrap gap-2">
+            {OFFSET_OPTIONS.map(({ days, label }) => {
+              const active = offsetDays.includes(days);
+              return (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => toggleOffset(days)}
+                  aria-pressed={active}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                    active
+                      ? 'bg-brand-600 border-brand-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-600 hover:border-brand-400',
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {customOffsets.map((days) => (
+              <button
+                key={days}
+                type="button"
+                onClick={() => toggleOffset(days)}
+                aria-pressed
+                title="Click to remove"
+                className="px-2.5 py-1 rounded-full text-xs border bg-brand-600 border-brand-600 text-white"
+              >
+                {offsetLabel(days)} ×
+              </button>
             ))}
           </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs text-gray-500">Remind me</span>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={customMonths}
+              onChange={(e) => setCustomMonths(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomMonths(); } }}
+              placeholder="6"
+              className="w-16 text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <span className="text-xs text-gray-500">months before expiry</span>
+            <button
+              type="button"
+              onClick={addCustomMonths}
+              className="text-xs font-medium text-brand-600 hover:text-brand-700"
+            >
+              Add
+            </button>
+          </div>
+
+          <p className="mt-3 text-[11px] text-gray-400">
+            Reminders are emailed to the document owner and workspace admins at 09:00 UTC on each date.
+          </p>
+
+          {visibleReminders.length > 0 && (
+            <ul className="mt-3 space-y-1">
+              {visibleReminders.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 text-xs text-gray-600">
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium uppercase tracking-wide',
+                      reminderStatusBadge(r.status),
+                    )}
+                  >
+                    {r.status === 'PENDING' ? 'Scheduled' : r.status.toLowerCase()}
+                  </span>
+                  <span>
+                    {new Date(r.remindAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

@@ -13,7 +13,7 @@ export type WorkspaceUserStatus = 'ACTIVE' | 'INVITED' | 'REMOVED';
 export type WorkspaceStatus = 'ACTIVE' | 'INACTIVE';
 export type DocumentStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
 export type ReminderChannel = 'IN_APP' | 'EMAIL';
-export type ReminderStatus = 'PENDING' | 'SENT' | 'CANCELLED';
+export type ReminderStatus = 'PENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
 export type ShareType = 'INTERNAL' | 'EXTERNAL_LINK';
 export type SharePermission = 'VIEW' | 'DOWNLOAD';
 export type AuditAction =
@@ -28,6 +28,7 @@ export type AuditAction =
   | 'SHARE_REVOKED'
   | 'REMINDER_CREATED'
   | 'REMINDER_UPDATED'
+  | 'REMINDER_SENT'
   | 'MEMBER_ADDED'
   | 'MEMBER_ROLE_UPDATED';
 export type AuditEntityType =
@@ -331,6 +332,8 @@ export interface UpcomingReminder {
   remindAt: string;
   channel: ReminderChannel;
   status: ReminderStatus;
+  sentAt: string | null;
+  lastError: string | null;
   expiryDate: string | null;
 }
 

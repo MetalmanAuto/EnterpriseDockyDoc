@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   SHARE_REVOKED:           'Share revoked',
   REMINDER_CREATED:        'Reminder set',
   REMINDER_UPDATED:        'Reminders updated',
+  REMINDER_SENT:           'Reminder email sent',
   MEMBER_ADDED:            'Member added',
   MEMBER_ROLE_UPDATED:     'Member role updated',
 };
@@ -57,6 +58,12 @@ export function describeAuditLog(log: AuditLog): string {
       return name ? `Set reminder for "${name}"` : 'Reminder set';
     case 'REMINDER_UPDATED':
       return name ? `Updated reminders for "${name}"` : 'Reminders updated';
+    case 'REMINDER_SENT': {
+      const days = meta.daysUntilExpiry as number | undefined;
+      const delivered = meta.delivered as boolean | undefined;
+      const when = typeof days === 'number' ? (days < 0 ? 'expired' : days === 0 ? 'expires today' : `expires in ${days}d`) : '';
+      return `${delivered === false ? 'Reminder due' : 'Reminder emailed'}${name ? ` for "${name}"` : ''}${when ? ` (${when})` : ''}`;
+    }
     case 'MEMBER_ADDED':
       return `Added ${meta.email ?? 'member'} as ${meta.role ?? 'member'}`;
     case 'MEMBER_ROLE_UPDATED':
@@ -69,7 +76,7 @@ export function describeAuditLog(log: AuditLog): string {
 /** Icon category for colour-coding in the UI */
 export function auditActionCategory(action: AuditAction): 'create' | 'update' | 'delete' | 'share' | 'download' | 'member' {
   if (['DOCUMENT_CREATED'].includes(action)) return 'create';
-  if (['DOCUMENT_UPDATED', 'DOCUMENT_VERSION_ADDED', 'REMINDER_CREATED', 'REMINDER_UPDATED'].includes(action)) return 'update';
+  if (['DOCUMENT_UPDATED', 'DOCUMENT_VERSION_ADDED', 'REMINDER_CREATED', 'REMINDER_UPDATED', 'REMINDER_SENT'].includes(action)) return 'update';
   if (['DOCUMENT_DELETED', 'DOCUMENT_SHREDDED'].includes(action)) return 'delete';
   if (['DOCUMENT_SHARED_INTERNAL', 'DOCUMENT_SHARED_EXTERNAL', 'SHARE_REVOKED'].includes(action)) return 'share';
   if (['DOCUMENT_DOWNLOADED'].includes(action)) return 'download';

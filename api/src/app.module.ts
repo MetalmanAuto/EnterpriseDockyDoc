@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
+import { MailModule } from './modules/mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -42,7 +44,9 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
         limit: 100,   // max requests per window per IP
       },
     ]),
+    ScheduleModule.forRoot(),
     PrismaModule,
+    MailModule,
     HealthModule,
     StorageModule,
     SearchModule,
