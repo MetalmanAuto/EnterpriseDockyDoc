@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchCurrentUser, switchWorkspaceApi, ApiError } from '@/lib/api';
 import type { CurrentUser, WorkspaceMembership } from '@/types';
 
@@ -53,6 +54,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     useState<WorkspaceMembership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Fetch current user on mount
   useEffect(() => {
@@ -79,8 +81,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiError && err.status === 401) {
-            // Token is missing or expired — redirect to login
-            window.location.href = '/login';
+            // Token is missing or expired — soft navigation avoids a full page reload
+            router.replace('/login');
             return;
           }
           console.error('[UserContext] Failed to load user:', err);
@@ -95,7 +97,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   const refreshUser = useCallback(async (workspaceId?: string) => {
     try {
@@ -127,17 +129,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setActiveWorkspace(null);
     // When Clerk is active, use its signOut so the session cookie is cleared.
-    // In dev mode (no Clerk), just redirect to /login.
+    // In dev mode (no Clerk), soft-navigate to /login.
     type ClerkGlobal = { signOut: (opts?: { redirectUrl?: string }) => Promise<void> };
     const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
     if (clerk?.signOut) {
       clerk.signOut({ redirectUrl: '/login' }).catch(() => {
-        window.location.href = '/login';
+        router.replace('/login');
       });
     } else {
-      window.location.href = '/login';
+      router.replace('/login');
     }
-  }, []);
+  }, [router]);
 
   const switchWorkspace = useCallback(
     async (workspaceId: string) => {
