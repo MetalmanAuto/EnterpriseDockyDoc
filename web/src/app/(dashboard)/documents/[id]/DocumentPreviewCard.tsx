@@ -9,8 +9,20 @@ const IS_CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KE
 /** Mirror of getClerkToken() in api.ts — avoids importing that module here. */
 async function getClerkToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
+  if (!IS_CLERK_CONFIGURED) return null;
   try {
-    type ClerkGlobal = { session?: { getToken: () => Promise<string | null> } | null };
+    type ClerkGlobal = {
+      loaded?: boolean;
+      session?: { getToken: () => Promise<string | null> } | null;
+    };
+    // Wait up to 5s for the Clerk SDK to finish loading
+    let attempts = 0;
+    while (attempts < 50) {
+      const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
+      if (clerk?.loaded) break;
+      await new Promise((r) => setTimeout(r, 100));
+      attempts++;
+    }
     const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
     return (await clerk?.session?.getToken()) ?? null;
   } catch {
