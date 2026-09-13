@@ -33,11 +33,11 @@ async function getClerkToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   if (!IS_CLERK_CONFIGURED) return null;
   try {
-    type ClerkGlobal = {
+        type ClerkGlobal = {
       loaded?: boolean;
       session?: { getToken: () => Promise<string | null> } | null;
     };
-    // Wait up to 5s for the Clerk SDK to finish loading
+    // Wait up to 5s for Clerk to fully initialize (SDK load + session establishment)
     let attempts = 0;
     while (attempts < 50) {
       const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
