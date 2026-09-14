@@ -8,6 +8,8 @@ import { fetchWorkspaceActivity } from '@/lib/audit';
 import { describeAuditLog, auditActionCategory } from '@/lib/audit';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
+import { bucketize, formatDate, isSnoozed, type ExpiryBucket } from '@/lib/expiry';
+import ExpiryActions from '@/components/expiry/ExpiryActions';
 import type { WorkspaceSummary, ExpiringDocument, AuditLog } from '@/types';
 
 // ------------------------------------------------------------------ //
@@ -34,7 +36,7 @@ export default function DashboardPage() {
       .then(([s, exp, act]) => {
         if (cancelled) return;
         setSummary(s);
-        setExpiring(exp.slice(0, 8));
+        setExpiring(exp);
         setActivity(act);
       })
       .catch(() => {
@@ -169,11 +171,25 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ── Uploads-this-week banner + bottom panels ─────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+      {/* ── Expiry radar ────────────────────────────────────────────── */}
+      <ExpiryRadar
+        docs={expiring}
+        onChanged={(id, patch) =>
+          setExpiring((prev) => prev.map((d) => {
+            if (d.id !== id) return d;
+            const next = { ...d, ...patch };
+            if (patch.expiryDate) {
+              next.daysUntilExpiry = Math.round((new Date(patch.expiryDate).getTime() - Date.now()) / 86_400_000);
+            }
+            return next;
+          }))
+        }
+      />
 
-        {/* Recent Activity — 3 of 5 cols */}
-        <div className="lg:col-span-3 bg-white dark:bg-surface rounded-xl border border-gray-200 dark:border-stroke overflow-hidden">
+      {/* ── Recent activity ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-5 items-start">
+
+        <div className="bg-white dark:bg-surface rounded-xl border border-gray-200 dark:border-stroke overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-stroke">
             <div className="flex items-center gap-2">
               <ActivityIcon className="text-gray-400" />
@@ -223,80 +239,124 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Expiring Documents — 2 of 5 cols */}
-        <div className={cn(
-          'lg:col-span-2 bg-white dark:bg-surface rounded-xl border overflow-hidden',
-          hasExpired ? 'border-red-200 dark:border-red-900/50' : hasExpiring ? 'border-orange-200 dark:border-orange-900/50' : 'border-gray-200 dark:border-stroke',
-        )}>
-          <div className={cn(
-            'flex items-center justify-between px-5 py-3.5 border-b',
-            hasExpired ? 'border-red-100 bg-red-50' : hasExpiring ? 'border-orange-100 bg-orange-50' : 'border-gray-100',
-          )}>
-            <div className="flex items-center gap-2">
-              <ClockIcon className={cn(hasExpired ? 'text-red-500' : hasExpiring ? 'text-orange-500' : 'text-gray-400')} />
-              <h2 className={cn(
-                'text-sm font-semibold',
-                hasExpired ? 'text-red-700' : hasExpiring ? 'text-orange-700' : 'text-gray-900',
-              )}>
-                Expiring
-              </h2>
-              {hasExpired && (
-                <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                  {summary!.expiredCount} expired
-                </span>
-              )}
-            </div>
-            <Link
-              href="/reminders"
-              className={cn('text-xs hover:underline flex-shrink-0', hasExpired ? 'text-red-600' : 'text-brand-600')}
-            >
-              View all →
-            </Link>
-          </div>
-          {expiring.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <p className="text-sm text-green-600 font-medium">All clear</p>
-              <p className="text-xs text-gray-400 mt-1">No documents expiring in the next 90 days.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {expiring.map((doc) => {
-                const isExpired  = doc.daysUntilExpiry < 0;
-                const isToday    = doc.daysUntilExpiry === 0;
-                const isCritical = doc.daysUntilExpiry <= 7;
-                return (
-                  <div key={doc.id} className="flex items-center gap-2 px-5 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        href={`/documents/${doc.id}`}
-                        className="text-xs font-medium text-gray-900 hover:text-brand-600 truncate block"
-                      >
-                        {doc.name}
-                      </Link>
-                      {doc.folderName && (
-                        <p className="text-[10px] text-gray-400 truncate">{doc.folderName}</p>
-                      )}
-                    </div>
-                    <span className={cn(
-                      'text-[10px] font-bold whitespace-nowrap tabular-nums',
-                      isExpired || isToday ? 'text-red-600'
-                      : isCritical ? 'text-orange-600'
-                      : 'text-yellow-700',
-                    )}>
-                      {isExpired
-                        ? `${Math.abs(doc.daysUntilExpiry)}d over`
-                        : isToday ? 'Today'
-                        : `${doc.daysUntilExpiry}d`}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ //
+// Expiry radar
+// ------------------------------------------------------------------ //
+
+const BUCKET_STYLE: Record<ExpiryBucket['id'], { tile: string; value: string; dot: string }> = {
+  expired: { tile: 'border-red-200 bg-red-50/60',       value: 'text-red-700',    dot: 'bg-red-500' },
+  week:    { tile: 'border-orange-200 bg-orange-50/60', value: 'text-orange-700', dot: 'bg-orange-500' },
+  month:   { tile: 'border-yellow-200 bg-yellow-50/60', value: 'text-yellow-800', dot: 'bg-yellow-500' },
+  quarter: { tile: 'border-gray-200 bg-white',          value: 'text-gray-700',   dot: 'bg-gray-400' },
+};
+
+const RADAR_ROWS = 6;
+
+function ExpiryRadar({
+  docs,
+  onChanged,
+}: {
+  docs: ExpiringDocument[];
+  onChanged: (id: string, patch: Partial<ExpiringDocument>) => void;
+}) {
+  const buckets = bucketize(docs);
+  const nonEmpty = buckets.filter((b) => b.docs.length > 0);
+  const [active, setActive] = useState<ExpiryBucket['id'] | null>(null);
+  const current = (active && buckets.find((b) => b.id === active && b.docs.length > 0)) || nonEmpty[0] || null;
+  const hasUrgent = buckets[0].docs.length > 0 || buckets[1].docs.length > 0;
+
+  return (
+    <section
+      className={cn(
+        'bg-white dark:bg-surface rounded-xl border overflow-hidden',
+        hasUrgent ? 'border-orange-200 dark:border-orange-900/50' : 'border-gray-200 dark:border-stroke',
+      )}
+      aria-label="Expiry radar"
+    >
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-stroke">
+        <div className="flex items-center gap-2">
+          <ClockIcon className={cn(hasUrgent ? 'text-orange-500' : 'text-gray-400')} />
+          <h2 className="text-sm font-semibold text-gray-900">Expiry radar</h2>
+          <span className="text-xs text-gray-400 hidden sm:inline">· next 90 days</span>
+        </div>
+        <Link href="/reminders" className="text-xs text-brand-600 hover:underline flex-shrink-0">
+          All reminders →
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+        {buckets.map((b) => {
+          const style = BUCKET_STYLE[b.id];
+          const selected = current?.id === b.id;
+          return (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => setActive(b.id)}
+              disabled={b.docs.length === 0}
+              aria-pressed={selected}
+              className={cn(
+                'text-left rounded-lg border p-3 transition-all disabled:opacity-60 disabled:cursor-default',
+                style.tile,
+                selected && 'ring-2 ring-brand-500 ring-offset-1',
+              )}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{b.label}</p>
+              </div>
+              <p className={cn('mt-1.5 text-2xl font-bold leading-none tabular-nums', style.value)}>{b.docs.length}</p>
+              <p className="mt-1.5 text-[10px] text-gray-400">{b.hint}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {!current ? (
+        <div className="px-4 pb-8 pt-2 text-center">
+          <p className="text-sm text-green-600 font-medium">All clear</p>
+          <p className="text-xs text-gray-400 mt-1">Nothing expires in the next 90 days.</p>
+        </div>
+      ) : (
+        <div className="border-t border-gray-100 dark:border-stroke divide-y divide-gray-50">
+          {current.docs.slice(0, RADAR_ROWS).map((doc) => {
+            const isExpired = doc.daysUntilExpiry < 0;
+            const isToday = doc.daysUntilExpiry === 0;
+            const snoozed = isSnoozed(doc);
+            return (
+              <div key={doc.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
+                <div className="flex-1 min-w-[10rem]">
+                  <Link href={`/documents/${doc.id}`} className="text-xs font-medium text-gray-900 hover:text-brand-600 truncate block">
+                    {doc.name}
+                  </Link>
+                  <p className="text-[10px] text-gray-400 truncate">
+                    {doc.folderName ? `${doc.folderName} · ` : ''}{formatDate(doc.expiryDate)}
+                    {snoozed && <span className="ml-1.5 text-amber-700">· emails paused until {formatDate(doc.remindersSnoozedUntil)}</span>}
+                  </p>
+                </div>
+                <span className={cn(
+                  'text-[10px] font-bold whitespace-nowrap tabular-nums w-14 text-right',
+                  isExpired || isToday ? 'text-red-600' : doc.daysUntilExpiry <= 7 ? 'text-orange-600' : 'text-yellow-700',
+                )}>
+                  {isExpired ? `${Math.abs(doc.daysUntilExpiry)}d over` : isToday ? 'Today' : `${doc.daysUntilExpiry}d`}
+                </span>
+                <ExpiryActions doc={doc} onChanged={(patch) => onChanged(doc.id, patch)} />
+              </div>
+            );
+          })}
+          {current.docs.length > RADAR_ROWS && (
+            <Link href={`/reminders?tab=${current.id === 'expired' ? 'expired' : 'expiring'}`} className="block px-5 py-2.5 text-xs text-brand-600 hover:underline">
+              {current.docs.length - RADAR_ROWS} more in {current.label.toLowerCase()} →
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

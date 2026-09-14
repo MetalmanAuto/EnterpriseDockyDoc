@@ -7,9 +7,9 @@ import { useUser } from '@/context/UserContext';
 import { fetchExpiringDocuments, fetchWorkspaceReminders, sendTestReminderEmail } from '@/lib/documents';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
+import { daysLabel, formatDate, formatDateTime, isSnoozed } from '@/lib/expiry';
+import ExpiryActions from '@/components/expiry/ExpiryActions';
 import type { ExpiringDocument, UpcomingReminder } from '@/types';
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 // ------------------------------------------------------------------ //
 // Time filter options for "Expiring Soon" tab
@@ -30,32 +30,6 @@ type TabId = 'reminders' | 'expiring' | 'expired';
 // Helpers
 // ------------------------------------------------------------------ //
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function daysLabel(days: number): { text: string; class: string } {
-  if (days < 0) return { text: `${Math.abs(days)}d overdue`, class: 'text-red-600' };
-  if (days === 0) return { text: 'Expires today', class: 'text-red-600' };
-  if (days <= 7) return { text: `${days}d left`, class: 'text-orange-600' };
-  if (days <= 30) return { text: `${days}d left`, class: 'text-yellow-700' };
-  return { text: `${days}d left`, class: 'text-gray-500' };
-}
 
 // ------------------------------------------------------------------ //
 // Page
@@ -107,6 +81,17 @@ function RemindersPageInner() {
       .catch(() => setError('Failed to load reminders. Is the API running?'))
       .finally(() => setLoading(false));
   }, [activeWorkspace?.workspaceId]);
+
+  function patchExpiring(id: string, patch: Partial<ExpiringDocument>) {
+    setExpiring((prev) => prev.map((d) => {
+      if (d.id !== id) return d;
+      const next = { ...d, ...patch };
+      if (patch.expiryDate) {
+        next.daysUntilExpiry = Math.round((new Date(patch.expiryDate).getTime() - Date.now()) / 86_400_000);
+      }
+      return next;
+    }));
+  }
 
   if (userLoading || loading) return <PageSkeleton />;
 
@@ -254,7 +239,7 @@ function RemindersPageInner() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {expiringSoon.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} />)}
+                {expiringSoon.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} />)}
               </div>
             )}
           </>
@@ -282,7 +267,7 @@ function RemindersPageInner() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {expired.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} />)}
+                {expired.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} />)}
               </div>
             )}
           </>
@@ -304,23 +289,38 @@ export default function RemindersPage() {
 // Expiring document row
 // ------------------------------------------------------------------ //
 
-function ExpiringDocRow({ doc }: { doc: ExpiringDocument }) {
+function ExpiringDocRow({
+  doc,
+  onChanged,
+}: {
+  doc: ExpiringDocument;
+  onChanged: (patch: Partial<ExpiringDocument>) => void;
+}) {
   const days = daysLabel(doc.daysUntilExpiry);
+  const snoozed = isSnoozed(doc);
 
   return (
-    <div className="flex items-center gap-4 px-5 py-3.5">
-      <div className="flex-1 min-w-0">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
+      <div className="flex-1 min-w-[12rem]">
         <Link
           href={`/documents/${doc.id}`}
           className="text-sm font-medium text-gray-900 hover:text-brand-600 transition-colors truncate block"
         >
           {doc.name}
         </Link>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex flex-wrap items-center gap-2 mt-0.5">
           {doc.folderName && (
             <span className="text-xs text-gray-400">{doc.folderName}</span>
           )}
           <span className="text-xs text-gray-400">{doc.ownerEmail}</span>
+          {!doc.isReminderEnabled && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">reminders off</span>
+          )}
+          {snoozed && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
+              paused until {formatDate(doc.remindersSnoozedUntil)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -339,6 +339,8 @@ function ExpiringDocRow({ doc }: { doc: ExpiringDocument }) {
           <p className="text-xs text-gray-500">{formatDate(doc.renewalDueDate)}</p>
         </div>
       )}
+
+      <ExpiryActions doc={doc} onChanged={onChanged} />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
+import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, unsnoozeDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
 import { apiFetch } from '@/lib/api';
 import { fetchDocumentActivity, describeAuditLog, auditActionCategory, formatAuditAction } from '@/lib/audit';
 import { cn } from '@/lib/utils';
@@ -747,7 +747,7 @@ function DocumentDetailPageInner() {
 
       {/* ── ROW 3: Expiry & Reminders ───────────────────────────────── */}
       <div className="mb-5">
-        <ExpiryReminderSection doc={doc} onSaved={reload} />
+        <ExpiryReminderSection doc={doc} onSaved={reload} aiExpiryDate={aiExtraction?.expiryDate ?? null} />
       </div>
 
       {/* ── ROW 4: Tags + Metadata ──────────────────────────────────── */}
@@ -1470,11 +1470,32 @@ function reminderStatusBadge(status: DocumentReminder['status']): string {
 function ExpiryReminderSection({
   doc,
   onSaved,
+  aiExpiryDate = null,
 }: {
   doc: DocumentDetail;
   onSaved: () => void;
+  /** Expiry date detected by AI extraction (ISO), offered as a one-click suggestion. */
+  aiExpiryDate?: string | null;
 }) {
   const toast = useToast();
+  const [resuming, setResuming] = useState(false);
+  const aiSuggestion = aiExpiryDate ? aiExpiryDate.slice(0, 10) : null;
+  const snoozedUntil = doc.remindersSnoozedUntil && new Date(doc.remindersSnoozedUntil) > new Date()
+    ? doc.remindersSnoozedUntil
+    : null;
+
+  async function handleResume() {
+    setResuming(true);
+    try {
+      await unsnoozeDocumentReminders(doc.id);
+      toast.success('Reminder emails resumed.');
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resume reminders.');
+    } finally {
+      setResuming(false);
+    }
+  }
   const [expiryDate, setExpiryDate] = useState(toDateInput(doc.expiryDate));
   const [renewalDueDate, setRenewalDueDate] = useState(toDateInput(doc.renewalDueDate));
   const [isReminderEnabled, setIsReminderEnabled] = useState(doc.isReminderEnabled);
@@ -1584,6 +1605,16 @@ function ExpiryReminderSection({
             onChange={(e) => setExpiryDate(e.target.value)}
             className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
+          {aiSuggestion && aiSuggestion !== expiryDate && (
+            <button
+              type="button"
+              onClick={() => { setExpiryDate(aiSuggestion); setIsReminderEnabled(true); }}
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-brand-700 bg-brand-50 border border-brand-100 rounded-md px-2 py-1 hover:bg-brand-100"
+            >
+              <span aria-hidden>✦</span>
+              AI detected {new Date(aiSuggestion).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — use it
+            </button>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1609,6 +1640,22 @@ function ExpiryReminderSection({
           />
           <span className="text-sm text-gray-700 font-medium">Enable reminders</span>
         </label>
+        {snoozedUntil && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <span>
+              Reminder emails are paused until{' '}
+              {new Date(snoozedUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.
+            </span>
+            <button
+              type="button"
+              onClick={handleResume}
+              disabled={resuming}
+              className="font-medium text-amber-900 underline underline-offset-2 disabled:opacity-50"
+            >
+              {resuming ? 'Resuming…' : 'Resume now'}
+            </button>
+          </div>
+        )}
       </div>
 
       {isReminderEnabled && (

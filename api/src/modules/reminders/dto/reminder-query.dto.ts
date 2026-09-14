@@ -27,6 +27,7 @@ export class ExpiringDocumentDto {
   @ApiPropertyOptional({ nullable: true }) expiryDate!: Date | null;
   @ApiPropertyOptional({ nullable: true }) renewalDueDate!: Date | null;
   @ApiProperty() isReminderEnabled!: boolean;
+  @ApiPropertyOptional({ nullable: true }) remindersSnoozedUntil!: Date | null;
   @ApiPropertyOptional({ nullable: true }) folderName!: string | null;
   @ApiProperty() ownerEmail!: string;
   @ApiProperty() daysUntilExpiry!: number;

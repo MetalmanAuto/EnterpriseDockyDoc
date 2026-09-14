@@ -40,6 +40,7 @@ import {
   SetDocumentMetadataDto,
   SetDocumentRemindersDto,
   SetDocumentTagsDto,
+  SnoozeRemindersDto,
   UpdateDocumentDto,
 } from './dto/document.dto';
 import { UploadDocumentDto, UploadVersionDto } from './dto/upload-document.dto';
@@ -406,6 +407,32 @@ export class DocumentsController {
     @CurrentUser() user: DevUserPayload,
   ): Promise<DocumentReminderDto[]> {
     return this.documentsService.setReminders(id, dto, user);
+  }
+
+  @Post(':id/reminders/snooze')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Hold reminder emails for this document for N days' })
+  @ApiParam({ name: 'id' })
+  @ApiResponse({ status: 200, type: DocumentListItemDto })
+  @ApiResponse({ status: 404, description: 'Document not found' })
+  snoozeReminders(
+    @Param('id') id: string,
+    @Body() dto: SnoozeRemindersDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<DocumentListItemDto> {
+    return this.documentsService.snoozeReminders(id, dto.days, user);
+  }
+
+  @Delete(':id/reminders/snooze')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resume reminder emails for this document' })
+  @ApiParam({ name: 'id' })
+  @ApiResponse({ status: 200, type: DocumentListItemDto })
+  unsnoozeReminders(
+    @Param('id') id: string,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<DocumentListItemDto> {
+    return this.documentsService.snoozeReminders(id, 0, user);
   }
 
   // ------------------------------------------------------------------ //

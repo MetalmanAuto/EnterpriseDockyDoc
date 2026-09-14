@@ -446,6 +446,10 @@ export class DocumentsService {
       dto.expiryDate !== undefined &&
       (existing.expiryDate?.getTime() ?? null) !== (updated.expiryDate?.getTime() ?? null);
     if (expiryChanged) {
+      // A new expiry date supersedes any snooze that was set for the old one.
+      if (existing.remindersSnoozedUntil) {
+        await this.prisma.document.update({ where: { id }, data: { remindersSnoozedUntil: null } });
+      }
       await this.reminderPlanner.syncForExpiryChange(id, existing.expiryDate, updated.expiryDate);
     } else if (dto.isReminderEnabled !== undefined && dto.isReminderEnabled !== existing.isReminderEnabled) {
       await this.reminderPlanner.setEnabled(id, dto.isReminderEnabled);
@@ -743,6 +747,31 @@ export class DocumentsService {
     return this.getReminders(id, user);
   }
 
+  /** Hold reminder emails for `days` days (0 resumes immediately). */
+  async snoozeReminders(id: string, days: number, user: DevUserPayload): Promise<DocumentListItemDto> {
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException(`Document "${id}" not found`);
+    assertEditorOrAbove(user, doc.workspaceId);
+
+    const until = days > 0 ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+    const updated = await this.prisma.document.update({
+      where: { id },
+      data: { remindersSnoozedUntil: until },
+      include: DOC_LIST_INCLUDE,
+    });
+
+    this.audit.log({
+      workspaceId: doc.workspaceId,
+      userId: user.id,
+      action: AuditAction.REMINDER_UPDATED,
+      entityType: AuditEntityType.REMINDER,
+      entityId: id,
+      metadata: { documentName: doc.name, snoozedUntil: until?.toISOString() ?? null, snoozeDays: days },
+    });
+
+    return this.toListItemDto(updated);
+  }
+
   // ------------------------------------------------------------------ //
   // Private helpers
   // ------------------------------------------------------------------ //
@@ -783,6 +812,7 @@ export class DocumentsService {
       expiryDate: doc!.expiryDate,
       renewalDueDate: doc!.renewalDueDate,
       isReminderEnabled: doc!.isReminderEnabled,
+      remindersSnoozedUntil: doc!.remindersSnoozedUntil,
       versions: doc!.versions.map((v) => ({
         id: v.id,
         versionNumber: v.versionNumber,
@@ -821,6 +851,7 @@ export class DocumentsService {
       expiryDate: d.expiryDate,
       renewalDueDate: d.renewalDueDate,
       isReminderEnabled: d.isReminderEnabled,
+      remindersSnoozedUntil: d.remindersSnoozedUntil,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
     };

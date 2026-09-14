@@ -268,6 +268,7 @@ export interface DocumentListItem {
   expiryDate: string | null;
   renewalDueDate: string | null;
   isReminderEnabled: boolean;
+  remindersSnoozedUntil: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -320,6 +321,7 @@ export interface ExpiringDocument {
   expiryDate: string | null;
   renewalDueDate: string | null;
   isReminderEnabled: boolean;
+  remindersSnoozedUntil: string | null;
   folderName: string | null;
   ownerEmail: string;
   daysUntilExpiry: number;

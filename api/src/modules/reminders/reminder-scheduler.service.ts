@@ -91,6 +91,9 @@ export class ReminderSchedulerService {
         continue;
       }
 
+      // Snoozed: leave the row PENDING; it goes out on the first run after the snooze ends.
+      if (doc.remindersSnoozedUntil && doc.remindersSnoozedUntil > now) continue;
+
       // Claim: only one instance can flip PENDING → SENT for this row.
       const claimed = await this.prisma.documentReminder.updateMany({
         where: { id: reminder.id, status: 'PENDING' },

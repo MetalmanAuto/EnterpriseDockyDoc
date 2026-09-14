@@ -103,6 +103,7 @@ export class RemindersService {
         expiryDate: expiry,
         renewalDueDate: d.renewalDueDate,
         isReminderEnabled: d.isReminderEnabled,
+        remindersSnoozedUntil: d.remindersSnoozedUntil,
         folderName: d.folder?.name ?? null,
         ownerEmail: d.owner.email,
         daysUntilExpiry,

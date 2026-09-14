@@ -98,6 +98,20 @@ export interface UpdateDocumentParams {
   description?: string;
   folderId?: string | null;
   status?: DocumentStatus;
+  expiryDate?: string | null;
+  renewalDueDate?: string | null;
+  isReminderEnabled?: boolean;
+}
+
+export function snoozeDocumentReminders(id: string, days: number): Promise<DocumentListItem> {
+  return apiFetch<DocumentListItem>(`/api/v1/documents/${id}/reminders/snooze`, {
+    method: 'POST',
+    body: JSON.stringify({ days }),
+  });
+}
+
+export function unsnoozeDocumentReminders(id: string): Promise<DocumentListItem> {
+  return apiFetch<DocumentListItem>(`/api/v1/documents/${id}/reminders/snooze`, { method: 'DELETE' });
 }
 
 export function updateDocument(id: string, params: UpdateDocumentParams): Promise<DocumentDetail> {

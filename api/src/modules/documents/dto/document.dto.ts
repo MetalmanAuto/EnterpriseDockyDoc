@@ -211,8 +211,18 @@ export class DocumentListItemDto {
   @ApiPropertyOptional({ nullable: true }) expiryDate!: Date | null;
   @ApiPropertyOptional({ nullable: true }) renewalDueDate!: Date | null;
   @ApiProperty() isReminderEnabled!: boolean;
+  @ApiPropertyOptional({ nullable: true, description: 'Reminders are held until this time' })
+  remindersSnoozedUntil!: Date | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
+}
+
+export class SnoozeRemindersDto {
+  @ApiProperty({ description: 'Days to hold reminders for (1–365)', example: 7 })
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  days!: number;
 }
 
 export class DocumentDetailDto extends DocumentListItemDto {
