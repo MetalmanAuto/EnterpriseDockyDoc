@@ -248,11 +248,11 @@ export default function DashboardPage() {
 // Expiry radar
 // ------------------------------------------------------------------ //
 
-const BUCKET_STYLE: Record<ExpiryBucket['id'], { tile: string; value: string; dot: string }> = {
-  expired: { tile: 'border-red-200 bg-red-50/60',       value: 'text-red-700',    dot: 'bg-red-500' },
-  week:    { tile: 'border-orange-200 bg-orange-50/60', value: 'text-orange-700', dot: 'bg-orange-500' },
-  month:   { tile: 'border-yellow-200 bg-yellow-50/60', value: 'text-yellow-800', dot: 'bg-yellow-500' },
-  quarter: { tile: 'border-gray-200 bg-white',          value: 'text-gray-700',   dot: 'bg-gray-400' },
+const BUCKET_STYLE: Record<ExpiryBucket['id'], { tile: string; label: string; dot: string }> = {
+  expired: { tile: 'border-stroke border-t-[3px] border-t-red-500',   label: 'text-red-700 dark:text-red-300',     dot: 'bg-red-500' },
+  week:    { tile: 'border-stroke border-t-[3px] border-t-amber-500', label: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
+  month:   { tile: 'border-stroke border-t-[3px] border-t-brand-500', label: 'text-brand-700 dark:text-brand-300', dot: 'bg-brand-500' },
+  quarter: { tile: 'border-stroke border-t-[3px] border-t-slate-400', label: 'text-ink-2',                         dot: 'bg-slate-400' },
 };
 
 const RADAR_ROWS = 6;
@@ -278,13 +278,23 @@ function ExpiryRadar({
       )}
       aria-label="Expiry radar"
     >
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-stroke">
-        <div className="flex items-center gap-2">
-          <ClockIcon className={cn(hasUrgent ? 'text-orange-500' : 'text-gray-400')} />
-          <h2 className="text-sm font-semibold text-gray-900">Expiry radar</h2>
-          <span className="text-xs text-gray-400 hidden sm:inline">· next 90 days</span>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-stroke-soft">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className={cn(
+              'relative w-7 h-7 rounded-full border border-stroke overflow-hidden flex-shrink-0',
+              hasUrgent ? 'bg-amber-500/10' : 'bg-surface-high',
+            )}
+          >
+            <span className="absolute inset-[6px] rounded-full border border-stroke" />
+            <span className="absolute inset-0 rounded-full animate-radar-sweep motion-reduce:animate-none [background:conic-gradient(from_0deg,rgba(45,212,191,0.55),transparent_80deg)]" />
+            {hasUrgent && <span className="absolute left-[9px] top-[8px] w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />}
+          </span>
+          <h2 className="text-sm font-bold text-ink">Expiry radar</h2>
+          <span className="font-mono text-[11px] text-ink-3 hidden sm:inline">next 90 days</span>
         </div>
-        <Link href="/reminders" className="text-xs text-brand-600 hover:underline flex-shrink-0">
+        <Link href="/reminders" className="text-xs font-semibold text-brand-600 dark:text-brand-300 hover:underline flex-shrink-0">
           All reminders →
         </Link>
       </div>
@@ -301,17 +311,14 @@ function ExpiryRadar({
               disabled={b.docs.length === 0}
               aria-pressed={selected}
               className={cn(
-                'text-left rounded-lg border p-3 transition-all disabled:opacity-60 disabled:cursor-default',
+                'text-left rounded-[10px] border bg-surface p-3.5 transition-all disabled:opacity-60 disabled:cursor-default hover:shadow-card-md',
                 style.tile,
-                selected && 'ring-2 ring-brand-500 ring-offset-1',
+                selected && 'ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-canvas',
               )}
             >
-              <div className="flex items-center gap-1.5">
-                <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{b.label}</p>
-              </div>
-              <p className={cn('mt-1.5 text-2xl font-bold leading-none tabular-nums', style.value)}>{b.docs.length}</p>
-              <p className="mt-1.5 text-[10px] text-gray-400">{b.hint}</p>
+              <p className={cn('font-mono text-[10px] uppercase tracking-label', style.label)}>{b.label}</p>
+              <p className="mt-1.5 text-[28px] font-extrabold leading-none tabular-nums text-ink">{b.docs.length}</p>
+              <p className="mt-1.5 text-[10px] text-ink-3">{b.hint}</p>
             </button>
           );
         })}
@@ -408,17 +415,17 @@ function KpiCard({
 }) {
   const content = (
     <div className={cn(
-      'bg-white dark:bg-surface rounded-xl border border-gray-200 dark:border-stroke p-5 transition-all duration-150',
+      'bg-surface rounded-xl border border-stroke p-5 transition-all duration-150',
       href && 'group-hover:shadow-card-md group-hover:-translate-y-0.5',
     )}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{label}</p>
+        <p className="font-mono text-[10px] uppercase tracking-label text-ink-3 leading-none">{label}</p>
         <div className={cn('w-6 h-6 rounded-md flex items-center justify-center transition-transform duration-150', COLOR_ICON[color], href && 'group-hover:scale-110')}>
           <span className={cn(COLOR_VALUE[color], '[&_svg]:w-3 [&_svg]:h-3')}>{icon}</span>
         </div>
       </div>
-      <p className={cn('text-2xl font-bold leading-none', COLOR_VALUE[color])}>{value}</p>
-      <p className="mt-2 text-[10px] text-gray-400 truncate">{sub}</p>
+      <p className={cn('text-[28px] font-extrabold leading-none tabular-nums tracking-[-0.02em]', color === 'gray' || color === 'brand' ? 'text-ink' : COLOR_VALUE[color])}>{value}</p>
+      <p className="mt-2 text-[10px] text-ink-3 truncate">{sub}</p>
     </div>
   );
 

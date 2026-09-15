@@ -3,12 +3,13 @@
 @tailwind utilities;
 
 /* ------------------------------------------------------------------ */
-/* Design tokens — light & dark                                         */
+/* Design tokens — light & dark  (direction: "Radar")                   */
 /* ------------------------------------------------------------------ */
 
 @layer base {
   :root {
-    /* Light mode — clean slate-based neutral */
+    color-scheme: light;
+
     --bg-canvas:         #f8fafc;   /* slate-50 */
     --bg-surface:        #ffffff;
     --bg-surface-raised: #f1f5f9;   /* slate-100 */
@@ -18,7 +19,12 @@
     --text-secondary:    #64748b;   /* slate-500 */
     --text-tertiary:     #94a3b8;   /* slate-400 */
 
-    /* Transition presets */
+    --accent:            #0d9488;   /* teal-600 */
+    --accent-strong:     #0f766e;   /* teal-700 */
+    --accent-soft:       rgba(13,148,136,0.10);
+    --accent-ring:       rgba(20,184,166,0.28);
+    --selection:         rgba(45,212,191,0.28);
+
     --t-fast:   100ms;
     --t-base:   150ms;
     --t-slow:   250ms;
@@ -26,15 +32,22 @@
   }
 
   .dark {
-    /* Dark mode — cool-neutral deep dark (Linear/GitHub style) */
-    --bg-canvas:         #0d1117;              /* deep cool dark */
-    --bg-surface:        #161b22;              /* card surface */
-    --bg-surface-raised: #21262d;              /* elevated/hover */
-    --border-default:    rgba(255,255,255,0.12); /* visible card edges */
-    --border-muted:      rgba(255,255,255,0.07);
-    --text-primary:      #f0f6fc;              /* near-white — high contrast */
-    --text-secondary:    #9dabb8;              /* readable mid-tone */
-    --text-tertiary:     #848d97;              /* FIXED: was #484f58 (~2:1), now ~5.4:1 */
+    color-scheme: dark;
+
+    --bg-canvas:         #0b1220;
+    --bg-surface:        #111a2e;
+    --bg-surface-raised: #182238;
+    --border-default:    rgba(148,163,184,0.18);
+    --border-muted:      rgba(148,163,184,0.10);
+    --text-primary:      #e2e8f0;
+    --text-secondary:    #94a3b8;
+    --text-tertiary:     #7c8aa0;
+
+    --accent:            #2dd4bf;   /* teal-400 */
+    --accent-strong:     #5eead4;
+    --accent-soft:       rgba(45,212,191,0.14);
+    --accent-ring:       rgba(45,212,191,0.32);
+    --selection:         rgba(45,212,191,0.32);
   }
 
   html {
@@ -49,231 +62,135 @@
     @apply antialiased;
   }
 
-  /* ── Global button interaction polish ─────────────────────────── */
-  /* Applies a micro press-down to all non-disabled buttons/links that
-     have padding — avoids flickering on icon-only or borderless elements */
+  ::selection { background: var(--selection); }
+
+  /* Thin, theme-aware scrollbars */
+  * { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-track { background: transparent; }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-
   button:not(:disabled):active,
   [role="button"]:not([aria-disabled="true"]):active {
     transform: scale(0.975);
   }
 
-  /* Smooth base transitions for all interactive elements */
   a, button, [role="button"], [role="option"], [role="tab"] {
     transition-property: color, background-color, border-color, box-shadow, opacity, transform;
     transition-timing-function: ease;
     transition-duration: var(--t-base);
   }
 
-  /* ── Input focus quality ──────────────────────────────────────── */
+  /* ── Form controls: one token set, both themes ─────────────────── */
   input:not([type=checkbox]):not([type=radio]):not([type=range]),
   textarea,
   select {
+    background-color: var(--bg-surface);
+    border-color: var(--border-default);
+    color: var(--text-primary);
     transition: border-color var(--t-base) ease, box-shadow var(--t-base) ease, background-color var(--t-base) ease;
   }
+  input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
 
   input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,
   textarea:focus,
   select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
   }
 
-  .dark input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,
-  .dark textarea:focus,
-  .dark select:focus {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  /* The native dropdown popup: explicit colours so it is readable in dark mode */
+  select, option, optgroup {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
   }
+  option:checked { background-color: var(--accent-soft); }
+
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+  input[type=date]::-webkit-calendar-picker-indicator { opacity: .7; }
+  .dark input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
 }
 
 /* ------------------------------------------------------------------ */
 /* Keyframe animations                                                  */
 /* ------------------------------------------------------------------ */
 
-@keyframes dd-modal-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes dd-backdrop-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes dd-dropdown-in {
-  from {
-    opacity: 0;
-    transform: translateY(-5px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes dd-dropdown-up {
-  from {
-    opacity: 0;
-    transform: translateY(5px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes dd-slide-right-in {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes dd-slide-right-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-}
-
-@keyframes dd-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes dd-skeleton-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
+@keyframes dd-modal-in    { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes dd-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dd-dropdown-in { from { opacity: 0; transform: translateY(-5px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes dd-dropdown-up { from { opacity: 0; transform: translateY(5px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes dd-slide-right-in  { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes dd-slide-right-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
+@keyframes dd-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dd-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 /* ------------------------------------------------------------------ */
 /* Component utilities                                                  */
 /* ------------------------------------------------------------------ */
 
 @layer components {
-  /* ── Focus ring ───────────────────────────────────────────────── */
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-canvas;
   }
 
-  /* ── Page typography ──────────────────────────────────────────── */
   .page-title {
-    @apply text-xl font-semibold tracking-tight text-gray-900 dark:text-ink;
+    @apply text-2xl font-extrabold tracking-[-0.03em] text-ink;
   }
   .page-subtitle {
-    @apply mt-0.5 text-sm leading-relaxed text-gray-500 dark:text-ink-2;
+    @apply mt-0.5 text-sm leading-relaxed text-ink-2;
+  }
+  /* Small mono uppercase label — the "Radar" data-label voice */
+  .label-mono {
+    @apply font-mono text-[10px] uppercase tracking-label text-ink-3;
   }
 
-  /* ── Card base ────────────────────────────────────────────────── */
   .card-base {
-    @apply bg-white dark:bg-surface rounded-xl border border-gray-200 dark:border-stroke
-           overflow-hidden shadow-card;
+    @apply bg-surface rounded-xl border border-stroke overflow-hidden shadow-card;
   }
-
-  /* Hoverable variant — adds a lift shadow on hover */
   .card-hover {
     @apply transition-all duration-200 hover:shadow-card-md hover:-translate-y-px;
   }
 
-  /* ── Animation classes ────────────────────────────────────────── */
-  /* Used by modal */
-  .animate-in {
-    animation: dd-modal-in 200ms var(--ease-out) both;
-  }
+  .animate-in            { animation: dd-modal-in 200ms var(--ease-out) both; }
+  .animate-backdrop      { animation: dd-backdrop-in 200ms ease both; }
+  .animate-dropdown      { animation: dd-dropdown-in 160ms var(--ease-out) both; transform-origin: top center; }
+  .animate-dropdown-up   { animation: dd-dropdown-up 160ms var(--ease-out) both; transform-origin: bottom center; }
+  .animate-slide-right-in  { animation: dd-slide-right-in 200ms var(--ease-out) both; }
+  .animate-slide-right-out { animation: dd-slide-right-out 180ms ease-in both; }
+  .animate-fade-in       { animation: dd-fade-in 150ms ease both; }
 
-  /* Backdrop fade */
-  .animate-backdrop {
-    animation: dd-backdrop-in 200ms ease both;
-  }
-
-  /* Dropdown slides down from trigger */
-  .animate-dropdown {
-    animation: dd-dropdown-in 160ms var(--ease-out) both;
-    transform-origin: top center;
-  }
-
-  /* Dropdown slides up from trigger (for dropdowns above) */
-  .animate-dropdown-up {
-    animation: dd-dropdown-up 160ms var(--ease-out) both;
-    transform-origin: bottom center;
-  }
-
-  /* Slide in from right (toasts, panels) */
-  .animate-slide-right-in {
-    animation: dd-slide-right-in 200ms var(--ease-out) both;
-  }
-
-  /* Slide out to right */
-  .animate-slide-right-out {
-    animation: dd-slide-right-out 180ms ease-in both;
-  }
-
-  /* Generic fade in */
-  .animate-fade-in {
-    animation: dd-fade-in 150ms ease both;
-  }
-
-  /* ── Shimmer skeleton ─────────────────────────────────────────── */
-  /* More polished than plain pulse — use alongside animate-pulse */
   .skeleton-shimmer {
-    background: linear-gradient(
-      90deg,
-      var(--bg-surface-raised) 25%,
-      var(--bg-canvas)         50%,
-      var(--bg-surface-raised) 75%
-    );
+    background: linear-gradient(90deg, var(--bg-surface-raised) 25%, var(--bg-canvas) 50%, var(--bg-surface-raised) 75%);
     background-size: 200% 100%;
     animation: dd-skeleton-shimmer 1.4s ease infinite;
   }
 
-  /* ── Buttons ──────────────────────────────────────────────────── */
-  /* Primary CTA */
   .btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           bg-brand-600 text-white text-sm font-medium
-           hover:bg-brand-700 active:bg-brand-700
+           bg-slate-900 text-white text-sm font-semibold
+           hover:bg-slate-800 active:bg-slate-800
+           dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
            transition-all duration-150;
   }
-
-  /* Ghost / outline */
   .btn-ghost {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           border border-gray-200 dark:border-stroke
-           text-gray-700 dark:text-ink-2 text-sm font-medium
-           bg-white dark:bg-surface
-           hover:bg-gray-50 dark:hover:bg-surface-high hover:border-gray-300
+           border border-stroke text-ink-2 text-sm font-semibold bg-surface
+           hover:bg-surface-high hover:text-ink
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
            disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none
            transition-all duration-150;
   }
-
-  /* Danger */
   .btn-danger {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           bg-red-600 text-white text-sm font-medium
+           bg-red-600 text-white text-sm font-semibold
            hover:bg-red-700 active:bg-red-800
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
@@ -283,108 +200,100 @@
 
 /* ------------------------------------------------------------------ */
 /* Dark mode compatibility layer                                        */
+/* Pages still carry light-only utilities (bg-white, text-gray-*,       */
+/* hover:bg-gray-50…). Until each page is migrated to tokens, remap     */
+/* them here so every surface, border and hover reads correctly.        */
 /* ------------------------------------------------------------------ */
 
 /* Surfaces */
-.dark .bg-white                  { background-color: var(--bg-surface); }
-.dark .bg-gray-50                { background-color: var(--bg-surface-raised); }
-.dark .bg-gray-100               { background-color: var(--bg-surface-raised); }
+.dark .bg-white                         { background-color: var(--bg-surface); }
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-slate-50,
+.dark .bg-slate-100                     { background-color: var(--bg-surface-raised); }
+.dark .bg-gray-50\/50,
+.dark .bg-gray-50\/60,
+.dark .bg-gray-100\/60                  { background-color: rgba(148,163,184,0.06); }
 
-/* Borders */
-.dark .border-gray-50,
-.dark .border-gray-100,
-.dark .border-gray-200,
-.dark .border-gray-300           { border-color: var(--border-default); }
-
-/* Dividers */
-.dark .divide-gray-50  > * + *,
-.dark .divide-gray-100 > * + *,
-.dark .divide-gray-200 > * + *   { border-color: var(--border-default); }
+/* Borders & dividers */
+.dark .border-gray-50, .dark .border-gray-100, .dark .border-gray-200, .dark .border-gray-300,
+.dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-300 { border-color: var(--border-default); }
+.dark .divide-gray-50 > * + *, .dark .divide-gray-100 > * + *, .dark .divide-gray-200 > * + *,
+.dark .divide-slate-100 > * + * { border-color: var(--border-muted); }
+.dark .ring-gray-200, .dark .ring-gray-300 { --tw-ring-color: var(--border-default); }
 
 /* Text */
-.dark .text-gray-900,
-.dark .text-gray-800             { color: var(--text-primary); }
-.dark .text-gray-700,
-.dark .text-gray-600             { color: var(--text-secondary); }
-.dark .text-gray-500,
-.dark .text-gray-400             { color: var(--text-tertiary); }
-/* gray-300 and gray-200 would be near-white on dark — keep them dim */
-.dark .text-gray-300             { color: var(--text-tertiary); }
-.dark .text-gray-200             { color: rgba(255,255,255,0.18); }
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-slate-900, .dark .text-slate-800 { color: var(--text-primary); }
+.dark .text-gray-700, .dark .text-gray-600, .dark .text-slate-700, .dark .text-slate-600 { color: var(--text-secondary); }
+.dark .text-gray-500, .dark .text-gray-400, .dark .text-slate-500, .dark .text-slate-400 { color: var(--text-tertiary); }
+.dark .text-gray-300                    { color: var(--text-tertiary); }
+.dark .text-gray-200                    { color: rgba(226,232,240,0.25); }
+.dark .placeholder-gray-400::placeholder { color: var(--text-tertiary); }
 
-/* Hover surfaces */
-.dark .hover\:bg-gray-50:hover,
-.dark .hover\:bg-gray-100:hover  { background-color: var(--bg-surface-raised) !important; }
+/* Hover surfaces & text */
+.dark .hover\:bg-gray-50:hover, .dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-50:hover, .dark .hover\:bg-slate-100:hover { background-color: var(--bg-surface-raised) !important; }
+.dark .hover\:bg-white:hover            { background-color: var(--bg-surface-raised) !important; }
+.dark .hover\:text-gray-900:hover, .dark .hover\:text-gray-800:hover { color: var(--text-primary) !important; }
+.dark .hover\:text-gray-700:hover, .dark .hover\:text-gray-600:hover { color: var(--text-secondary) !important; }
+.dark .hover\:border-gray-300:hover, .dark .hover\:border-gray-400:hover { border-color: rgba(148,163,184,0.35) !important; }
 
-/* Hover text — prevent dark text appearing on dark hover backgrounds */
-.dark .hover\:text-gray-900:hover,
-.dark .hover\:text-gray-800:hover { color: var(--text-primary) !important; }
-.dark .hover\:text-gray-700:hover,
-.dark .hover\:text-gray-600:hover { color: var(--text-secondary) !important; }
+/* Shadows read as glow-less on dark; keep edges via borders instead */
+.dark .shadow-lg, .dark .shadow-xl, .dark .shadow-2xl, .dark .shadow-card-lg { box-shadow: 0 16px 40px rgba(2,6,23,0.6); }
 
-/* Brand accent backgrounds — map light tints to dark-safe equivalents */
-.dark .bg-brand-50,
-.dark .bg-brand-50\/80           { background-color: rgba(37, 99, 235, 0.12) !important; }
-.dark .bg-brand-100              { background-color: rgba(37, 99, 235, 0.20) !important; }
-.dark .border-brand-200,
-.dark .border-brand-300          { border-color: rgba(59, 130, 246, 0.30) !important; }
-.dark .text-brand-700            { color: #93c5fd !important; }
-.dark .text-brand-600            { color: #60a5fa !important; }
-.dark .hover\:bg-brand-50:hover,
-.dark .hover\:bg-brand-100:hover { background-color: rgba(37, 99, 235, 0.15) !important; }
+/* Brand tints (teal) */
+.dark .bg-brand-50, .dark .bg-brand-50\/80 { background-color: rgba(45,212,191,0.10) !important; }
+.dark .bg-brand-100                     { background-color: rgba(45,212,191,0.18) !important; }
+.dark .bg-brand-600, .dark .bg-brand-700 { background-color: #2dd4bf !important; color: #0f172a !important; }
+.dark .hover\:bg-brand-700:hover        { background-color: #5eead4 !important; }
+.dark .text-brand-600, .dark .text-brand-700, .dark .text-brand-800 { color: #5eead4 !important; }
+.dark .border-brand-100, .dark .border-brand-200, .dark .border-brand-300 { border-color: rgba(45,212,191,0.35) !important; }
+.dark .hover\:bg-brand-50:hover, .dark .hover\:bg-brand-100:hover { background-color: rgba(45,212,191,0.14) !important; }
+.dark .hover\:text-brand-600:hover, .dark .hover\:text-brand-700:hover { color: #99f6e4 !important; }
 
-/* Status badge backgrounds — map light semantic tints to dark-safe versions */
-/* 100-shade badges */
-.dark .bg-green-100  { background-color: rgba(34, 197, 94, 0.15) !important; }
-.dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.15) !important; }
-.dark .bg-red-100    { background-color: rgba(239, 68, 68, 0.15) !important; }
-.dark .bg-orange-100 { background-color: rgba(249, 115, 22, 0.15) !important; }
-.dark .bg-amber-100  { background-color: rgba(245, 158, 11, 0.15) !important; }
-.dark .bg-purple-100 { background-color: rgba(168, 85, 247, 0.15) !important; }
-/* 50-shade badges (activity pills, dashboard KPI icons) */
-.dark .bg-green-50   { background-color: rgba(34, 197, 94, 0.10) !important; }
-.dark .bg-red-50     { background-color: rgba(239, 68, 68, 0.10) !important; }
-.dark .bg-orange-50  { background-color: rgba(249, 115, 22, 0.10) !important; }
-.dark .bg-amber-50   { background-color: rgba(245, 158, 11, 0.10) !important; }
-.dark .bg-blue-50    { background-color: rgba(59, 130, 246, 0.10) !important; }
-.dark .bg-purple-50  { background-color: rgba(168, 85, 247, 0.10) !important; }
-.dark .bg-teal-50    { background-color: rgba(20, 184, 166, 0.10) !important; }
-.dark .bg-teal-100   { background-color: rgba(20, 184, 166, 0.18) !important; }
-.dark .bg-indigo-50  { background-color: rgba(99, 102, 241, 0.10) !important; }
+/* Status tints */
+.dark .bg-green-100  { background-color: rgba(34,197,94,0.15) !important; }
+.dark .bg-yellow-100 { background-color: rgba(234,179,8,0.15) !important; }
+.dark .bg-red-100    { background-color: rgba(239,68,68,0.15) !important; }
+.dark .bg-orange-100 { background-color: rgba(249,115,22,0.15) !important; }
+.dark .bg-amber-100  { background-color: rgba(245,158,11,0.15) !important; }
+.dark .bg-purple-100 { background-color: rgba(168,85,247,0.15) !important; }
+.dark .bg-blue-100   { background-color: rgba(59,130,246,0.15) !important; }
+.dark .bg-green-50   { background-color: rgba(34,197,94,0.10) !important; }
+.dark .bg-red-50, .dark .bg-red-50\/60     { background-color: rgba(239,68,68,0.10) !important; }
+.dark .bg-orange-50, .dark .bg-orange-50\/60 { background-color: rgba(249,115,22,0.10) !important; }
+.dark .bg-yellow-50, .dark .bg-yellow-50\/60 { background-color: rgba(234,179,8,0.10) !important; }
+.dark .bg-amber-50   { background-color: rgba(245,158,11,0.10) !important; }
+.dark .bg-blue-50    { background-color: rgba(59,130,246,0.10) !important; }
+.dark .bg-purple-50  { background-color: rgba(168,85,247,0.10) !important; }
+.dark .bg-teal-50    { background-color: rgba(20,184,166,0.10) !important; }
+.dark .bg-teal-100   { background-color: rgba(20,184,166,0.18) !important; }
+.dark .bg-indigo-50  { background-color: rgba(99,102,241,0.10) !important; }
 
-/* Text colors */
-.dark .text-green-600  { color: #4ade80 !important; }
-.dark .text-green-700  { color: #4ade80 !important; }
-.dark .text-yellow-700 { color: #facc15 !important; }
-.dark .text-red-700    { color: #f87171 !important; }
-.dark .text-orange-700 { color: #fb923c !important; }
-.dark .text-orange-600 { color: #fb923c !important; }
-.dark .text-amber-700  { color: #fbbf24 !important; }
-.dark .text-blue-600   { color: #60a5fa !important; }
-.dark .text-blue-700   { color: #93c5fd !important; }
-.dark .text-purple-600 { color: #c084fc !important; }
-.dark .text-purple-700 { color: #c084fc !important; }
-.dark .text-teal-600   { color: #2dd4bf !important; }
-.dark .text-teal-700   { color: #2dd4bf !important; }
+.dark .text-green-600, .dark .text-green-700   { color: #4ade80 !important; }
+.dark .text-yellow-700, .dark .text-yellow-800 { color: #facc15 !important; }
+.dark .text-red-600, .dark .text-red-700       { color: #f87171 !important; }
+.dark .text-orange-600, .dark .text-orange-700 { color: #fb923c !important; }
+.dark .text-amber-700, .dark .text-amber-800, .dark .text-amber-900 { color: #fbbf24 !important; }
+.dark .text-blue-600, .dark .text-blue-700     { color: #93c5fd !important; }
+.dark .text-purple-600, .dark .text-purple-700 { color: #c084fc !important; }
+.dark .text-teal-600, .dark .text-teal-700     { color: #2dd4bf !important; }
+.dark .text-a16207 { color: #fbbf24 !important; }
 
-/* Gradient stops */
-.dark .from-brand-50 { --tw-gradient-from: rgba(37, 99, 235, 0.14) var(--tw-gradient-from-position) !important; }
-.dark .to-indigo-50  { --tw-gradient-to: rgba(99, 102, 241, 0.08) var(--tw-gradient-to-position) !important; }
+.dark .from-brand-50 { --tw-gradient-from: rgba(45,212,191,0.12) var(--tw-gradient-from-position) !important; }
+.dark .to-indigo-50  { --tw-gradient-to: rgba(99,102,241,0.08) var(--tw-gradient-to-position) !important; }
 
-/* Borders */
-.dark .border-red-100    { border-color: rgba(239, 68, 68, 0.20) !important; }
-.dark .border-red-200    { border-color: rgba(239, 68, 68, 0.35) !important; }
-.dark .border-orange-100 { border-color: rgba(249, 115, 22, 0.20) !important; }
-.dark .border-orange-200 { border-color: rgba(249, 115, 22, 0.35) !important; }
-.dark .border-brand-100  { border-color: rgba(59, 130, 246, 0.20) !important; }
+.dark .border-red-100, .dark .border-red-200       { border-color: rgba(239,68,68,0.35) !important; }
+.dark .border-orange-100, .dark .border-orange-200 { border-color: rgba(249,115,22,0.35) !important; }
+.dark .border-yellow-200                           { border-color: rgba(234,179,8,0.35) !important; }
+.dark .border-amber-200, .dark .border-amber-300   { border-color: rgba(245,158,11,0.40) !important; }
+.dark .border-green-200                            { border-color: rgba(34,197,94,0.35) !important; }
+.dark .border-blue-200                             { border-color: rgba(59,130,246,0.35) !important; }
 
-/* Inputs */
-.dark input:not([type=checkbox]):not([type=radio]),
-.dark textarea,
-.dark select {
-  background-color: var(--bg-surface-raised);
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-.dark input::placeholder,
-.dark textarea::placeholder       { color: var(--text-tertiary); }
+/* Custom dropdown / combobox panels built as plain divs */
+.dark .shadow-lg.bg-white, .dark .absolute.bg-white { background-color: var(--bg-surface-raised); }
+
+/* ------------------------------------------------------------------ */
+/* Clerk components — follow the app theme                             */
+/* ------------------------------------------------------------------ */
+.cl-rootBox, .cl-card, .cl-cardBox { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important; }

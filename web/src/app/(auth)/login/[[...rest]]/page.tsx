@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { SignIn } from '@clerk/nextjs';
 import LoginForm from '@/components/auth/LoginForm';
+import AuthShell, { authPanelAppearance } from '@/components/auth/AuthShell';
 
 export const metadata: Metadata = {
   title: 'Sign In',
@@ -10,60 +12,35 @@ export const metadata: Metadata = {
 const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 /**
- * Login page — catch-all route required by Clerk's <SignIn> component.
- *
- * The [[...rest]] catch-all lets Clerk handle its internal sub-routes
- * (SSO callback, MFA, factor selection, etc.) without needing separate pages.
- *
- * When NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is set:
- *   Renders Clerk's <SignIn> — supports Google, Microsoft, and any providers
- *   configured in your Clerk dashboard.
- *
- * When the key is absent (local dev / open-source):
- *   Renders the original email+password LoginForm.
+ * Login page — catch-all route required by Clerk's <SignIn> component
+ * (SSO callback, MFA and factor sub-routes resolve here).
  */
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        {/* Logo / Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-600 mb-4">
-            <span className="text-white font-bold text-xl">D</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">DockyDoc</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Sign in to your workspace
-          </p>
+    <AuthShell
+      title="Know what expires before it does."
+      subtitle="One-time code by email or SMS. No password to remember."
+      footer={
+        <>
+          New team?{' '}
+          <Link href="/register" className="font-semibold text-brand-300 hover:text-brand-200">
+            Create a workspace
+          </Link>
+        </>
+      }
+    >
+      {clerkEnabled ? (
+        <SignIn
+          forceRedirectUrl="/dashboard"
+          fallbackRedirectUrl="/dashboard"
+          signUpUrl="/register"
+          appearance={authPanelAppearance}
+        />
+      ) : (
+        <div className="w-full rounded-2xl border border-slate-400/20 bg-[#111a2e] p-6">
+          <LoginForm />
         </div>
-
-        {clerkEnabled ? (
-          /* Clerk SSO — Google, Microsoft, etc. — configured in Clerk dashboard */
-          <div className="flex justify-center">
-            <SignIn
-              forceRedirectUrl="/dashboard"
-              fallbackRedirectUrl="/dashboard"
-              appearance={{
-                elements: {
-                  rootBox: 'w-full',
-                  card: 'rounded-2xl shadow-sm border border-gray-200 w-full',
-                  headerTitle: 'hidden',
-                  headerSubtitle: 'hidden',
-                },
-              }}
-            />
-          </div>
-        ) : (
-          /* Dev / open-source fallback — email+password form */
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-            <LoginForm />
-          </div>
-        )}
-
-        <p className="mt-6 text-center text-xs text-gray-400">
-          &copy; {new Date().getFullYear()} DockyDoc. All rights reserved.
-        </p>
-      </div>
-    </div>
+      )}
+    </AuthShell>
   );
 }

@@ -63,7 +63,7 @@ export default function Sidebar() {
         className={cn(
           // Always dark, regardless of light/dark mode — matches new cool canvas
           'fixed inset-y-0 left-0 z-50 flex flex-col w-[220px] flex-shrink-0',
-          'bg-[#0d1117] border-r border-white/[0.08]',
+          'bg-[#0f172a] border-r border-slate-400/[0.12]',
           // Slide in/out on mobile; always visible on desktop
           'transition-transform duration-200 ease-out',
           'lg:static lg:translate-x-0 lg:z-auto',
@@ -71,39 +71,43 @@ export default function Sidebar() {
         )}
       >
         {/* ── Logo bar ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2.5 px-4 h-[52px] border-b border-white/[0.08] flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
-            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-white">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth={2.5} />
-              <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth={2.5} strokeLinejoin="round" />
+        <div className="flex items-center gap-2.5 px-4 h-[52px] border-b border-slate-400/[0.12] flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-brand-400 flex items-center justify-center flex-shrink-0">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-slate-900">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth={2.6} />
+              <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth={2.6} strokeLinejoin="round" />
             </svg>
           </div>
-          <span className="text-sm font-semibold text-white tracking-tight">DockyDoc</span>
+          <span className="text-sm font-extrabold text-white tracking-[-0.02em]">DockyDoc</span>
         </div>
 
         {/* ── Active workspace ─────────────────────────────────────── */}
-        <div className="px-3 pt-3 pb-2.5 border-b border-white/[0.08] flex-shrink-0">
+        <div className="px-3 pt-3 pb-2 flex-shrink-0">
           {isLoading || !activeWorkspace ? (
             <div className="px-2 py-2 space-y-1.5">
               <div className="h-3.5 w-28 bg-white/[0.08] rounded animate-pulse" />
               <div className="h-3 w-20 bg-white/[0.05] rounded animate-pulse" />
             </div>
           ) : (
-            <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg">
-              <div className="w-7 h-7 rounded-md bg-brand-600/70 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">
+            <Link
+              href="/workspaces"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/[0.05] border border-slate-400/[0.15] hover:bg-white/[0.08] transition-colors"
+            >
+              <div className="w-7 h-7 rounded-md bg-brand-400/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-brand-300 text-xs font-bold">
                   {activeWorkspace.workspaceName[0].toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white/90 truncate leading-tight">
+                <p className="text-xs font-bold text-white truncate leading-tight">
                   {activeWorkspace.workspaceName}
                 </p>
-                <p className="text-[10px] text-white/40 truncate leading-tight mt-0.5 capitalize">
-                  {activeWorkspace.workspaceType.toLowerCase()} · {activeWorkspace.role}
+                <p className="font-mono text-[10px] text-slate-400 truncate leading-tight mt-0.5 uppercase tracking-label">
+                  {activeWorkspace.workspaceType.slice(0, 3)} · {activeWorkspace.role}
                 </p>
               </div>
-            </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 flex-shrink-0"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+            </Link>
           )}
         </div>
 
@@ -116,16 +120,12 @@ export default function Sidebar() {
                 key={href}
                 href={href}
                 className={cn(
-                  'group relative flex items-center gap-2.5 px-3 h-9 rounded-lg text-sm font-medium transition-all duration-150',
+                  'group relative flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-semibold transition-all duration-150',
                   active
-                    ? 'bg-white/[0.09] text-white'
-                    : 'text-white/50 hover:bg-white/[0.05] hover:text-white/75',
+                    ? 'bg-brand-400/[0.14] text-brand-100 shadow-[inset_3px_0_0_#2dd4bf]'
+                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
                 )}
               >
-                {/* Active indicator dot */}
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-brand-400 opacity-90" />
-                )}
                 <span className="flex-shrink-0">
                   <Icon active={active} />
                 </span>
@@ -136,7 +136,7 @@ export default function Sidebar() {
         </nav>
 
         {/* ── User footer ──────────────────────────────────────────── */}
-        <div className="px-4 py-3.5 border-t border-white/[0.08] flex-shrink-0">
+        <div className="px-4 py-3.5 border-t border-slate-400/[0.12] flex-shrink-0">
           {isLoading ? (
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-full bg-white/[0.08] animate-pulse" />
@@ -147,14 +147,14 @@ export default function Sidebar() {
             </div>
           ) : (
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-brand-600/25 border border-brand-500/25 flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-300 text-[10px] font-bold">{initials}</span>
+              <div className="w-7 h-7 rounded-full bg-brand-400/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-brand-300 text-[10px] font-extrabold">{initials}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white/80 truncate">
+                <p className="text-xs font-semibold text-slate-100 truncate">
                   {user ? `${user.firstName} ${user.lastName}` : '—'}
                 </p>
-                <p className="text-[10px] text-white/35 truncate">{user?.email ?? '—'}</p>
+                <p className="text-[10px] text-slate-500 truncate">{user?.email ?? '—'}</p>
               </div>
             </div>
           )}

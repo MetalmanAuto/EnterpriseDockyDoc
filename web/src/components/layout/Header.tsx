@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useSidebar } from '@/context/SidebarContext';
@@ -62,13 +63,13 @@ export default function Header() {
   const initials = user ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : '?';
 
   return (
-    <header className="h-[52px] bg-white dark:bg-surface border-b border-gray-200 dark:border-stroke flex items-center gap-3 px-4 flex-shrink-0">
+    <header className="h-[52px] bg-surface border-b border-stroke flex items-center gap-3 px-4 flex-shrink-0">
       {/* Mobile hamburger — hidden on desktop */}
       <button
         type="button"
         onClick={toggleSidebar}
         aria-label="Toggle sidebar"
-        className="lg:hidden w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-ink-3 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        className="lg:hidden w-8 h-8 flex items-center justify-center rounded-md text-ink-3 hover:bg-surface-high transition-colors"
       >
         <HamburgerIcon />
       </button>
@@ -76,16 +77,30 @@ export default function Header() {
       {/* Page title */}
       <div className="flex-1 min-w-0">
         {isLoading ? (
-          <div className="h-4 w-24 bg-gray-200 dark:bg-white/10 rounded animate-pulse" />
+          <div className="h-4 w-24 bg-surface-high rounded animate-pulse" />
         ) : (
-          <span className="text-sm font-semibold text-gray-900 dark:text-ink truncate">
+          <span className="text-[13px] font-bold text-ink truncate">
             {pageTitle}
           </span>
         )}
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Link
+          href="/documents"
+          className="hidden md:flex items-center gap-2 h-8 w-60 px-3 rounded-lg bg-surface-high border border-stroke text-xs text-ink-3 hover:border-brand-400 transition-colors"
+        >
+          <SearchIcon />
+          <span className="flex-1 text-left">Search documents…</span>
+          <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-stroke text-ink-3">⌘K</kbd>
+        </Link>
+        <Link href="/documents?upload=1" className="btn-primary h-8 px-3 py-0 text-xs">
+          Upload
+        </Link>
+
+        <div className="w-px h-5 bg-stroke mx-1" />
+
         {/* Dark mode toggle */}
         <button
           type="button"
@@ -93,9 +108,7 @@ export default function Header() {
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           className={cn(
             'w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150',
-            'text-gray-400 dark:text-ink-3',
-            'hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-600 dark:hover:text-ink',
-            'active:scale-90',
+            'text-ink-3 hover:bg-surface-high hover:text-ink active:scale-90',
           )}
         >
           {isDark ? <SunIcon /> : <MoonIcon />}
@@ -104,7 +117,7 @@ export default function Header() {
         {/* User avatar */}
         <div
           title={user ? `${user.firstName} ${user.lastName} — ${user.email}` : ''}
-          className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-[11px] font-semibold text-brand-700 dark:text-brand-300 flex-shrink-0 select-none"
+          className="w-7 h-7 rounded-full bg-brand-400/20 flex items-center justify-center text-[11px] font-extrabold text-brand-700 dark:text-brand-300 flex-shrink-0 select-none"
           role="img"
           aria-label={user ? `${user.firstName} ${user.lastName}` : 'User'}
         >
@@ -119,9 +132,7 @@ export default function Header() {
           aria-label="Sign out"
           className={cn(
             'w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150',
-            'text-gray-400 dark:text-ink-3',
-            'hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-600 dark:hover:text-ink',
-            'active:scale-90',
+            'text-ink-3 hover:bg-surface-high hover:text-ink active:scale-90',
           )}
         >
           <LogoutIcon />
@@ -141,6 +152,15 @@ function HamburgerIcon() {
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
     </svg>
   );
 }
