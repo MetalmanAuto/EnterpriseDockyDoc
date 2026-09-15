@@ -147,7 +147,7 @@ export default function SettingsPage() {
       <div className="flex gap-6 items-start">
         {/* ---- Left sidebar nav ---- */}
         <aside className="w-44 flex-shrink-0">
-          <nav className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <nav className="bg-surface rounded-xl border border-stroke overflow-hidden">
             {NAV_ITEMS.map((item, i) => (
               <button
                 key={item.id}
@@ -155,10 +155,10 @@ export default function SettingsPage() {
                 onClick={() => setActiveSection(item.id)}
                 className={cn(
                   'w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors',
-                  i < NAV_ITEMS.length - 1 && 'border-b border-gray-50',
+                  i < NAV_ITEMS.length - 1 && 'border-b border-stroke-soft',
                   activeSection === item.id
                     ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 font-semibold'
-                    : 'text-gray-600 dark:text-ink-2 hover:bg-gray-50 dark:hover:bg-surface-high hover:text-gray-900 dark:hover:text-ink',
+                    : 'text-ink-2 hover:bg-surface-high hover:text-ink',
                 )}
               >
                 <NavIcon sectionId={item.id} active={activeSection === item.id} />
@@ -226,7 +226,7 @@ export default function SettingsPage() {
 // ------------------------------------------------------------------ //
 
 function NavIcon({ sectionId, active }: { sectionId: SectionId; active: boolean }) {
-  const cls = cn('flex-shrink-0', active ? 'text-brand-600' : 'text-gray-400');
+  const cls = cn('flex-shrink-0', active ? 'text-brand-600' : 'text-ink-3');
   const s = { width: 14, height: 14, fill: 'none', stroke: 'currentColor', strokeWidth: 2, viewBox: '0 0 24 24' };
   switch (sectionId) {
     case 'general':
@@ -281,10 +281,10 @@ function GeneralSection({
     <div className="space-y-5">
       {/* Workspace */}
       <SectionCard title="Workspace" subtitle="Details about this workspace">
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-stroke-soft">
           {/* Name row with optional rename */}
           <div className="flex items-center justify-between py-3">
-            <span className="text-xs font-medium text-gray-500 w-36 flex-shrink-0">Name</span>
+            <span className="text-xs font-medium text-ink-3 w-36 flex-shrink-0">Name</span>
             {renamingWorkspace ? (
               <form onSubmit={onRenameSubmit} className="flex-1 flex items-center gap-2">
                 <input
@@ -292,26 +292,26 @@ function GeneralSection({
                   value={renameValue}
                   onChange={(e) => onRenameChange(e.target.value)}
                   autoFocus
-                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="flex-1 h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 <button
                   type="submit"
                   disabled={renameSaving || !renameValue.trim()}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50"
                 >
                   {renameSaving ? '…' : 'Save'}
                 </button>
                 <button
                   type="button"
                   onClick={onCancelRename}
-                  className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+                  className="px-3 py-1.5 text-xs text-ink-3 hover:text-ink-2"
                 >
                   Cancel
                 </button>
               </form>
             ) : (
               <div className="flex-1 flex items-center justify-between">
-                <span className="text-sm text-gray-800">{displayName}</span>
+                <span className="text-sm text-ink">{displayName}</span>
                 {canManage && (
                   <button onClick={onStartRename} className="text-xs text-brand-600 hover:underline">
                     Rename
@@ -330,7 +330,7 @@ function GeneralSection({
 
       {/* Account */}
       <SectionCard title="Account" subtitle="Your personal account information">
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-stroke-soft">
           <InfoRow label="Name"  value={user ? `${user.firstName} ${user.lastName}` : '—'} />
           <InfoRow label="Email" value={user?.email ?? '—'} last />
         </div>
@@ -446,7 +446,7 @@ function TagsSection({
       }
     >
       {loading ? (
-        <div className="py-6 text-center text-sm text-gray-400">Loading tags…</div>
+        <div className="py-6 text-center text-sm text-ink-3">Loading tags…</div>
       ) : (
         <>
           {/* Search */}
@@ -454,7 +454,7 @@ function TagsSection({
             <div className="mb-4">
               <div className="relative">
                 <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none"
                   width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
                 >
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" strokeLinecap="round" />
@@ -464,7 +464,7 @@ function TagsSection({
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setVisibleCount(TAGS_PAGE_SIZE); }}
                   placeholder="Search tags…"
-                  className="w-full pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full h-9 rounded-lg border border-stroke bg-surface pl-8 pr-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </div>
@@ -476,14 +476,14 @@ function TagsSection({
 
           {/* New tag form */}
           {showNew && (
-            <form onSubmit={handleCreate} className="flex items-center gap-2 pb-3 mb-3 border-b border-gray-100">
+            <form onSubmit={handleCreate} className="flex items-center gap-2 pb-3 mb-3 border-b border-stroke">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Tag name"
                 autoFocus
-                className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="flex-1 h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <div className="flex gap-1">
                 {PRESET_COLORS.map((c) => (
@@ -493,7 +493,7 @@ function TagsSection({
                     onClick={() => setNewColor(c)}
                     className={cn(
                       'w-5 h-5 rounded-full transition-transform',
-                      newColor === c ? 'scale-125 ring-2 ring-offset-1 ring-gray-400' : '',
+                      newColor === c ? 'scale-125 ring-2 ring-offset-1 ring-ink-3' : '',
                     )}
                     style={{ backgroundColor: c }}
                   />
@@ -502,14 +502,14 @@ function TagsSection({
               <button
                 type="submit"
                 disabled={saving || !newName.trim()}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50"
               >
                 {saving ? '…' : 'Create'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowNew(false)}
-                className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+                className="px-3 py-1.5 text-xs text-ink-3 hover:text-ink-2"
               >
                 Cancel
               </button>
@@ -518,12 +518,12 @@ function TagsSection({
 
           {/* Tag list */}
           {filtered.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">
+            <p className="text-sm text-ink-3 py-4 text-center">
               {search ? 'No tags match your search.' : 'No tags yet. Create one to organize your documents.'}
             </p>
           ) : (
             <>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-stroke-soft">
                 {visible.map((tag) =>
                   editingTag?.id === tag.id ? (
                     <TagEditRow
@@ -551,13 +551,13 @@ function TagsSection({
                       <div className="ml-auto flex items-center gap-1">
                         <button
                           onClick={() => setEditingTag(tag)}
-                          className="text-xs text-gray-400 hover:text-brand-600 transition-colors px-2 py-1"
+                          className="text-xs text-ink-3 hover:text-brand-600 transition-colors px-2 py-1"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setPendingDelete(tag)}
-                          className="text-xs text-gray-400 hover:text-red-600 transition-colors px-2 py-1"
+                          className="text-xs text-ink-3 hover:text-red-600 transition-colors px-2 py-1"
                         >
                           Delete
                         </button>
@@ -574,13 +574,13 @@ function TagsSection({
                   className="mt-3 text-xs text-brand-600 hover:underline"
                 >
                   Show {Math.min(TAGS_PAGE_SIZE, filtered.length - visibleCount)} more
-                  <span className="text-gray-400 ml-1">({filtered.length - visibleCount} remaining)</span>
+                  <span className="text-ink-3 ml-1">({filtered.length - visibleCount} remaining)</span>
                 </button>
               )}
               {!hasMoreTags && visibleCount > TAGS_PAGE_SIZE && (
                 <button
                   onClick={() => setVisibleCount(TAGS_PAGE_SIZE)}
-                  className="mt-3 text-xs text-gray-400 hover:text-gray-600 hover:underline"
+                  className="mt-3 text-xs text-ink-3 hover:text-ink-2 hover:underline"
                 >
                   Show less
                 </button>
@@ -637,20 +637,20 @@ function AiSection({
   return (
     <SectionCard title="AI Configuration" subtitle="Manage how DockyDoc AI processes your documents">
       {loading ? (
-        <div className="py-6 text-center text-sm text-gray-400">Loading AI settings…</div>
+        <div className="py-6 text-center text-sm text-ink-3">Loading AI settings…</div>
       ) : settings === null ? (
-        <div className="py-6 text-center text-sm text-gray-400">AI settings unavailable.</div>
+        <div className="py-6 text-center text-sm text-ink-3">AI settings unavailable.</div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-5 py-1">
           {/* Plan */}
-          <div className="flex items-center justify-between py-2 border-b border-gray-50">
+          <div className="flex items-center justify-between py-2 border-b border-stroke-soft">
             <div>
-              <p className="text-sm font-medium text-gray-800">Plan</p>
-              <p className="text-xs text-gray-400 mt-0.5">Your current AI usage tier</p>
+              <p className="text-sm font-medium text-ink">Plan</p>
+              <p className="text-xs text-ink-3 mt-0.5">Your current AI usage tier</p>
             </div>
             <span className={cn(
               'text-xs font-semibold px-2.5 py-1 rounded-full',
-              settings.plan === 'FREE'       && 'bg-gray-100 text-gray-600',
+              settings.plan === 'FREE'       && 'bg-surface-high text-ink-2',
               settings.plan === 'PRO'        && 'bg-blue-100 text-blue-700',
               settings.plan === 'ENTERPRISE' && 'bg-purple-100 text-purple-700',
             )}>
@@ -660,7 +660,7 @@ function AiSection({
 
           {/* Provider toggle */}
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">AI Provider</p>
+            <p className="text-xs font-medium text-ink-3 mb-2">AI Provider</p>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -669,7 +669,7 @@ function AiSection({
                   'rounded-xl border px-4 py-3 text-left text-sm transition-colors',
                   providerMode === 'PLATFORM'
                     ? 'border-brand-400 bg-brand-50 text-brand-800'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                    : 'border-stroke text-ink-2 hover:border-ink-3',
                 )}
               >
                 <div className="font-medium">DockyDoc AI</div>
@@ -682,7 +682,7 @@ function AiSection({
                   'rounded-xl border px-4 py-3 text-left text-sm transition-colors',
                   providerMode === 'BYOK'
                     ? 'border-brand-400 bg-brand-50 text-brand-800'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                    : 'border-stroke text-ink-2 hover:border-ink-3',
                 )}
               >
                 <div className="font-medium">Bring Your Own Key</div>
@@ -693,14 +693,14 @@ function AiSection({
 
           {/* Platform usage meter */}
           {providerMode === 'PLATFORM' && (
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs text-gray-600">
+            <div className="rounded-xl bg-surface-high border border-stroke p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs text-ink-2">
                 <span>Tokens used this period</span>
                 <span className="font-semibold tabular-nums">
                   {settings.aiUsageTokens.toLocaleString()} / {settings.aiUsageLimit.toLocaleString()}
                 </span>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-stroke rounded-full overflow-hidden">
                 <div
                   className={cn(
                     'h-full rounded-full transition-all',
@@ -732,26 +732,26 @@ function AiSection({
                   value={byokKey}
                   onChange={(e) => onByokKeyChange(e.target.value)}
                   placeholder={settings.hasApiKey ? 'Enter new key to replace…' : 'sk-ant-…'}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm pr-16 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 pr-16 text-sm text-ink focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                 />
                 <button
                   type="button"
                   onClick={onToggleShowKey}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-3 hover:text-ink-2"
                 >
                   {showByokKey ? 'Hide' : 'Show'}
                 </button>
               </div>
-              <p className="text-xs text-gray-400">Keys are encrypted at rest. Never shared or logged.</p>
+              <p className="text-xs text-ink-3">Keys are encrypted at rest. Never shared or logged.</p>
             </div>
           )}
 
           {canManage && (
-            <div className="flex justify-end pt-1 border-t border-gray-50">
+            <div className="flex justify-end pt-1 border-t border-stroke-soft">
               <button
                 type="submit"
                 disabled={saving || (providerMode === 'BYOK' && !settings.hasApiKey && !byokKey.trim())}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-xl hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving…' : 'Save AI Settings'}
               </button>
@@ -770,7 +770,7 @@ function AiSection({
 function RetentionSection() {
   return (
     <SectionCard title="Retention & Storage" subtitle="Configure document lifecycle and storage policies">
-      <div className="space-y-0 divide-y divide-gray-50">
+      <div className="space-y-0 divide-y divide-stroke-soft">
         <PlaceholderRow
           label="Auto-empty Trash"
           description="Automatically shred deleted documents after a set period"
@@ -789,14 +789,14 @@ function IntegrationsSection() {
   return (
     <SectionCard title="Integrations" subtitle="Connect DockyDoc with third-party tools and services">
       <div className="py-8 text-center">
-        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-gray-400">
+        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center mx-auto mb-3">
+          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-ink-3">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
         </div>
-        <p className="text-sm text-gray-500 font-medium">Integrations coming soon</p>
-        <p className="text-xs text-gray-400 mt-1">Connect with Slack, Google Drive, and more.</p>
+        <p className="text-sm text-ink-3 font-medium">Integrations coming soon</p>
+        <p className="text-xs text-ink-3 mt-1">Connect with Slack, Google Drive, and more.</p>
       </div>
     </SectionCard>
   );
@@ -806,13 +806,13 @@ function SecuritySection() {
   return (
     <SectionCard title="Security" subtitle="Authentication and access control settings">
       <div className="py-8 text-center">
-        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-gray-400">
+        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center mx-auto mb-3">
+          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-ink-3">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
         </div>
-        <p className="text-sm text-gray-500 font-medium">Security settings coming soon</p>
-        <p className="text-xs text-gray-400 mt-1">SSO, 2FA, and audit access controls.</p>
+        <p className="text-sm text-ink-3 font-medium">Security settings coming soon</p>
+        <p className="text-xs text-ink-3 mt-1">SSO, 2FA, and audit access controls.</p>
       </div>
     </SectionCard>
   );
@@ -834,11 +834,11 @@ function SectionCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
+    <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
+      <div className="px-6 py-4 border-b border-stroke flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-          {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          {subtitle && <p className="text-xs text-ink-3 mt-0.5">{subtitle}</p>}
         </div>
         {action && <div className="flex-shrink-0">{action}</div>}
       </div>
@@ -857,9 +857,9 @@ function InfoRow({
   last?: boolean;
 }) {
   return (
-    <div className={cn('flex items-center py-2.5', !last && 'border-b border-gray-50')}>
-      <span className="text-xs font-medium text-gray-500 w-36 flex-shrink-0">{label}</span>
-      <span className="text-sm text-gray-800">{value}</span>
+    <div className={cn('flex items-center py-2.5', !last && 'border-b border-stroke-soft')}>
+      <span className="text-xs font-medium text-ink-3 w-36 flex-shrink-0">{label}</span>
+      <span className="text-sm text-ink">{value}</span>
     </div>
   );
 }
@@ -874,12 +874,12 @@ function PlaceholderRow({
   last?: boolean;
 }) {
   return (
-    <div className={cn('flex items-center justify-between py-3', !last && 'border-b border-gray-50')}>
+    <div className={cn('flex items-center justify-between py-3', !last && 'border-b border-stroke-soft')}>
       <div>
-        <p className="text-sm font-medium text-gray-800">{label}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+        <p className="text-sm font-medium text-ink">{label}</p>
+        <p className="text-xs text-ink-3 mt-0.5">{description}</p>
       </div>
-      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0 ml-4">
+      <span className="text-xs text-ink-3 bg-surface-high px-2 py-1 rounded-full flex-shrink-0 ml-4">
         Coming soon
       </span>
     </div>
@@ -911,7 +911,7 @@ function TagEditRow({
         value={name}
         onChange={(e) => setName(e.target.value)}
         autoFocus
-        className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        className="flex-1 h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
       />
       <div className="flex gap-1">
         {PRESET_COLORS.map((c) => (
@@ -921,7 +921,7 @@ function TagEditRow({
             onClick={() => setColor(c)}
             className={cn(
               'w-5 h-5 rounded-full transition-transform',
-              color === c ? 'scale-125 ring-2 ring-offset-1 ring-gray-400' : '',
+              color === c ? 'scale-125 ring-2 ring-offset-1 ring-ink-3' : '',
             )}
             style={{ backgroundColor: c }}
           />
@@ -931,14 +931,14 @@ function TagEditRow({
         type="button"
         disabled={saving || !name.trim()}
         onClick={() => onSave(name.trim(), color)}
-        className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+        className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50"
       >
         {saving ? '…' : 'Save'}
       </button>
       <button
         type="button"
         onClick={onCancel}
-        className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+        className="px-3 py-1.5 text-xs text-ink-3 hover:text-ink-2"
       >
         Cancel
       </button>
@@ -953,15 +953,15 @@ function TagEditRow({
 function PageSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-7 w-28 bg-gray-200 rounded mb-2" />
-      <div className="h-4 w-44 bg-gray-100 rounded mb-6" />
+      <div className="h-7 w-28 bg-stroke rounded mb-2" />
+      <div className="h-4 w-44 bg-surface-high rounded mb-6" />
       <div className="flex gap-6">
         <div className="w-44 flex-shrink-0">
-          <div className="bg-gray-100 rounded-xl h-64" />
+          <div className="bg-surface-high rounded-xl h-64" />
         </div>
         <div className="flex-1 space-y-4">
-          <div className="bg-gray-100 rounded-xl h-40" />
-          <div className="bg-gray-100 rounded-xl h-28" />
+          <div className="bg-surface-high rounded-xl h-40" />
+          <div className="bg-surface-high rounded-xl h-28" />
         </div>
       </div>
     </div>

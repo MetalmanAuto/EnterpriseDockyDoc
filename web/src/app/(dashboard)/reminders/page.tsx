@@ -96,7 +96,7 @@ function RemindersPageInner() {
   if (userLoading || loading) return <PageSkeleton />;
 
   if (!activeWorkspace) {
-    return <div className="text-sm text-gray-500 p-4">No active workspace selected.</div>;
+    return <div className="text-sm text-ink-3 p-4">No active workspace selected.</div>;
   }
 
   if (error) {
@@ -129,7 +129,7 @@ function RemindersPageInner() {
 
       {/* ---- Tab bar + optional time filter ---- */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-surface-high rounded-lg p-1">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -138,15 +138,15 @@ function RemindersPageInner() {
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150',
                 activeTab === tab.id
-                  ? 'bg-white text-gray-900 shadow-sm scale-[1.01]'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50',
+                  ? 'bg-surface text-ink shadow-card scale-[1.01]'
+                  : 'text-ink-3 hover:text-ink',
               )}
             >
               {tab.label}
               <span
                 className={cn(
                   'text-xs font-semibold px-1.5 py-0.5 rounded-full',
-                  activeTab === tab.id ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-400',
+                  activeTab === tab.id ? 'bg-surface-high text-ink-2' : 'bg-stroke text-ink-3',
                 )}
               >
                 {tab.count}
@@ -160,7 +160,7 @@ function RemindersPageInner() {
           <select
             value={expiringDays}
             onChange={(e) => setExpiringDays(Number(e.target.value))}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             {TIME_FILTERS.map((f) => (
               <option key={f.days} value={f.days}>
@@ -172,13 +172,13 @@ function RemindersPageInner() {
       </div>
 
       {/* ---- Tab content ---- */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
         {activeTab === 'reminders' && (
           <>
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-stroke">
               <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
-              <h2 className="text-sm font-semibold text-gray-900">Upcoming Reminders</h2>
-              <span className="text-xs text-gray-400 hidden sm:inline">· emailed to owners &amp; admins</span>
+              <h2 className="text-sm font-semibold text-ink">Upcoming Reminders</h2>
+              <span className="text-xs text-ink-3 hidden sm:inline">· emailed to owners &amp; admins</span>
               <button
                 type="button"
                 onClick={handleSendTest}
@@ -187,18 +187,18 @@ function RemindersPageInner() {
               >
                 {sendingTest ? 'Sending…' : 'Send me a test email'}
               </button>
-              <span className="text-xs font-medium text-gray-400">{reminders.length}</span>
+              <span className="text-xs font-medium text-ink-3">{reminders.length}</span>
             </div>
             {reminders.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" className="text-gray-400">
+                <div className="w-11 h-11 rounded-full bg-surface-high flex items-center justify-center mb-3">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" className="text-ink-3">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-700 mb-1">No reminders scheduled yet</p>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
+                <p className="text-sm font-medium text-ink-2 mb-1">No reminders scheduled yet</p>
+                <p className="text-xs text-ink-3 leading-relaxed max-w-xs">
                   Open any document, set an expiry date, and add a reminder — we&apos;ll notify you before it lapses.
                 </p>
                 <Link href="/documents" className="mt-3 text-xs text-brand-600 hover:underline font-medium">
@@ -206,7 +206,7 @@ function RemindersPageInner() {
                 </Link>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-stroke-soft">
                 {reminders.map((r) => <ReminderRow key={r.id} reminder={r} />)}
               </div>
             )}
@@ -215,13 +215,13 @@ function RemindersPageInner() {
 
         {activeTab === 'expiring' && (
           <>
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-stroke">
               <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-              <h2 className="text-sm font-semibold text-gray-900">Expiring Soon</h2>
-              <span className="text-xs text-gray-400">
+              <h2 className="text-sm font-semibold text-ink">Expiring Soon</h2>
+              <span className="text-xs text-ink-3">
                 (within {TIME_FILTERS.find((f) => f.days === expiringDays)?.label ?? `${expiringDays} days`})
               </span>
-              <span className="ml-auto text-xs font-medium text-gray-400">{expiringSoon.length}</span>
+              <span className="ml-auto text-xs font-medium text-ink-3">{expiringSoon.length}</span>
             </div>
             {expiringSoon.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
@@ -230,15 +230,15 @@ function RemindersPageInner() {
                     <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-700 mb-1">
+                <p className="text-sm font-medium text-ink-2 mb-1">
                   All clear for the next {TIME_FILTERS.find((f) => f.days === expiringDays)?.label ?? `${expiringDays} days`}
                 </p>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
+                <p className="text-xs text-ink-3 leading-relaxed max-w-xs">
                   No documents are expiring in this window. Add expiry dates on your documents to track them here.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-stroke-soft">
                 {expiringSoon.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} />)}
               </div>
             )}
@@ -247,10 +247,10 @@ function RemindersPageInner() {
 
         {activeTab === 'expired' && (
           <>
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-stroke">
               <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-              <h2 className="text-sm font-semibold text-gray-900">Expired</h2>
-              <span className="ml-auto text-xs font-medium text-gray-400">{expired.length}</span>
+              <h2 className="text-sm font-semibold text-ink">Expired</h2>
+              <span className="ml-auto text-xs font-medium text-ink-3">{expired.length}</span>
             </div>
             {expired.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
@@ -260,13 +260,13 @@ function RemindersPageInner() {
                     <path d="M22 4 12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-700 mb-1">No expired documents</p>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
+                <p className="text-sm font-medium text-ink-2 mb-1">No expired documents</p>
+                <p className="text-xs text-ink-3 leading-relaxed max-w-xs">
                   Everything is up to date. Expired documents appear here so you can renew or archive them.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-stroke-soft">
                 {expired.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} />)}
               </div>
             )}
@@ -304,17 +304,17 @@ function ExpiringDocRow({
       <div className="flex-1 min-w-[12rem]">
         <Link
           href={`/documents/${doc.id}`}
-          className="text-sm font-medium text-gray-900 hover:text-brand-600 transition-colors truncate block"
+          className="text-sm font-medium text-ink hover:text-brand-600 transition-colors truncate block"
         >
           {doc.name}
         </Link>
         <div className="flex flex-wrap items-center gap-2 mt-0.5">
           {doc.folderName && (
-            <span className="text-xs text-gray-400">{doc.folderName}</span>
+            <span className="text-xs text-ink-3">{doc.folderName}</span>
           )}
-          <span className="text-xs text-gray-400">{doc.ownerEmail}</span>
+          <span className="text-xs text-ink-3">{doc.ownerEmail}</span>
           {!doc.isReminderEnabled && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">reminders off</span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-high text-ink-3">reminders off</span>
           )}
           {snoozed && (
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
@@ -325,7 +325,7 @@ function ExpiringDocRow({
       </div>
 
       <div className="flex-shrink-0 text-right">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-3">
           {formatDate(doc.expiryDate)}
         </p>
         <p className={cn('text-xs font-semibold', days.class)}>
@@ -335,8 +335,8 @@ function ExpiringDocRow({
 
       {doc.renewalDueDate && (
         <div className="flex-shrink-0 text-right hidden sm:block">
-          <p className="text-[10px] text-gray-400">Renewal due</p>
-          <p className="text-xs text-gray-500">{formatDate(doc.renewalDueDate)}</p>
+          <p className="text-[10px] text-ink-3">Renewal due</p>
+          <p className="text-xs text-ink-3">{formatDate(doc.renewalDueDate)}</p>
         </div>
       )}
 
@@ -353,7 +353,7 @@ const STATUS_STYLES: Record<UpcomingReminder['status'], { label: string; class: 
   PENDING:   { label: 'Scheduled', class: 'bg-blue-50 text-blue-600' },
   SENT:      { label: 'Sent',      class: 'bg-green-50 text-green-700' },
   FAILED:    { label: 'Failed',    class: 'bg-red-50 text-red-600' },
-  CANCELLED: { label: 'Cancelled', class: 'bg-gray-100 text-gray-500' },
+  CANCELLED: { label: 'Cancelled', class: 'bg-surface-high text-ink-3' },
 };
 
 function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
@@ -366,7 +366,7 @@ function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
       <div className="flex-1 min-w-0">
         <Link
           href={`/documents/${reminder.documentId}`}
-          className="text-sm font-medium text-gray-900 hover:text-brand-600 transition-colors truncate block"
+          className="text-sm font-medium text-ink hover:text-brand-600 transition-colors truncate block"
         >
           {reminder.documentName}
         </Link>
@@ -375,7 +375,7 @@ function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
             {status.label}
           </span>
           {reminder.expiryDate && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-ink-3">
               Expires {formatDate(reminder.expiryDate)}
             </span>
           )}
@@ -388,7 +388,7 @@ function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
       </div>
 
       <div className="flex-shrink-0 text-right">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-3">
           {reminder.status === 'SENT' && reminder.sentAt
             ? `Sent ${formatDateTime(reminder.sentAt)}`
             : formatDateTime(reminder.remindAt)}
@@ -408,10 +408,10 @@ function ReminderRow({ reminder }: { reminder: UpcomingReminder }) {
 function PageSkeleton() {
   return (
     <div className="max-w-4xl animate-pulse">
-      <div className="h-7 w-32 bg-gray-200 rounded mb-2" />
-      <div className="h-4 w-56 bg-gray-100 rounded mb-6" />
-      <div className="h-10 w-80 bg-gray-100 rounded-lg mb-4" />
-      <div className="bg-white rounded-xl border border-gray-200 h-80" />
+      <div className="h-7 w-32 bg-stroke rounded mb-2" />
+      <div className="h-4 w-56 bg-surface-high rounded mb-6" />
+      <div className="h-10 w-80 bg-surface-high rounded-lg mb-4" />
+      <div className="bg-surface rounded-xl border border-stroke h-80" />
     </div>
   );
 }

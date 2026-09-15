@@ -22,7 +22,7 @@ const ROLE_BADGE: Record<WorkspaceUserRole, { label: string; class: string }> = 
   OWNER:  { label: 'Owner',  class: 'bg-purple-100 text-purple-700' },
   ADMIN:  { label: 'Admin',  class: 'bg-blue-100 text-blue-700' },
   EDITOR: { label: 'Editor', class: 'bg-green-100 text-green-700' },
-  VIEWER: { label: 'Viewer', class: 'bg-gray-100 text-gray-600' },
+  VIEWER: { label: 'Viewer', class: 'bg-surface-high text-ink-2' },
 };
 
 function initials(firstName: string, lastName: string) {
@@ -38,7 +38,7 @@ function expiryBadge(expiresAt: string): { label: string; class: string } {
   if (days <= 7)  return { label: `${days} days left`, class: 'bg-amber-100 text-amber-700' };
   return {
     label: new Date(expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    class: 'bg-gray-100 text-gray-500',
+    class: 'bg-surface-high text-ink-3',
   };
 }
 
@@ -101,7 +101,7 @@ export default function MembersPage() {
   if (userLoading || loading) return <PageSkeleton />;
 
   if (!activeWorkspace) {
-    return <div className="text-sm text-gray-500 p-4">No active workspace selected.</div>;
+    return <div className="text-sm text-ink-3 p-4">No active workspace selected.</div>;
   }
 
   if (error || !detail) {
@@ -135,18 +135,18 @@ export default function MembersPage() {
 
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-ink-2 flex items-center gap-2">
             Active Members
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-100 text-brand-700">
               {sortedMembers.length}
             </span>
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">Roles control what each person can see and do</p>
+          <p className="text-xs text-ink-3 mt-0.5">Roles control what each person can see and do</p>
         </div>
         {canManage && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.97] transition-all duration-150 flex-shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stroke text-sm font-medium text-ink-2 hover:bg-surface-high hover:border-ink-3 active:scale-[0.97] transition-all duration-150 flex-shrink-0"
           >
             <span className="text-base leading-none">+</span>
             Add
@@ -154,8 +154,8 @@ export default function MembersPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="divide-y divide-gray-100">
+      <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
+        <div className="divide-y divide-stroke-soft">
           {sortedMembers.map((member) => {
             const badge = ROLE_BADGE[member.role];
             const joined = new Date(member.joinedAt).toLocaleDateString('en-US', {
@@ -167,7 +167,7 @@ export default function MembersPage() {
             const isOwner = member.role === 'OWNER';
 
             return (
-              <div key={member.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-all duration-100 group">
+              <div key={member.id} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-high transition-all duration-100 group">
                 {/* Avatar */}
                 <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-xs font-semibold text-brand-700 flex-shrink-0">
                   {initials(member.firstName, member.lastName)}
@@ -175,13 +175,13 @@ export default function MembersPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-ink">
                     {member.firstName} {member.lastName}
                     {isYou && (
-                      <span className="ml-1.5 text-xs text-gray-400 font-normal">(you)</span>
+                      <span className="ml-1.5 text-xs text-ink-3 font-normal">(you)</span>
                     )}
                   </p>
-                  <p className="text-xs text-gray-400 truncate">{member.email}</p>
+                  <p className="text-xs text-ink-3 truncate">{member.email}</p>
                 </div>
 
                 {/* Role badge */}
@@ -190,7 +190,7 @@ export default function MembersPage() {
                 </span>
 
                 {/* Joined */}
-                <span className="flex-shrink-0 text-xs text-gray-400 hidden sm:block">
+                <span className="flex-shrink-0 text-xs text-ink-3 hidden sm:block">
                   Joined {joined}
                 </span>
 
@@ -199,7 +199,7 @@ export default function MembersPage() {
                   <div className="flex items-center justify-end gap-1.5 flex-shrink-0 w-[152px]">
                     <button
                       onClick={() => setEditingMember(member)}
-                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
                     >
                       <PencilIcon />
                       Edit
@@ -208,7 +208,7 @@ export default function MembersPage() {
                       <button
                         onClick={() => setPendingRemove(member)}
                         disabled={!!removingId}
-                        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-red-300 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-40"
                       >
                         {removingId === member.id ? (
                           <svg className="animate-spin" width="11" height="11" fill="none" viewBox="0 0 24 24">
@@ -237,7 +237,7 @@ export default function MembersPage() {
         <div className="mt-10">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-ink-2 flex items-center gap-2">
                 Pending Invitations
                 {invitations.length > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
@@ -245,11 +245,11 @@ export default function MembersPage() {
                   </span>
                 )}
               </h2>
-              <p className="text-xs text-gray-400 mt-0.5">Invited users appear here until they accept</p>
+              <p className="text-xs text-ink-3 mt-0.5">Invited users appear here until they accept</p>
             </div>
             <button
               onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 active:scale-[0.97] transition-all duration-150 flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-brand-300 active:scale-[0.97] transition-all duration-150 flex-shrink-0"
             >
               <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -260,21 +260,21 @@ export default function MembersPage() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
             {invitations.length === 0 ? (
               <div className="px-5 py-8 text-center">
-                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-gray-400">
+                <div className="w-10 h-10 rounded-full bg-surface-high border border-stroke flex items-center justify-center mx-auto mb-3">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-ink-3">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                     <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-500 font-medium">No pending invitations</p>
-                <p className="text-xs text-gray-400 mt-1">Send an invite link to bring people into this workspace</p>
+                <p className="text-sm text-ink-3 font-medium">No pending invitations</p>
+                <p className="text-xs text-ink-3 mt-1">Send an invite link to bring people into this workspace</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-stroke-soft">
                 {invitations.map((inv) => {
                   const isRevoking = revokingId === inv.id;
                   const isCopied = copiedInviteId === inv.id;
@@ -282,7 +282,7 @@ export default function MembersPage() {
                   const expiry = expiryBadge(inv.expiresAt);
 
                   return (
-                    <div key={inv.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div key={inv.id} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-high transition-colors">
                       {/* Avatar */}
                       <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 flex-shrink-0">
                         {inv.email[0]?.toUpperCase() ?? '?'}
@@ -290,8 +290,8 @@ export default function MembersPage() {
 
                       {/* Email + meta */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{inv.email}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-sm font-medium text-ink truncate">{inv.email}</p>
+                        <p className="text-xs text-ink-3 mt-0.5">
                           Invited by {inv.createdBy.firstName} {inv.createdBy.lastName}
                         </p>
                       </div>
@@ -315,7 +315,7 @@ export default function MembersPage() {
                             'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-40',
                             isCopied
                               ? 'border-green-200 text-green-700 bg-green-50'
-                              : 'border-gray-200 text-gray-600 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50',
+                              : 'border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50',
                           )}
                         >
                           {isCopied ? (
@@ -351,7 +351,7 @@ export default function MembersPage() {
                             }
                           }}
                           disabled={isRevoking}
-                          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-40"
+                          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-red-300 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-40"
                         >
                           {isRevoking ? (
                             <svg className="animate-spin" width="11" height="11" fill="none" viewBox="0 0 24 24">
@@ -492,55 +492,55 @@ function EditRoleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
-      <div className="bg-white dark:bg-surface rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 animate-in">
+      <div className="bg-surface rounded-xl border border-stroke shadow-xl w-full max-w-sm mx-4 p-6 animate-in">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-900">Edit Member</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <h2 className="text-base font-semibold text-ink">Edit Member</h2>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-xl leading-none">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">First name</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">First name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Last name</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">Last name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-xs font-medium text-ink-2 mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="member@example.com"
             />
-            <p className="text-[10px] text-gray-400 mt-0.5">Changing email affects this user globally across all workspaces.</p>
+            <p className="text-[10px] text-ink-3 mt-0.5">Changing email affects this user globally across all workspaces.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-xs font-medium text-ink-2 mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as WorkspaceUserRole)}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="VIEWER">Viewer — can view and download shared documents</option>
               <option value="EDITOR">Editor — can upload and edit documents</option>
@@ -557,14 +557,14 @@ function EditRoleModal({
           )}
 
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high">
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !isDirty}
               title={!isDirty ? 'No changes to save' : undefined}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
               {submitting ? 'Saving…' : 'Save'}
             </button>
@@ -613,56 +613,56 @@ function AddMemberModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
-      <div className="bg-white dark:bg-surface rounded-xl shadow-xl w-full max-w-md mx-4 p-6 animate-in">
+      <div className="bg-surface rounded-xl border border-stroke shadow-xl w-full max-w-md mx-4 p-6 animate-in">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Add Member</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <h2 className="text-lg font-semibold text-ink">Add Member</h2>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-xl leading-none">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">First name</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">First name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="Alice"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Last name</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">Last name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="Smith"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Email address</label>
+            <label className="block text-xs font-medium text-ink-2 mb-1">Email address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="alice@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-xs font-medium text-ink-2 mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as WorkspaceUserRole)}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="VIEWER">Viewer — can view and download documents</option>
               <option value="EDITOR">Editor — can upload and edit documents</option>
@@ -679,10 +679,10 @@ function AddMemberModal({
           )}
 
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50">
               {submitting ? 'Adding…' : 'Add Member'}
             </button>
           </div>
@@ -699,17 +699,17 @@ function AddMemberModal({
 function PageSkeleton() {
   return (
     <div className="max-w-3xl animate-pulse">
-      <div className="h-7 w-32 bg-gray-200 rounded mb-2" />
-      <div className="h-4 w-48 bg-gray-100 rounded mb-6" />
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+      <div className="h-7 w-32 bg-stroke rounded mb-2" />
+      <div className="h-4 w-48 bg-surface-high rounded mb-6" />
+      <div className="bg-surface rounded-xl border border-stroke overflow-hidden divide-y divide-stroke-soft">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 px-5 py-4">
-            <div className="w-9 h-9 rounded-full bg-gray-100" />
+            <div className="w-9 h-9 rounded-full bg-surface-high" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-36 bg-gray-200 rounded" />
-              <div className="h-3 w-48 bg-gray-100 rounded" />
+              <div className="h-3.5 w-36 bg-stroke rounded" />
+              <div className="h-3 w-48 bg-surface-high rounded" />
             </div>
-            <div className="h-5 w-14 bg-gray-100 rounded" />
+            <div className="h-5 w-14 bg-surface-high rounded" />
           </div>
         ))}
       </div>
@@ -784,12 +784,12 @@ function InviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
-      <div className="bg-white dark:bg-surface rounded-xl shadow-xl w-full max-w-md mx-4 p-6 animate-in">
+      <div className="bg-surface rounded-xl border border-stroke shadow-xl w-full max-w-md mx-4 p-6 animate-in">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-ink">
+          <h2 className="text-lg font-semibold text-ink">
             {created ? 'Invitation Created' : 'Invite to Workspace'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-ink-2 text-xl leading-none transition-colors active:scale-90">&times;</button>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-xl leading-none transition-colors active:scale-90">&times;</button>
         </div>
 
         {created && inviteLink ? (
@@ -802,12 +802,12 @@ function InviteModal({
               Invitation sent to <span className="font-medium">{created.email}</span>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Share this link</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">Share this link</label>
               <div className="flex gap-2">
                 <input
                   readOnly
                   value={inviteLink}
-                  className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 focus:outline-none"
+                  className="flex-1 h-9 rounded-lg border border-stroke bg-surface-high px-3 text-xs text-ink-2 focus:outline-none"
                   onClick={(e) => (e.target as HTMLInputElement).select()}
                 />
                 <button
@@ -818,7 +818,7 @@ function InviteModal({
                   Copy
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-[10px] text-ink-3 mt-1">
                 This link expires{' '}
                 {new Date(created.expiresAt).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric',
@@ -829,14 +829,14 @@ function InviteModal({
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high transition-colors"
               >
                 Invite another
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+                className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 transition-colors"
               >
                 Done
               </button>
@@ -846,24 +846,24 @@ function InviteModal({
           /* Form */
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Email address</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">Email address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoFocus
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="colleague@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as WorkspaceUserRole)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="VIEWER">Viewer — can view and download documents</option>
                 <option value="EDITOR">Editor — can upload and edit documents</option>
@@ -876,13 +876,13 @@ function InviteModal({
             )}
 
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high">
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Sending…' : 'Send Invite'}
               </button>

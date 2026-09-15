@@ -385,7 +385,7 @@ function DocumentDetailPageInner() {
       {/* Back navigation */}
       <Link
         href={backHref}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors mb-5"
+        className="inline-flex items-center gap-1 text-sm text-ink-3 hover:text-ink transition-colors mb-5"
       >
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <polyline points="15 18 9 12 15 6" />
@@ -399,7 +399,7 @@ function DocumentDetailPageInner() {
           <h1 className="page-title leading-tight">
             {doc.name}
           </h1>
-          <p className="mt-1 text-sm text-gray-400">{doc.fileName}</p>
+          <p className="mt-1 text-sm text-ink-3">{doc.fileName}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span
@@ -416,7 +416,7 @@ function DocumentDetailPageInner() {
             type="button"
             onClick={handleDownloadLatest}
             disabled={downloading === 'latest'}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 text-xs font-semibold active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
           >
             {downloading === 'latest' ? (
               <svg className="animate-spin" width="12" height="12" fill="none" viewBox="0 0 24 24">
@@ -435,7 +435,7 @@ function DocumentDetailPageInner() {
             <button
               type="button"
               onClick={() => setShowEditModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stroke text-xs font-medium text-ink-2 hover:bg-surface-high transition-colors"
             >
               <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round" />
@@ -526,9 +526,9 @@ function DocumentDetailPageInner() {
           <InfoRow label="Created" value={formatDate(doc.createdAt)} />
           <InfoRow label="Last updated" value={formatDate(doc.updatedAt)} />
           {doc.description && (
-            <div className="pt-2 mt-1 border-t border-gray-50">
-              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Description</p>
-              <p className="text-xs text-gray-600 leading-relaxed">{doc.description}</p>
+            <div className="pt-2 mt-1 border-t border-stroke-soft">
+              <p className="font-mono text-[10px] uppercase tracking-label text-ink-3 mb-1">Description</p>
+              <p className="text-xs text-ink-2 leading-relaxed">{doc.description}</p>
             </div>
           )}
         </Section>
@@ -552,7 +552,7 @@ function DocumentDetailPageInner() {
           }
         >
           {doc.versions.length === 0 ? (
-            <p className="text-sm text-gray-400">No versions yet.</p>
+            <p className="text-sm text-ink-3">No versions yet.</p>
           ) : (
             <div className="space-y-2">
               {doc.versions.map((v) => (
@@ -562,7 +562,7 @@ function DocumentDetailPageInner() {
                     'flex items-center justify-between rounded-lg px-3 py-2.5 border transition-all',
                     v.versionNumber === doc.currentVersionNumber
                       ? 'border-brand-200 border-l-2 border-l-brand-500 bg-brand-50'
-                      : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white',
+                      : 'border-stroke-soft bg-surface-high hover:border-stroke hover:bg-surface',
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -572,28 +572,28 @@ function DocumentDetailPageInner() {
                           'text-xs font-bold tabular-nums px-2 py-0.5 rounded',
                           v.versionNumber === doc.currentVersionNumber
                             ? 'bg-brand-600 text-white'
-                            : 'bg-gray-200 text-gray-600',
+                            : 'bg-surface-high text-ink-2',
                         )}
                       >
                         v{v.versionNumber}
                       </span>
                       {v.versionNumber === doc.currentVersionNumber && (
-                        <span className="text-[9px] font-semibold text-brand-600 uppercase tracking-wide">
+                        <span className="font-mono text-[9px] font-semibold text-brand-600 uppercase tracking-label">
                           current
                         </span>
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-700 truncate">
+                      <p className="text-xs font-medium text-ink-2 truncate">
                         {v.uploadedBy.firstName} {v.uploadedBy.lastName}
                       </p>
-                      <p className="text-[10px] text-gray-400">{formatDateTime(v.createdAt)}</p>
+                      <p className="text-[10px] text-ink-3">{formatDateTime(v.createdAt)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                     <div className="text-right mr-1">
-                      <p className="text-[10px] text-gray-500">{formatBytes(v.fileSizeBytes)}</p>
-                      <p className="text-[10px] text-gray-400 truncate max-w-24">{v.mimeType}</p>
+                      <p className="text-[10px] text-ink-3">{formatBytes(v.fileSizeBytes)}</p>
+                      <p className="text-[10px] text-ink-3 truncate max-w-24">{v.mimeType}</p>
                     </div>
                     {/* Preview */}
                     <button
@@ -604,7 +604,7 @@ function DocumentDetailPageInner() {
                         'p-1.5 rounded-md transition-colors',
                         v.versionNumber === previewVersion
                           ? 'bg-brand-600 text-white shadow-sm'
-                          : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50',
+                          : 'text-ink-3 hover:text-brand-600 hover:bg-brand-50',
                       )}
                     >
                       <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -619,7 +619,7 @@ function DocumentDetailPageInner() {
                         onClick={() => handleDownloadVersion(v.versionNumber)}
                         disabled={downloading === String(v.versionNumber)}
                         title={`Download v${v.versionNumber}`}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors disabled:opacity-50"
+                        className="p-1.5 rounded-md text-ink-3 hover:text-brand-600 hover:bg-brand-50 transition-colors disabled:opacity-50"
                       >
                         {downloading === String(v.versionNumber) ? (
                           <svg className="animate-spin" width="13" height="13" fill="none" viewBox="0 0 24 24">
@@ -670,16 +670,16 @@ function DocumentDetailPageInner() {
 
         {/* Preview (left 60%) */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden h-full">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+          <div className="bg-surface rounded-xl border border-stroke overflow-hidden h-full">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-stroke-soft bg-surface-high">
               <div className="flex items-center gap-2 min-w-0">
-                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="text-gray-400 flex-shrink-0">
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="text-ink-3 flex-shrink-0">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <path d="M3 9h18M9 21V9" strokeLinecap="round" />
                 </svg>
-                <span className="text-xs font-semibold text-gray-600">Preview</span>
+                <span className="text-xs font-semibold text-ink-2">Preview</span>
                 {previewVersion !== null && (
-                  <span className="text-[10px] text-gray-400 truncate">
+                  <span className="text-[10px] text-ink-3 truncate">
                     v{previewVersion}{previewVersion === doc.currentVersionNumber ? ' · current' : ''}
                   </span>
                 )}
@@ -696,7 +696,7 @@ function DocumentDetailPageInner() {
                         'px-2 py-0.5 rounded text-[10px] font-semibold transition-colors',
                         v.versionNumber === previewVersion
                           ? 'bg-brand-600 text-white'
-                          : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200',
+                          : 'text-ink-3 hover:text-ink-2 hover:bg-surface-high',
                       )}
                     >
                       v{v.versionNumber}
@@ -713,7 +713,7 @@ function DocumentDetailPageInner() {
                 mimeHint={doc.versions.find((v: DocumentVersion) => v.versionNumber === previewVersion)?.mimeType}
               />
             ) : (
-              <div className="flex items-center justify-center p-12 text-sm text-gray-400 min-h-[240px]">
+              <div className="flex items-center justify-center p-12 text-sm text-ink-3 min-h-[240px]">
                 No preview available.
               </div>
             )}
@@ -1055,7 +1055,7 @@ function TagsSection({
       >
         {/* Applied tags */}
         {doc.tags.length === 0 && visibleSuggestions.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No tags applied yet.</p>
+          <p className="text-xs text-ink-3 italic">No tags applied yet.</p>
         )}
         {doc.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -1071,9 +1071,9 @@ function TagsSection({
 
         {/* AI suggestions — per-tag +/- actions */}
         {visibleSuggestions.length > 0 && (
-          <div className={cn(doc.tags.length > 0 && 'mt-3 pt-3 border-t border-gray-100')}>
+          <div className={cn(doc.tags.length > 0 && 'mt-3 pt-3 border-t border-stroke-soft')}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-label text-ink-3 flex items-center gap-1">
                 <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -1130,7 +1130,7 @@ function TagsSection({
                         type="button"
                         onClick={() => void rejectSuggestion(name)}
                         title={`Dismiss "${name}"`}
-                        className="inline-flex items-center justify-center w-5 h-[22px] rounded-full border border-dashed bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-300 hover:border-solid active:scale-90 transition-all duration-150 ml-0.5"
+                        className="inline-flex items-center justify-center w-5 h-[22px] rounded-full border border-dashed bg-surface-high text-ink-3 hover:bg-red-50 hover:text-red-500 hover:border-red-300 hover:border-solid active:scale-90 transition-all duration-150 ml-0.5"
                         style={{ borderColor: '#d1d5db' }}
                       >
                         <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" /></svg>
@@ -1150,7 +1150,7 @@ function TagsSection({
   return (
     <Section title="Tags">
       {allTags.length === 0 ? (
-        <p className="text-xs text-gray-400 mb-3">No tags in workspace yet. Create tags in Settings first.</p>
+        <p className="text-xs text-ink-3 mb-3">No tags in workspace yet. Create tags in Settings first.</p>
       ) : (
         <div className="flex flex-wrap gap-2 mb-4">
           {allTags.map((tag: Tag) => {
@@ -1194,7 +1194,7 @@ function TagsSection({
           type="button"
           onClick={() => setEditing(false)}
           disabled={saving}
-          className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 text-xs text-ink-3 hover:text-ink-2 disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>
@@ -1318,15 +1318,15 @@ function MetadataSection({
         }
       >
         {doc.metadata.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">No metadata added.</p>
+          <p className="text-xs text-ink-3 italic">No metadata added.</p>
         ) : (
           <dl className="space-y-2">
             {doc.metadata.map((m) => (
               <div key={m.id} className="flex gap-3">
-                <dt className="w-32 flex-shrink-0 text-xs text-gray-400 font-medium pt-0.5 truncate">
+                <dt className="w-32 flex-shrink-0 text-xs text-ink-3 font-medium pt-0.5 truncate">
                   {m.key}
                 </dt>
-                <dd className="flex-1 text-sm text-gray-700 break-all">{m.value}</dd>
+                <dd className="flex-1 text-sm text-ink-2 break-all">{m.value}</dd>
               </div>
             ))}
           </dl>
@@ -1340,7 +1340,7 @@ function MetadataSection({
     <Section title="Metadata">
       <div className="space-y-2">
         {rows.length === 0 && (
-          <p className="text-sm text-gray-400">No entries yet. Add one below.</p>
+          <p className="text-sm text-ink-3">No entries yet. Add one below.</p>
         )}
         {rows.map((row: MetadataRow, idx: number) => (
           <div key={idx} className="flex items-center gap-2">
@@ -1349,14 +1349,14 @@ function MetadataSection({
               placeholder="Key"
               value={row.key}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRow(idx, 'key', e.target.value)}
-              className="w-36 flex-shrink-0 text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-gray-700 placeholder-gray-400"
+              className="w-36 flex-shrink-0 text-xs border border-stroke bg-surface text-ink rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium placeholder:text-ink-3"
             />
             <input
               type="text"
               placeholder="Value"
               value={row.value}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRow(idx, 'value', e.target.value)}
-              className="flex-1 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 text-gray-700 placeholder-gray-400"
+              className="flex-1 text-sm border border-stroke bg-surface text-ink rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-3"
             />
             <button
               type="button"
@@ -1412,7 +1412,7 @@ function MetadataSection({
           type="button"
           onClick={cancelEdit}
           disabled={saving}
-          className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          className="px-3 py-1.5 text-xs text-ink-3 hover:text-ink-2 disabled:opacity-50"
         >
           Cancel
         </button>
@@ -1462,7 +1462,7 @@ function reminderStatusBadge(status: DocumentReminder['status']): string {
   switch (status) {
     case 'SENT': return 'bg-green-50 text-green-700 border-green-200';
     case 'FAILED': return 'bg-red-50 text-red-700 border-red-200';
-    case 'CANCELLED': return 'bg-gray-50 text-gray-500 border-gray-200';
+    case 'CANCELLED': return 'bg-surface-high text-ink-3 border-stroke';
     default: return 'bg-blue-50 text-blue-700 border-blue-200';
   }
 }
@@ -1589,21 +1589,21 @@ function ExpiryReminderSection({
   return (
     <Section title="Expiry &amp; Reminders">
       {!expiryDate && !renewalDueDate && !isReminderEnabled && (
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-ink-3 mb-4">
           Set expiry dates below and enable reminders to get notified before this document lapses.
         </p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-ink-2 mb-1">
             Expiry date
           </label>
-          <p className="text-[10px] text-gray-400 mb-1.5">Auto-filled when detected by AI</p>
+          <p className="text-[10px] text-ink-3 mb-1.5">Auto-filled when detected by AI</p>
           <input
             type="date"
             value={expiryDate}
             onChange={(e) => setExpiryDate(e.target.value)}
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           {aiSuggestion && aiSuggestion !== expiryDate && (
             <button
@@ -1617,15 +1617,15 @@ function ExpiryReminderSection({
           )}
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-ink-2 mb-1">
             Renewal due date
           </label>
-          <p className="text-[10px] text-gray-400 mb-1.5">Auto-filled when detected by AI</p>
+          <p className="text-[10px] text-ink-3 mb-1.5">Auto-filled when detected by AI</p>
           <input
             type="date"
             value={renewalDueDate}
             onChange={(e) => setRenewalDueDate(e.target.value)}
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
       </div>
@@ -1636,9 +1636,9 @@ function ExpiryReminderSection({
             type="checkbox"
             checked={isReminderEnabled}
             onChange={(e) => setIsReminderEnabled(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            className="w-4 h-4 rounded border-stroke text-brand-600 focus:ring-brand-500"
           />
-          <span className="text-sm text-gray-700 font-medium">Enable reminders</span>
+          <span className="text-sm text-ink-2 font-medium">Enable reminders</span>
         </label>
         {snoozedUntil && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -1660,7 +1660,7 @@ function ExpiryReminderSection({
 
       {isReminderEnabled && (
         <div className="mt-3 pl-6">
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-ink-3 mb-2">
             Email me before expiry:
           </p>
           <div className="flex flex-wrap gap-2">
@@ -1676,7 +1676,7 @@ function ExpiryReminderSection({
                     'px-2.5 py-1 rounded-full text-xs border transition-colors',
                     active
                       ? 'bg-brand-600 border-brand-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-600 hover:border-brand-400',
+                      : 'bg-surface border-stroke text-ink-2 hover:border-brand-400',
                   )}
                 >
                   {label}
@@ -1698,7 +1698,7 @@ function ExpiryReminderSection({
           </div>
 
           <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs text-gray-500">Remind me</span>
+            <span className="text-xs text-ink-3">Remind me</span>
             <input
               type="number"
               min={1}
@@ -1707,9 +1707,9 @@ function ExpiryReminderSection({
               onChange={(e) => setCustomMonths(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomMonths(); } }}
               placeholder="6"
-              className="w-16 text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-16 text-xs border border-stroke bg-surface text-ink rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-            <span className="text-xs text-gray-500">months before expiry</span>
+            <span className="text-xs text-ink-3">months before expiry</span>
             <button
               type="button"
               onClick={addCustomMonths}
@@ -1719,14 +1719,14 @@ function ExpiryReminderSection({
             </button>
           </div>
 
-          <p className="mt-3 text-[11px] text-gray-400">
+          <p className="mt-3 text-[11px] text-ink-3">
             Reminders are emailed to the document owner and workspace admins at 09:00 UTC on each date.
           </p>
 
           {visibleReminders.length > 0 && (
             <ul className="mt-3 space-y-1">
               {visibleReminders.map((r) => (
-                <li key={r.id} className="flex items-center gap-2 text-xs text-gray-600">
+                <li key={r.id} className="flex items-center gap-2 text-xs text-ink-2">
                   <span
                     className={cn(
                       'inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium uppercase tracking-wide',
@@ -1820,10 +1820,10 @@ function EditDocumentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden animate-in">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Edit Document</h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+      <div className="bg-surface border border-stroke rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden animate-in">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stroke-soft">
+          <h2 className="text-base font-semibold text-ink">Edit Document</h2>
+          <button type="button" onClick={onClose} className="text-ink-3 hover:text-ink-2 transition-colors">
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
             </svg>
@@ -1832,7 +1832,7 @@ function EditDocumentModal({
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">
               Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -1840,28 +1840,28 @@ function EditDocumentModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Description</label>
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+              className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
               placeholder="Optional description…"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Folder</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1.5">Folder</label>
               <select
                 value={folderId}
                 onChange={(e) => setFolderId(e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="">No folder</option>
                 {folders.map((f) => (
@@ -1871,11 +1871,11 @@ function EditDocumentModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Status</label>
+              <label className="block text-xs font-medium text-ink-2 mb-1.5">Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as DocumentStatus)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="ARCHIVED">Archived</option>
@@ -1888,10 +1888,10 @@ function EditDocumentModal({
           )}
 
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} disabled={saving} className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            <button type="button" onClick={onClose} disabled={saving} className="flex-1 px-4 py-2 rounded-lg border border-stroke text-sm text-ink-2 hover:bg-surface-high transition-colors disabled:opacity-50">
               Cancel
             </button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 active:scale-[0.97] transition-all duration-150 disabled:opacity-50">
+            <button type="submit" disabled={saving} className="flex-1 px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 text-sm font-semibold active:scale-[0.97] transition-all duration-150 disabled:opacity-50">
               {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
@@ -1950,19 +1950,19 @@ function VersionUploadModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop"
       onClick={handleBackdrop}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in">
+      <div className="bg-surface border border-stroke rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stroke-soft">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Upload New Version</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <h2 className="text-base font-semibold text-ink">Upload New Version</h2>
+            <p className="text-xs text-ink-3 mt-0.5">
               {fileName} · current v{currentVersion} → v{currentVersion + 1}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-ink-3 hover:text-ink-2 transition-colors"
           >
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
@@ -1974,28 +1974,28 @@ function VersionUploadModal({
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* File picker */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">
               New file <span className="text-red-500">*</span>
             </label>
             <div
               className={cn(
                 'relative border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors',
-                file ? 'border-brand-300 bg-brand-50' : 'border-gray-200 hover:border-gray-300',
+                file ? 'border-brand-300 bg-brand-50' : 'border-stroke hover:border-brand-400/60',
               )}
               onClick={() => fileRef.current?.click()}
             >
               {file ? (
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-sm font-medium text-gray-800 truncate max-w-xs">{file.name}</span>
-                  <span className="text-xs text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                  <span className="text-sm font-medium text-ink truncate max-w-xs">{file.name}</span>
+                  <span className="text-xs text-ink-3">({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
               ) : (
                 <div>
                   <svg className="mx-auto mb-2 text-gray-300" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path d="M4 16.004V17a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1M16 8l-4-4-4 4M12 4v12" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p className="text-sm text-gray-500">Click to choose the updated file</p>
-                  <p className="text-xs text-gray-400 mt-1">Up to 50 MB</p>
+                  <p className="text-sm text-ink-3">Click to choose the updated file</p>
+                  <p className="text-xs text-ink-3 mt-1">Up to 50 MB</p>
                 </div>
               )}
               <input
@@ -2010,7 +2010,7 @@ function VersionUploadModal({
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">
               Change notes
             </label>
             <textarea
@@ -2018,7 +2018,7 @@ function VersionUploadModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What changed in this version?"
               rows={2}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
+              className="w-full rounded-lg border border-stroke bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
             />
           </div>
 
@@ -2035,14 +2035,14 @@ function VersionUploadModal({
               type="button"
               onClick={onClose}
               disabled={uploading}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 rounded-lg border border-stroke text-sm text-ink-2 hover:bg-surface-high transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={uploading || !file}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? (
                 <>
@@ -2102,16 +2102,16 @@ function DocumentActivitySection({ documentId }: { documentId: string }) {
         <div className="space-y-3 animate-pulse">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex gap-3">
-              <div className="w-2 h-2 rounded-full bg-gray-200 mt-2 flex-shrink-0" />
+              <div className="w-2 h-2 rounded-full bg-surface-high mt-2 flex-shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3.5 w-2/3 bg-gray-200 rounded" />
-                <div className="h-3 w-1/3 bg-gray-100 rounded" />
+                <div className="h-3.5 w-2/3 bg-surface-high rounded" />
+                <div className="h-3 w-1/3 bg-surface-high rounded" />
               </div>
             </div>
           ))}
         </div>
       ) : logs.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">No activity yet.</p>
+        <p className="text-xs text-ink-3 italic">No activity yet.</p>
       ) : (
         <div className="space-y-3">
           {logs.map((log) => {
@@ -2137,15 +2137,15 @@ function DocumentActivitySection({ documentId }: { documentId: string }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm text-gray-800 leading-snug">
+                    <p className="text-sm text-ink leading-snug">
                       {describeAuditLog(log)}
                     </p>
-                    <time className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                    <time className="text-xs text-ink-3 whitespace-nowrap flex-shrink-0">
                       {timeAgo}
                     </time>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-400">{actor}</span>
+                    <span className="text-xs text-ink-3">{actor}</span>
                     <span
                       className={cn(
                         'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
@@ -2198,7 +2198,7 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
       ? 'bg-green-50 text-green-600 border-green-200'
       : confidence >= 0.6
       ? 'bg-yellow-50 text-yellow-600 border-yellow-200'
-      : 'bg-gray-50 text-gray-500 border-gray-200';
+      : 'bg-surface-high text-ink-3 border-stroke';
   const label = confidence >= 0.85 ? 'High' : confidence >= 0.6 ? 'Medium' : 'Low';
   return (
     <span className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border', cls)}>
@@ -2219,7 +2219,7 @@ function urgencyClass(days: number): string {
   if (days < 0) return 'text-red-600 font-semibold';
   if (days <= 30) return 'text-orange-600 font-medium';
   if (days <= 90) return 'text-yellow-600';
-  return 'text-gray-600';
+  return 'text-ink-2';
 }
 
 // ------------------------------------------------------------------ //
@@ -2398,7 +2398,7 @@ function FolderCombobox({
       {/* ── Top-3 suggestion pills — quick-pick row (visible when not busy) ── */}
       {suggestions.length > 0 && !saving && !creating && (
         <div className="flex items-center gap-1.5 flex-wrap mb-2">
-          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Best matches</span>
+          <span className="font-mono text-[9px] uppercase tracking-label text-ink-3 flex-shrink-0">Best matches</span>
           {suggestions.map(({ folder: f, score }) => {
             const isCurrent = f.id === currentFolderId;
             return (
@@ -2412,7 +2412,7 @@ function FolderCombobox({
                     ? 'border-brand-400 bg-brand-50 text-brand-700'
                     : score >= 88
                     ? 'border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700',
+                    : 'border-stroke bg-surface text-ink-2 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700',
                 )}
               >
                 <svg width="8" height="8" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="flex-shrink-0">
@@ -2445,12 +2445,12 @@ function FolderCombobox({
             if (e.key === 'Enter' && showCreate) { void handleCreate(); }
           }}
           className={cn(
-            'w-full text-xs border rounded-md px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 pr-7 transition-colors placeholder-gray-400',
-            open ? 'border-brand-300' : 'border-gray-200 text-gray-700',
+            'w-full text-xs border rounded-md px-2.5 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400 pr-7 transition-colors placeholder:text-ink-3',
+            open ? 'border-brand-300' : 'border-stroke text-ink',
             (disabled || saving || creating) && 'opacity-60 cursor-not-allowed',
           )}
         />
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-ink-3">
           {saving || creating ? (
             <SpinnerIcon size={11} />
           ) : (
@@ -2465,7 +2465,7 @@ function FolderCombobox({
       {open && (
         <div
           ref={listRef}
-          className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-56 overflow-y-auto"
+          className="absolute top-full mt-1 left-0 right-0 z-20 bg-surface border border-stroke rounded-lg shadow-card-lg overflow-hidden max-h-56 overflow-y-auto"
         >
           {/* Suggested section — pinned at top when not searching */}
           {!query && suggestions.length > 0 && (
@@ -2474,7 +2474,7 @@ function FolderCombobox({
                 <svg width="8" height="8" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" className="text-brand-500">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
-                <span className="text-[9px] font-bold text-brand-600 uppercase tracking-wide">Suggested</span>
+                <span className="font-mono text-[9px] font-bold text-brand-600 uppercase tracking-label">Suggested</span>
               </div>
               {suggestions.map(({ folder: f }) => (
                 <button
@@ -2500,7 +2500,7 @@ function FolderCombobox({
                   )}
                 </button>
               ))}
-              <div className="border-t border-gray-100 mx-0 my-0.5" />
+              <div className="border-t border-stroke-soft mx-0 my-0.5" />
             </>
           )}
 
@@ -2510,8 +2510,8 @@ function FolderCombobox({
             tabIndex={0}
             onMouseDown={(e) => { e.preventDefault(); void select(null); }}
             className={cn(
-              'w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors',
-              currentFolderId === null ? 'font-semibold text-brand-700 bg-brand-50' : 'text-gray-500',
+              'w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-high transition-colors',
+              currentFolderId === null ? 'font-semibold text-brand-700 bg-brand-50' : 'text-ink-3',
             )}
           >
             <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="flex-shrink-0 opacity-50">
@@ -2520,7 +2520,7 @@ function FolderCombobox({
             No folder
           </button>
 
-          {dropdownFolders.length > 0 && <div className="border-t border-gray-100" />}
+          {dropdownFolders.length > 0 && <div className="border-t border-stroke-soft" />}
 
           {/* Remaining / search-filtered folders */}
           {dropdownFolders.map(({ folder: f, aiScore }) => (
@@ -2530,11 +2530,11 @@ function FolderCombobox({
               tabIndex={0}
               onMouseDown={(e) => { e.preventDefault(); void select(f.id); }}
               className={cn(
-                'w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors',
-                f.id === currentFolderId ? 'font-semibold text-brand-700 bg-brand-50' : 'text-gray-700',
+                'w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-surface-high transition-colors',
+                f.id === currentFolderId ? 'font-semibold text-brand-700 bg-brand-50' : 'text-ink',
               )}
             >
-              <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" className="flex-shrink-0 text-gray-400">
+              <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" className="flex-shrink-0 text-ink-3">
                 <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
               </svg>
               <span className="flex-1 truncate">{f.name}</span>
@@ -2550,15 +2550,15 @@ function FolderCombobox({
           ))}
 
           {dropdownFolders.length === 0 && !showCreate && !query && folders.length === 0 && (
-            <p className="px-3 py-2 text-xs text-gray-400 italic">No folders in this workspace</p>
+            <p className="px-3 py-2 text-xs text-ink-3 italic">No folders in this workspace</p>
           )}
           {dropdownFolders.length === 0 && !showCreate && query && (
-            <p className="px-3 py-2 text-xs text-gray-400 italic">No matching folders</p>
+            <p className="px-3 py-2 text-xs text-ink-3 italic">No matching folders</p>
           )}
 
           {showCreate && (
             <>
-              {dropdownFolders.length > 0 && <div className="border-t border-gray-100" />}
+              {dropdownFolders.length > 0 && <div className="border-t border-stroke-soft" />}
               <button
                 type="button"
                 tabIndex={0}
@@ -2630,7 +2630,7 @@ function AiExtractionSection({
         type="button"
         onClick={onExtract}
         disabled={extracting}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 text-xs font-semibold active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
       >
         {extracting ? <><SpinnerIcon size={12} /> Extracting…</> : label}
       </button>
@@ -2642,12 +2642,12 @@ function AiExtractionSection({
       {/* ── status: none ──────────────────────────────────────────── */}
       {status === 'none' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-500 leading-relaxed">
+          <p className="text-xs text-ink-3 leading-relaxed">
             Scan with AI to automatically identify expiry dates, key parties, contract numbers, and more — no manual entry needed.
           </p>
           <div className="flex items-center gap-2">
             <ExtractButton />
-            <span className="text-[10px] text-gray-400">Takes 5–15 seconds</span>
+            <span className="text-[10px] text-ink-3">Takes 5–15 seconds</span>
           </div>
         </div>
       )}
@@ -2665,14 +2665,14 @@ function AiExtractionSection({
 
       {/* ── status: disabled ──────────────────────────────────────── */}
       {status === 'disabled' && (
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50 border border-gray-100">
-          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="text-gray-400 flex-shrink-0 mt-0.5">
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-surface-high border border-stroke">
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" className="text-ink-3 flex-shrink-0 mt-0.5">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
           </svg>
           <div>
-            <p className="text-xs font-medium text-gray-600">AI analysis not available</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Contact your workspace admin to enable AI features.</p>
+            <p className="text-xs font-medium text-ink-2">AI analysis not available</p>
+            <p className="text-[10px] text-ink-3 mt-0.5">Contact your workspace admin to enable AI features.</p>
           </div>
         </div>
       )}
@@ -2706,13 +2706,13 @@ function AiExtractionSection({
                 type="button"
                 onClick={onExtract}
                 disabled={extracting}
-                className="ml-auto text-[10px] text-gray-400 hover:text-brand-600 hover:underline disabled:opacity-50 flex items-center gap-1 transition-colors"
+                className="ml-auto text-[10px] text-ink-3 hover:text-brand-600 hover:underline disabled:opacity-50 flex items-center gap-1 transition-colors"
               >
                 {extracting ? <><SpinnerIcon size={9} /> Re-extracting…</> : 'Re-extract'}
               </button>
             </div>
             {(extraction.ocrProvider || extraction.extractedAt) && (
-              <p className="mt-0.5 text-[10px] text-gray-400">
+              <p className="mt-0.5 text-[10px] text-ink-3">
                 {extraction.ocrProvider && (
                   <span>
                     {extraction.ocrProvider
@@ -2739,7 +2739,7 @@ function AiExtractionSection({
                     <line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
-                  <span className="text-[10px] font-bold text-brand-700 uppercase tracking-wide">Key Dates</span>
+                  <span className="font-mono text-[10px] font-bold text-brand-700 uppercase tracking-label">Key Dates</span>
                   <span className={cn('px-1 py-0.5 rounded text-[10px] font-medium border', confidenceClass(extraction.dateConfidence))}>
                     {confidenceLabel(extraction.dateConfidence)} ({Math.round(extraction.dateConfidence * 100)}%)
                   </span>
@@ -2749,7 +2749,7 @@ function AiExtractionSection({
                     type="button"
                     onClick={() => onApply(allUnapplied.filter(f => f === 'expiryDate' || f === 'renewalDueDate'))}
                     disabled={applying}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-brand-200 text-[10px] font-semibold text-brand-600 bg-white hover:bg-brand-50 hover:border-brand-300 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-brand-200 text-[10px] font-semibold text-brand-600 bg-surface hover:bg-brand-50 hover:border-brand-300 transition-colors disabled:opacity-50"
                   >
                     {applying ? <SpinnerIcon size={9} /> : 'Apply all dates'}
                   </button>
@@ -2769,10 +2769,10 @@ function AiExtractionSection({
                 const fieldConf = (extraction.confidenceByField ?? {})[fieldKey] ?? 0;
                 return (
                   <div key={key} className="flex items-center gap-2">
-                    <span className="w-12 flex-shrink-0 text-[10px] font-semibold text-brand-600 uppercase tracking-wide">
+                    <span className="w-12 flex-shrink-0 font-mono text-[10px] font-semibold text-brand-600 uppercase tracking-label">
                       {label}
                     </span>
-                    <span className="flex-1 text-xs font-medium text-gray-900">{formatDate(iso)}</span>
+                    <span className="flex-1 text-xs font-medium text-ink">{formatDate(iso)}</span>
                     <ConfidenceBadge confidence={fieldConf} />
                     <span className={cn('text-[10px] font-semibold tabular-nums min-w-[36px] text-right', urgencyClass(days))}>
                       {days < 0 ? `${Math.abs(days)}d over` : days === 0 ? 'today' : `${days}d`}
@@ -2784,7 +2784,7 @@ function AiExtractionSection({
                         type="button"
                         onClick={() => onApply([key])}
                         disabled={applying}
-                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-600 text-white hover:bg-brand-700 active:scale-95 active:bg-brand-800 disabled:opacity-50 transition-all duration-150 w-12 text-center flex-shrink-0"
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 active:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 disabled:opacity-50 transition-all duration-150 w-12 text-center flex-shrink-0"
                       >
                         {applying ? <SpinnerIcon size={9} /> : 'Apply'}
                       </button>
@@ -2809,11 +2809,11 @@ function AiExtractionSection({
             if (extraction.effectiveDate) fields.push({ label: 'Effective Date', value: formatDate(extraction.effectiveDate), fieldKey: 'effectiveDate' });
             if (fields.length === 0) return null;
             return (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-stroke-soft">
                 {fields.map(({ label, value, fieldKey }) => (
                   <div key={label} className="flex items-center gap-2 py-1.5">
-                    <span className="w-24 flex-shrink-0 text-[10px] font-medium text-gray-400 uppercase tracking-wide">{label}</span>
-                    <span className="flex-1 text-xs text-gray-800 truncate">{value}</span>
+                    <span className="w-24 flex-shrink-0 font-mono text-[10px] uppercase tracking-label text-ink-3">{label}</span>
+                    <span className="flex-1 text-xs text-ink truncate">{value}</span>
                     <ConfidenceBadge confidence={cbf[fieldKey] ?? 0} />
                   </div>
                 ))}
@@ -2822,22 +2822,22 @@ function AiExtractionSection({
           })()}
 
           {/* ④ Folder assignment — smart combobox (always visible when extraction is done) */}
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5 space-y-2">
+          <div className="rounded-lg border border-stroke bg-surface-high p-2.5 space-y-2">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-gray-400 flex-shrink-0">
+              <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-ink-3 flex-shrink-0">
                 <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
               </svg>
-              <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Folder</span>
+              <span className="font-mono text-[10px] uppercase tracking-label text-ink-3">Folder</span>
               {extraction.suggestedFolder && (
                 <>
                   <ConfidenceBadge confidence={(extraction.confidenceByField ?? {}).suggestedFolder ?? 0} />
-                  <span className="text-[10px] text-gray-400 truncate ml-auto">
+                  <span className="text-[10px] text-ink-3 truncate ml-auto">
                     AI suggests &ldquo;{extraction.suggestedFolder}&rdquo;
                   </span>
                 </>
               )}
               {!extraction.suggestedFolder && !isAppliedByAnyone('suggestedFolder') && (
-                <span className="text-[10px] text-gray-400 ml-auto italic">AI suggests best match</span>
+                <span className="text-[10px] text-ink-3 ml-auto italic">AI suggests best match</span>
               )}
               {isAppliedByAnyone('suggestedFolder') && (
                 <span className={cn('ml-auto text-[10px] font-semibold', userApplied.includes('suggestedFolder') ? 'text-blue-600' : 'text-green-600')}>
@@ -2858,7 +2858,7 @@ function AiExtractionSection({
           {/* ⑤ Risk flags */}
           {extraction.riskFlags.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+              <p className="font-mono text-[10px] font-semibold text-orange-600 uppercase tracking-label mb-1.5 flex items-center gap-1">
                 <svg width="9" height="9" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
@@ -2876,27 +2876,27 @@ function AiExtractionSection({
 
           {/* ⑥ Summary & key points (collapsible — lowest priority) */}
           {(extraction.summary || extraction.keyPoints.length > 0) && (
-            <div className="border border-gray-100 rounded-lg overflow-hidden">
+            <div className="border border-stroke rounded-lg overflow-hidden">
               <button
                 type="button"
                 onClick={() => setSummaryOpen((o) => !o)}
-                className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 font-mono text-[10px] uppercase tracking-label text-ink-3 bg-surface-high hover:bg-stroke transition-colors"
               >
                 <span>Summary &amp; Key Points</span>
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
-                  className={cn('transition-transform text-gray-400', summaryOpen && 'rotate-180')}>
+                  className={cn('transition-transform text-ink-3', summaryOpen && 'rotate-180')}>
                   <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
               {summaryOpen && (
                 <div className="px-3 py-2.5 space-y-2">
                   {extraction.summary && (
-                    <p className="text-xs text-gray-600 leading-relaxed">{extraction.summary}</p>
+                    <p className="text-xs text-ink-2 leading-relaxed">{extraction.summary}</p>
                   )}
                   {extraction.keyPoints.length > 0 && (
                     <ul className="space-y-1">
                       {extraction.keyPoints.map((pt, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600">
+                        <li key={i} className="flex items-start gap-1.5 text-xs text-ink-2">
                           <span className="text-brand-400 mt-0.5 flex-shrink-0">·</span>
                           {pt}
                         </li>
@@ -2910,24 +2910,24 @@ function AiExtractionSection({
 
           {/* Apply all button — two-step confirm */}
           {allUnapplied.length > 0 && (
-            <div className="pt-1 border-t border-gray-100">
+            <div className="pt-1 border-t border-stroke-soft">
               {confirmApplyAll ? (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-[10px] text-ink-3">
                     Apply {allUnapplied.length} field{allUnapplied.length > 1 ? 's' : ''}?
                   </span>
                   <button
                     type="button"
                     onClick={() => { setConfirmApplyAll(false); onApply(allUnapplied); }}
                     disabled={applying}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-800 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300 transition-colors disabled:opacity-50"
                   >
                     {applying ? <SpinnerIcon size={8} /> : 'Yes, apply'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmApplyAll(false)}
-                    className="text-[10px] text-gray-400 hover:text-gray-700 transition-colors"
+                    className="text-[10px] text-ink-3 hover:text-ink-2 transition-colors"
                   >
                     Cancel
                   </button>
@@ -2969,7 +2969,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(!defaultCollapsed);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-surface rounded-xl border border-stroke p-5">
       <div className={cn('flex items-center justify-between', open ? 'mb-4' : '')}>
         <div
           className={cn(
@@ -2987,14 +2987,14 @@ function Section({
               strokeWidth={2.5}
               viewBox="0 0 24 24"
               className={cn(
-                'text-gray-400 transition-transform duration-200 flex-shrink-0',
+                'text-ink-3 transition-transform duration-200 flex-shrink-0',
                 open ? '' : '-rotate-90',
               )}
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           )}
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
         </div>
         {action && <div>{action}</div>}
       </div>
@@ -3011,11 +3011,11 @@ function InfoRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-2 py-1 border-b border-gray-50 last:border-0">
-      <span className="w-24 flex-shrink-0 text-[10px] font-medium text-gray-400 uppercase tracking-wide pt-0.5">
+    <div className="flex items-start gap-2 py-1 border-b border-stroke-soft last:border-0">
+      <span className="w-24 flex-shrink-0 font-mono text-[10px] uppercase tracking-label text-ink-3 pt-0.5">
         {label}
       </span>
-      <span className="flex-1 text-xs text-gray-700">{value}</span>
+      <span className="flex-1 text-xs text-ink-2">{value}</span>
     </div>
   );
 }
@@ -3027,16 +3027,16 @@ function InfoRow({
 function DetailSkeleton() {
   return (
     <div className="max-w-7xl animate-pulse">
-      <div className="h-4 w-28 bg-gray-200 rounded mb-5" />
-      <div className="h-7 w-64 bg-gray-200 rounded mb-2" />
-      <div className="h-4 w-40 bg-gray-100 rounded mb-6" />
+      <div className="h-4 w-28 bg-surface-high rounded mb-5" />
+      <div className="h-7 w-64 bg-surface-high rounded mb-2" />
+      <div className="h-4 w-40 bg-surface-high rounded mb-6" />
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
-        <div className="lg:col-span-3 bg-gray-100 rounded-xl h-72" />
-        <div className="lg:col-span-2 bg-gray-100 rounded-xl h-72" />
+        <div className="lg:col-span-3 bg-surface-high rounded-xl h-72" />
+        <div className="lg:col-span-2 bg-surface-high rounded-xl h-72" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-gray-100 rounded-xl h-40" />
+          <div key={i} className="bg-surface-high rounded-xl h-40" />
         ))}
       </div>
     </div>

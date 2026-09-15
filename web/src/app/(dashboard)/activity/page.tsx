@@ -209,13 +209,13 @@ export default function ActivityPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-6">
+      <div className="bg-surface rounded-xl border border-stroke px-5 py-4 mb-6">
         <div className="flex flex-wrap items-center gap-2">
           {/* Entity type */}
           <select
             value={entityType}
             onChange={(e) => setEntityType(e.target.value as AuditEntityType | '')}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             {ENTITY_FILTER_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -226,7 +226,7 @@ export default function ActivityPage() {
           <select
             value={action}
             onChange={(e) => setAction(e.target.value as AuditAction | '')}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             {ACTION_FILTER_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -234,7 +234,7 @@ export default function ActivityPage() {
           </select>
 
           {/* Date range */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-surface-high rounded-lg p-0.5">
             {DATE_RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.days}
@@ -243,8 +243,8 @@ export default function ActivityPage() {
                 className={cn(
                   'px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150',
                   dateRangeDays === opt.days
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-white/60',
+                    ? 'bg-surface text-ink shadow-card'
+                    : 'text-ink-3 hover:text-ink',
                 )}
               >
                 {opt.label}
@@ -255,7 +255,7 @@ export default function ActivityPage() {
           {hasFilters && (
             <button
               onClick={clearFilters}
-              className="ml-auto text-xs text-gray-500 hover:text-gray-800 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              className="ml-auto text-xs text-ink-3 hover:text-ink px-2.5 py-1.5 rounded-lg border border-stroke hover:border-ink-3 transition-colors"
             >
               Clear
             </button>
@@ -275,13 +275,13 @@ export default function ActivityPage() {
         <ActivitySkeleton />
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-14 px-6">
-          <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-            <ClockIcon className="text-gray-400" />
+          <div className="w-11 h-11 rounded-full bg-surface-high flex items-center justify-center mx-auto mb-3">
+            <ClockIcon className="text-ink-3" />
           </div>
-          <p className="text-sm font-medium text-gray-700 mb-1">
+          <p className="text-sm font-medium text-ink-2 mb-1">
             {hasFilters ? 'No matching activity' : 'No activity yet'}
           </p>
-          <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+          <p className="text-xs text-ink-3 max-w-xs leading-relaxed">
             {hasFilters
               ? 'Try adjusting or clearing your filters to see more results.'
               : 'Every action in this workspace — uploads, edits, shares, member changes, and downloads — appears here automatically.'}
@@ -310,18 +310,18 @@ export default function ActivityPage() {
                   )}
                 >
                   <span className={cn(
-                    'text-xs font-semibold uppercase tracking-wide',
-                    isOlder ? 'text-gray-400 group-hover:text-gray-600 transition-colors' : 'text-gray-400',
+                    'font-mono text-[10px] uppercase tracking-label',
+                    isOlder ? 'text-ink-3 group-hover:text-ink-2 transition-colors' : 'text-ink-3',
                   )}>
                     {group.label}
                   </span>
-                  <div className="flex-1 h-px bg-gray-100" />
-                  <span className="text-[10px] text-gray-300 tabular-nums">{group.items.length}</span>
+                  <div className="flex-1 h-px bg-surface-high" />
+                  <span className="text-[10px] text-ink-3 tabular-nums">{group.items.length}</span>
                   {isOlder && (
                     <svg
                       width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2}
                       viewBox="0 0 24 24"
-                      className={cn('text-gray-400 transition-transform duration-200 flex-shrink-0', olderExpanded ? 'rotate-180' : '')}
+                      className={cn('text-ink-3 transition-transform duration-200 flex-shrink-0', olderExpanded ? 'rotate-180' : '')}
                     >
                       <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -330,7 +330,7 @@ export default function ActivityPage() {
 
                 {/* Items — hidden when older group is collapsed */}
                 {!collapsed && (
-                  <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
+                  <div className="bg-surface rounded-xl border border-stroke divide-y divide-stroke-soft overflow-hidden">
                     {group.items.map((log) => (
                       <ActivityRow key={log.id} log={log} />
                     ))}
@@ -346,7 +346,7 @@ export default function ActivityPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high transition-colors disabled:opacity-50"
               >
                 {loadingMore ? (
                   <>
@@ -364,7 +364,7 @@ export default function ActivityPage() {
           )}
 
           {!hasMore && loadedCount > PAGE_SIZE && (
-            <p className="text-center text-xs text-gray-300 mt-2 mb-4">
+            <p className="text-center text-xs text-ink-3 mt-2 mb-4">
               All {loadedCount} records loaded
             </p>
           )}
@@ -385,13 +385,13 @@ function ActivityRow({ log }: { log: AuditLog }) {
     : 'External';
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3 transition-colors duration-100 hover:bg-gray-50">
+    <div className="flex items-center gap-3 px-5 py-3 transition-colors duration-100 hover:bg-surface-high">
       {/* Dot */}
       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', CATEGORY_DOT[category])} />
 
       {/* Description */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-800 truncate">{describeAuditLog(log)}</p>
+        <p className="text-sm text-ink truncate">{describeAuditLog(log)}</p>
         <div className="flex items-center gap-2 mt-1">
           <span
             className={cn(
@@ -401,13 +401,13 @@ function ActivityRow({ log }: { log: AuditLog }) {
           >
             {formatAuditAction(log.action)}
           </span>
-          <span className="text-[10px] text-gray-400">{actor}</span>
+          <span className="text-[10px] text-ink-3">{actor}</span>
         </div>
       </div>
 
       {/* Time */}
       <time
-        className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0"
+        className="text-[11px] text-ink-3 whitespace-nowrap flex-shrink-0"
         title={new Date(log.createdAt).toLocaleString()}
       >
         {formatRelativeTime(log.createdAt)}
@@ -422,15 +422,15 @@ function ActivityRow({ log }: { log: AuditLog }) {
 
 function ActivitySkeleton() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 animate-pulse overflow-hidden">
+    <div className="bg-surface rounded-xl border border-stroke divide-y divide-stroke-soft animate-pulse overflow-hidden">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-5 py-3">
-          <div className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-stroke flex-shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3.5 w-2/3 bg-gray-200 rounded" />
-            <div className="h-2.5 w-1/3 bg-gray-100 rounded" />
+            <div className="h-3.5 w-2/3 bg-stroke rounded" />
+            <div className="h-2.5 w-1/3 bg-surface-high rounded" />
           </div>
-          <div className="w-12 h-3 bg-gray-100 rounded" />
+          <div className="w-12 h-3 bg-surface-high rounded" />
         </div>
       ))}
     </div>

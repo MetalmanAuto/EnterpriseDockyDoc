@@ -103,7 +103,7 @@ export default function WorkspacesPage() {
         <button
           type="button"
           onClick={() => setShowCreate((v) => !v)}
-          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-brand-300 transition-colors"
         >
           <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -119,7 +119,7 @@ export default function WorkspacesPage() {
           className="mb-5 rounded-xl border border-brand-200 bg-brand-50 p-4 flex items-end gap-3"
         >
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-ink-2 mb-1">
               Workspace name
             </label>
             <input
@@ -130,20 +130,20 @@ export default function WorkspacesPage() {
               maxLength={60}
               required
               autoFocus
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <button
             type="submit"
             disabled={creating || !newName.trim()}
-            className="px-4 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-1.5 rounded-lg bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50 transition-colors"
           >
             {creating ? 'Creating…' : 'Create'}
           </button>
           <button
             type="button"
             onClick={() => { setShowCreate(false); setNewName(''); }}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-stroke text-xs text-ink-3 hover:bg-surface-high transition-colors"
           >
             Cancel
           </button>
@@ -158,12 +158,12 @@ export default function WorkspacesPage() {
 
       {/* Empty state */}
       {workspaces.length === 0 && !error && (
-        <div className="py-16 text-center rounded-xl border-2 border-dashed border-gray-200">
-          <p className="text-sm text-gray-500 mb-3">You don&apos;t have any workspaces yet.</p>
+        <div className="py-16 text-center rounded-xl border-2 border-dashed border-stroke">
+          <p className="text-sm text-ink-3 mb-3">You don&apos;t have any workspaces yet.</p>
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-brand-300 transition-colors"
           >
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -190,7 +190,7 @@ export default function WorkspacesPage() {
                   ? 'border-l-brand-600 border-t-brand-300 border-r-brand-300 border-b-brand-300 bg-brand-50 dark:bg-brand-900/20 dark:border-brand-700/40 shadow-sm'
                   : isNew
                   ? 'border-l-green-500 border-t-green-200 border-r-green-200 border-b-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700/40 shadow-sm'
-                  : 'border-l-gray-200 border-gray-200 bg-white hover:border-gray-300 hover:shadow-card-md hover:-translate-y-px',
+                  : 'border-l-stroke border-stroke bg-surface hover:border-ink-3 hover:shadow-card-md hover:-translate-y-px',
               )}
             >
               {/* Left */}
@@ -202,7 +202,7 @@ export default function WorkspacesPage() {
                       ? 'bg-green-500 text-white'
                       : isActive
                       ? 'bg-brand-600 text-white'
-                      : 'bg-gray-100 text-gray-500',
+                      : 'bg-surface-high text-ink-3',
                   )}
                 >
                   {isNew ? (
@@ -216,7 +216,7 @@ export default function WorkspacesPage() {
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{ws.name}</p>
+                    <p className="text-sm font-semibold text-ink truncate">{ws.name}</p>
                     {isNew && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500 text-white">
                         Switched ✓
@@ -232,11 +232,11 @@ export default function WorkspacesPage() {
                     <span className={cn('inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded', badge.class)}>
                       {badge.label}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-ink-3">
                       {ws.memberCount} member{ws.memberCount !== 1 ? 's' : ''}
                     </span>
                     {membership && (
-                      <span className="text-xs text-gray-400 capitalize">
+                      <span className="text-xs text-ink-3 capitalize">
                         · {membership.role.toLowerCase()}
                       </span>
                     )}
@@ -256,8 +256,8 @@ export default function WorkspacesPage() {
                     : isActive
                     ? 'bg-brand-600 text-white cursor-default'
                     : switching === ws.id
-                    ? 'border border-gray-200 text-gray-400 cursor-wait'
-                    : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:scale-95',
+                    ? 'border border-stroke text-ink-3 cursor-wait'
+                    : 'border border-stroke text-ink-2 hover:bg-surface-high hover:border-ink-3 active:scale-95',
                 )}
               >
                 {switching === ws.id ? (
@@ -303,12 +303,12 @@ function Spinner() {
 function PageSkeleton() {
   return (
     <div className="max-w-3xl animate-pulse">
-      <div className="h-7 w-40 bg-gray-200 rounded mb-2" />
-      <div className="h-4 w-56 bg-gray-100 rounded mb-3" />
+      <div className="h-7 w-40 bg-stroke rounded mb-2" />
+      <div className="h-4 w-56 bg-surface-high rounded mb-3" />
       <div className="h-7 w-44 bg-brand-100 rounded mb-6" />
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-20 bg-gray-100 rounded-xl border-l-4 border-l-gray-200" />
+          <div key={i} className="h-20 bg-surface-high rounded-xl border-l-4 border-l-stroke" />
         ))}
       </div>
     </div>
