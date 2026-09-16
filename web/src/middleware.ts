@@ -17,6 +17,14 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
  * publishableKey" while building the response, so every route 500s and the
  * app cannot be run locally without Clerk credentials.
  *
+ * Both keys are required here, not just the publishable one. clerkMiddleware
+ * also throws "Missing secretKey" while building the response, on public
+ * routes too, so a publishable-key-only run (the sandbox, showing the real
+ * Clerk sign-in and sign-up screens without a backend secret) 500s on every
+ * route unless this branch skips the middleware entirely. Deployed
+ * environments set both keys, so route protection there is unchanged; the
+ * API's ClerkAuthGuard verifies the session on every request regardless.
+ *
  * Note: JWT / localStorage cannot be read in Edge middleware, but Clerk uses
  * an HttpOnly __session cookie set during the OAuth callback, so this works
  * server-side without any localStorage access.
@@ -32,7 +40,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/v1/(.*)',      // Render backend API — auth is handled by ClerkAuthGuard there
 ]);
 
-const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const clerkEnabled =
+  !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !!process.env.CLERK_SECRET_KEY;
 
 const withClerk = clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {

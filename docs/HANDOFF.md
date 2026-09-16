@@ -94,6 +94,16 @@ localhost. The publishable key is not a secret; it already ships in the browser 
 `CLERK_SECRET_KEY` is only needed to verify sessions server-side or to call Clerk's Backend API,
 and `api.clerk.com` is reachable from the container.
 
+With the publishable key alone the Clerk screens render but route protection is off: the
+middleware needs both keys, because `clerkMiddleware()` throws "Missing secretKey" on every
+route, public ones included, and used to 500 the whole app in that state. Sign-up still needs
+two things from the Clerk dashboard that no key can supply. Turn **bot sign-up protection**
+off for the development instance (Configure → Attack protection): the Cloudflare Turnstile
+widget never resolves in a headless container, so the sign-up request is never sent. And enable
+**Email address** as an identifier with the email verification code (Configure → Email, phone,
+username): with social connections only, `/login` renders no email field at all and the sign-up
+email field is marked Optional, so the one-time-code flow the copy promises does not exist.
+
 ## Working agreements
 
 - Commit to `main` directly (solo founder, no PR flow yet) with clear messages.
