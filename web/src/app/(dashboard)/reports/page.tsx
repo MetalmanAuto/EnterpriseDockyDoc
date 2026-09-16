@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { apiFetch } from '@/lib/api';
@@ -101,11 +102,6 @@ interface ComplianceReport {
   riskScore: number;
 }
 
-interface AiSearchResponse {
-  answer: string;
-  relevantDocuments: { id: string; name: string }[];
-}
-
 interface AiInsights {
   summary: string;
   insights: string[];
@@ -185,12 +181,6 @@ export default function ReportsPage() {
   const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
 
-  // AI search
-  const [aiQuestion, setAiQuestion] = useState('');
-  const [aiResult, setAiResult] = useState<AiSearchResponse | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
   const REPORT_TYPE_MAP: Record<ReportId, string> = {
     'expiring-docs': 'expiring_documents',
     'document-activity': 'document_activity',
@@ -238,24 +228,6 @@ export default function ReportsPage() {
     }
   }
 
-  async function runAiSearch() {
-    if (!activeWorkspace || !aiQuestion.trim()) return;
-    setAiLoading(true);
-    setAiResult(null);
-    setAiError(null);
-    try {
-      const data = await apiFetch<AiSearchResponse>(
-        `/api/v1/ai/search?workspaceId=${activeWorkspace.workspaceId}`,
-        { method: 'POST', body: JSON.stringify({ question: aiQuestion.trim() }) },
-      );
-      setAiResult(data);
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'AI search failed.');
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
   if (userLoading) return <PageSkeleton />;
 
   return (
@@ -267,65 +239,25 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      {/* AI Report Generator */}
-      <div className="mb-6 rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50 to-indigo-50 p-5">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
-            <svg width="20" height="20" fill="none" stroke="white" strokeWidth={1.8} viewBox="0 0 24 24">
-              <path d="M12 2a2 2 0 0 1 2 2v1a7 7 0 0 1 0 14v1a2 2 0 0 1-4 0v-1a7 7 0 0 1 0-14V4a2 2 0 0 1 2-2z" strokeLinecap="round" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-semibold text-ink mb-1">AI Document Assistant</h2>
-            <p className="text-sm text-ink-2 leading-relaxed mb-3">
-              Ask questions about your documents in plain language.
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={aiQuestion}
-                onChange={(e) => setAiQuestion(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !aiLoading) void runAiSearch(); }}
-                placeholder="e.g. Which contracts expire this quarter?"
-                className="flex-1 h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                disabled={aiLoading}
-              />
-              <button
-                onClick={() => void runAiSearch()}
-                disabled={aiLoading || !aiQuestion.trim()}
-                className="px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-brand-400 dark:text-slate-900 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-brand-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {aiLoading ? 'Thinking…' : 'Ask'}
-              </button>
-            </div>
-            {aiError && (
-              <p className="mt-2 text-xs text-red-600">{aiError}</p>
-            )}
-            {aiResult && (
-              <div className="mt-3 bg-surface rounded-lg border border-brand-100 p-3">
-                <p className="text-sm text-ink leading-relaxed">{aiResult.answer}</p>
-                {aiResult.relevantDocuments.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-stroke">
-                    <p className="text-xs font-medium text-ink-3 mb-1">Relevant documents:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {aiResult.relevantDocuments.map((d) => (
-                        <a
-                          key={d.id}
-                          href={`/documents/${d.id}`}
-                          className="text-xs text-brand-600 hover:underline bg-brand-50 px-2 py-0.5 rounded"
-                        >
-                          {d.name}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* The ask-your-documents box lives on /assistant now — one home for it */}
+      <Link
+        href="/assistant"
+        className="mb-6 flex items-center gap-3 rounded-xl border border-stroke bg-surface px-5 py-4 hover:border-brand-300 transition-colors"
+      >
+        <span aria-hidden className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.3l-1.9-5.5L4.5 10.9 10.1 9z" strokeLinejoin="round" />
+            <path d="M18.5 3.5v3M20 5h-3" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-ink">Ask your documents</span>
+          <span className="block text-xs text-ink-3 mt-0.5">
+            Put a question in plain English to the assistant and get an answer with the documents it came from.
+          </span>
+        </span>
+        <span aria-hidden className="text-ink-3 flex-shrink-0">&rarr;</span>
+      </Link>
 
       {/* Active report view */}
       {activeReport ? (
