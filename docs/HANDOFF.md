@@ -39,6 +39,10 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
 - UI: "Radar" design system (slate + teal, Manrope + JetBrains Mono), login hero, dark-mode fixes,
   every dashboard page migrated to the tokens.
 - Brand: ring-D logo with animated sweep (`web/src/components/brand/Logo.tsx`, `web/public/*`).
+- AI document intelligence surfaced app-wide: `/assistant` page (ask your documents,
+  reading coverage with batch analyse, apply-suggestion list, risk flags), AI marker on
+  document rows, AI/OCR engine status in Settings. Backed by
+  `GET /ai/workspaces/:id/overview` and `POST /ai/workspaces/:id/extract-batch`.
 
 ## Next up (in order)
 
@@ -46,9 +50,12 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
    Nishant will send screenshots of what he dislikes.
 2. Razorpay billing: plans, checkout, webhook, plan gating. Test keys are on Render as
    `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`.
-3. Surface the AI document-intelligence module in the UI (expiry-date suggestion exists already).
-4. Infra: re-link Vercel and Render to MetalmanAuto/EnterpriseDockyDoc, delete the London Neon
+3. Infra: re-link Vercel and Render to MetalmanAuto/EnterpriseDockyDoc, delete the London Neon
    project after a week, rotate any API tokens that were pasted into chat.
+4. Reports still has its own "AI Document Assistant" ask box, which now duplicates `/assistant`.
+   Decide whether to drop it from Reports and keep the insight generation there only.
+5. Linting is broken in both apps: `next lint` was removed in Next 16, and the API has no
+   ESLint 9 `eslint.config.js`. Builds and `tsc` are the only checks that run today.
 
 ## Working agreements
 
