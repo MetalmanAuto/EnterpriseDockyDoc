@@ -1,3 +1,4 @@
+import { NextResponse, type NextRequest } from 'next/server';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 /**
@@ -8,8 +9,13 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
  *   - Public routes (/login, /register, /s/*, /api/health) pass through freely.
  *
  * When the key is absent (local dev without Clerk):
- *   - auth.protect() is never called → all routes pass through.
- *   - Client-side UserContext handles the 401-redirect fallback as before.
+ *   - Every route passes through and the client-side UserContext handles the
+ *     401-redirect fallback, with the API accepting an x-dev-user-email header.
+ *
+ * The no-key branch must not call clerkMiddleware() at all. Checking the key
+ * *inside* the handler is too late: clerkMiddleware throws "Missing
+ * publishableKey" while building the response, so every route 500s and the
+ * app cannot be run locally without Clerk credentials.
  *
  * Note: JWT / localStorage cannot be read in Edge middleware, but Clerk uses
  * an HttpOnly __session cookie set during the OAuth callback, so this works
@@ -26,13 +32,20 @@ const isPublicRoute = createRouteMatcher([
   '/api/v1/(.*)',      // Render backend API — auth is handled by ClerkAuthGuard there
 ]);
 
-export default clerkMiddleware(async (auth, request) => {
-  // Only enforce Clerk auth when the publishable key is configured.
-  // Without it the middleware is a transparent pass-through.
-  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !isPublicRoute(request)) {
+const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+const withClerk = clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
     await auth.protect();
   }
 });
+
+/** Transparent pass-through for local runs with no Clerk instance. */
+function withoutClerk(_request: NextRequest) {
+  return NextResponse.next();
+}
+
+export default clerkEnabled ? withClerk : withoutClerk;
 
 export const config = {
   // Apply to all routes except Next.js internals, static assets, AND /api/v1/*.
