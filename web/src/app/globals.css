@@ -310,3 +310,11 @@
 /* Clerk components — follow the app theme                             */
 /* ------------------------------------------------------------------ */
 .cl-rootBox, .cl-card, .cl-cardBox { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important; }
+
+/* Clerk pulls its card 1px left and up with a negative margin so the card's
+   own border sits under cardBox's. The auth panel removes both borders, so
+   that 1px lands outside cardBox's overflow:hidden and shaves the left edge
+   of whatever starts the row: the V of "Verify your email", the first
+   one-time-code box's border. Put the card back inside its box. */
+.cl-cardBox { overflow: visible !important; }
+.cl-card    { margin: 0 !important; }
