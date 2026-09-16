@@ -49,6 +49,11 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
   can be moved (edit dialog or drag), and tick-box bulk move / bulk label on the documents list.
   Migration `20260916120000_dedupe_tags_unique_name` merges pre-existing duplicate labels
   before adding the unique index, so it is safe on the live database.
+- UI fixes from live use: names no longer render "undefined" (use `fullName`/`initialsOf`
+  from `web/src/lib/utils.ts`, never `firstName[0] + lastName[0]`), the header search is a
+  real input with Cmd-K, the sidebar workspace card is the switcher with a visible overlay
+  on switch, upload can create a folder inline and set labels, and the Clerk auth panel
+  shows its own card header (hiding it also hid the one-time-code instructions).
 
 ## Next up (in order)
 
@@ -69,6 +74,13 @@ start it on port 5433, `npx prisma migrate deploy`, seed a workspace, then run
 `node dist/main` with `DATABASE_URL`, `ENCRYPTION_KEY` and `SHARE_GRANT_SECRET` set.
 Without `CLERK_SECRET_KEY` the guard falls back to an `x-dev-user-email` header, so
 endpoints can be called with curl as any seeded user.
+
+## What cannot be tested in a Claude Code session
+
+The Clerk-rendered auth pages and anything behind the dashboard login. There is no Clerk
+key in the container and the middleware redirects to Clerk's hosted domain, so `/login`,
+`/register` and every `(dashboard)` route fail to render locally. Changes to those need
+checking on dockydoc.app after deploy. Backend endpoints can be exercised fully (see above).
 
 ## Working agreements
 
