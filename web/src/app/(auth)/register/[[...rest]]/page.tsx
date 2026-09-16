@@ -25,14 +25,6 @@ export default function RegisterPage() {
         label: 'Sign in instead',
         href: '/login',
       }}
-      footer={
-        <>
-          Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-brand-300 hover:text-brand-200">
-            Sign in
-          </Link>
-        </>
-      }
     >
       {clerkEnabled ? (
         <SignUp

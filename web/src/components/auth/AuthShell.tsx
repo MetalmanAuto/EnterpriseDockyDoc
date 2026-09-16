@@ -9,14 +9,12 @@ import Logo from '@/components/brand/Logo';
 export default function AuthShell({
   title,
   subtitle,
-  footer,
   cta,
   children,
 }: {
   title: string;
   subtitle: string;
-  footer: React.ReactNode;
-  /** The other door: sign up from the sign-in page, and the reverse. */
+  /** The one way across to the other page. Clerk's own link is hidden. */
   cta?: { question: string; label: string; href: string };
   children: React.ReactNode;
 }) {
@@ -28,9 +26,18 @@ export default function AuthShell({
           aria-hidden
           className="absolute inset-0 bg-[radial-gradient(800px_500px_at_30%_60%,rgba(13,148,136,0.18),transparent_60%)]"
         />
-        <RadarHero />
+        <div className="relative hidden lg:flex flex-col items-center gap-8 w-full">
+          <div className="w-full max-w-[640px]">
+            <h1 className="m-0 text-[34px] leading-[1.1] font-extrabold tracking-[-0.03em] text-white [text-wrap:balance]">
+              {title}
+            </h1>
+            <p className="mt-2.5 text-sm leading-relaxed text-slate-400 max-w-[30rem]">{subtitle}</p>
+          </div>
+          <RadarHero />
+        </div>
+        <div className="lg:hidden"><RadarHero /></div>
         <p className="absolute left-6 bottom-6 lg:left-10 lg:bottom-8 font-mono text-[11px] tracking-label uppercase text-slate-500">
-          Expiry tracking · Email &amp; SMS reminders · AI-read dates
+          Expiry tracking &middot; Email &amp; SMS reminders &middot; AI-read dates
         </p>
       </div>
 
@@ -40,18 +47,26 @@ export default function AuthShell({
           <Logo size={30} motion="always" />
         </Link>
 
-        <div className="flex flex-col gap-7">
-          <div className="flex flex-col gap-2.5">
-            <h1 className="m-0 text-[32px] leading-[1.1] font-extrabold tracking-[-0.03em] text-white [text-wrap:balance]">
+        <div className="flex flex-col gap-6">
+          {/*
+            The headline lives on the hero at desktop width, where it sits
+            beside the form rather than above it. Repeating it here stacked two
+            headings on top of Clerk's own "Sign in to DockyDoc".
+          */}
+          <div className="flex flex-col gap-2 lg:hidden">
+            <h1 className="m-0 text-[26px] leading-[1.15] font-extrabold tracking-[-0.03em] text-white [text-wrap:balance]">
               {title}
             </h1>
             <p className="m-0 text-sm leading-relaxed text-slate-400">{subtitle}</p>
           </div>
+
           {/* `dark` scopes the app's dark tokens to the panel so Clerk's inputs read correctly */}
           <div className="dark flex justify-center">{children}</div>
 
+          {/* The single way across to the other page. Clerk's own footer link
+              is hidden in the appearance config so this does not double up. */}
           {cta && (
-            <div className="flex flex-col gap-2.5 pt-1">
+            <div className="flex flex-col gap-2.5">
               <div className="flex items-center gap-3">
                 <span className="h-px flex-1 bg-slate-400/15" />
                 <span className="font-mono text-[10px] uppercase tracking-label text-slate-500">
@@ -69,8 +84,7 @@ export default function AuthShell({
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>{footer}</span>
+        <div className="flex items-center justify-end text-xs text-slate-500">
           <span>© {new Date().getFullYear()} DockyDoc</span>
         </div>
       </div>
@@ -89,18 +103,25 @@ export const authPanelAppearance = {
   elements: {
     rootBox: 'w-full',
     cardBox: 'w-full shadow-none',
-    card: 'w-full shadow-none border-0 bg-transparent p-0',
+    card: 'w-full shadow-none border-0 bg-transparent p-0 gap-5',
     header: 'mb-5 text-left items-start',
     headerTitle: 'text-lg font-bold text-white text-left',
     headerSubtitle: 'text-sm text-slate-400 text-left',
-    footer: 'bg-transparent',
-    footerAction: 'bg-transparent',
-    footerActionText: 'text-slate-400',
-    footerActionLink: 'font-semibold text-brand-300 hover:text-brand-200 no-underline',
+    // Clerk's footer holds its own "Don't have an account? Sign up" link. The
+    // panel already shows one full-width button for that, and three routes to
+    // the same page read as clutter, so Clerk's copy stays hidden.
+    footer: 'bg-transparent p-0',
+    footerAction: 'hidden',
+    footerActionText: 'hidden',
+    footerActionLink: 'hidden',
     formFieldLabel: 'font-mono text-[11px] tracking-label uppercase text-slate-500',
     formFieldInput: 'h-11 rounded-[10px] bg-[#111a2e] border-slate-400/20 text-slate-200 focus:border-brand-400',
     formButtonPrimary: 'h-12 rounded-[10px] bg-brand-400 hover:bg-brand-300 text-slate-900 font-extrabold normal-case shadow-none text-sm',
     socialButtonsBlockButton: 'h-11 border-slate-400/20 text-slate-200 hover:bg-white/5',
+    // "Last used" sits at the button's top-right corner and was being cut off
+    // by the panel edge; pulling it inside keeps it readable.
+    socialButtonsBlockButtonText: 'text-slate-200',
+    badge: 'right-2 bg-brand-400/15 text-brand-200 border-brand-400/30',
     dividerLine: 'bg-slate-400/20',
     dividerText: 'text-slate-500',
     phoneInputBox: 'bg-[#111a2e] border-slate-400/20 text-slate-200',
@@ -115,6 +136,8 @@ export const authPanelAppearance = {
     identityPreviewText: 'text-slate-200',
     identityPreviewEditButton: 'text-brand-300',
     alternativeMethodsBlockButton: 'h-11 border-slate-400/20 text-slate-200 hover:bg-white/5',
+    alertText: 'text-red-300',
+    alert: 'rounded-[10px] border border-red-400/30 bg-red-400/[0.08]',
     backLink: 'text-brand-300',
     formFieldHintText: 'text-slate-500',
     formFieldSuccessText: 'text-brand-300',

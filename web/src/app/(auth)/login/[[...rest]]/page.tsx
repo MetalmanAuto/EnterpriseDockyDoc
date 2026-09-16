@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { SignIn } from '@clerk/nextjs';
 import LoginForm from '@/components/auth/LoginForm';
 import AuthShell, { authPanelAppearance } from '@/components/auth/AuthShell';
@@ -25,14 +24,6 @@ export default function LoginPage() {
         label: 'Create your free workspace',
         href: '/register',
       }}
-      footer={
-        <>
-          New team?{' '}
-          <Link href="/register" className="font-semibold text-brand-300 hover:text-brand-200">
-            Create a workspace
-          </Link>
-        </>
-      }
     >
       {clerkEnabled ? (
         <SignIn
