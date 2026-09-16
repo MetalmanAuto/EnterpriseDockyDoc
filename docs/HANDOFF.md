@@ -44,6 +44,11 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
   document rows, AI/OCR engine status in Settings. Backed by
   `GET /ai/workspaces/:id/overview` and `POST /ai/workspaces/:id/extract-batch`.
   Reports keeps its per-report AI insights only; its old ask box now links to `/assistant`.
+- Folder and label management: clickable label filtering on the documents list, label usage
+  counts and merge in Settings, duplicate names blocked for both labels and folders, folders
+  can be moved (edit dialog or drag), and tick-box bulk move / bulk label on the documents list.
+  Migration `20260916120000_dedupe_tags_unique_name` merges pre-existing duplicate labels
+  before adding the unique index, so it is safe on the live database.
 
 ## Next up (in order)
 
@@ -55,6 +60,15 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
    project after a week, rotate any API tokens that were pasted into chat.
 4. Linting is broken in both apps: `next lint` was removed in Next 16, and the API has no
    ESLint 9 `eslint.config.js`. Builds and `tsc` are the only checks that run today.
+
+## Testing without the live database
+
+Postgres 16 is available in the Claude Code container. To exercise the API for real:
+`initdb` a data directory under `/var/tmp` (not the scratchpad, whose permissions reset),
+start it on port 5433, `npx prisma migrate deploy`, seed a workspace, then run
+`node dist/main` with `DATABASE_URL`, `ENCRYPTION_KEY` and `SHARE_GRANT_SECRET` set.
+Without `CLERK_SECRET_KEY` the guard falls back to an `x-dev-user-email` header, so
+endpoints can be called with curl as any seeded user.
 
 ## Working agreements
 
