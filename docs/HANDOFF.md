@@ -96,13 +96,23 @@ and `api.clerk.com` is reachable from the container.
 
 With the publishable key alone the Clerk screens render but route protection is off: the
 middleware needs both keys, because `clerkMiddleware()` throws "Missing secretKey" on every
-route, public ones included, and used to 500 the whole app in that state. Sign-up still needs
-two things from the Clerk dashboard that no key can supply. Turn **bot sign-up protection**
-off for the development instance (Configure → Attack protection): the Cloudflare Turnstile
-widget never resolves in a headless container, so the sign-up request is never sent. And enable
-**Email address** as an identifier with the email verification code (Configure → Email, phone,
-username): with social connections only, `/login` renders no email field at all and the sign-up
-email field is marked Optional, so the one-time-code flow the copy promises does not exist.
+route, public ones included, and used to 500 the whole app in that state.
+
+Two dashboard settings decide whether sign-up can run here at all. Bot sign-up protection
+(Configure → Attack protection) must be off on the development instance, because the Cloudflare
+Turnstile widget never resolves in a headless container and the sign-up request is never sent.
+Email address must be on as an identifier with the email verification code (Configure → Email,
+phone, username), or `/login` renders no email field and sign-up has no code step.
+
+Drive the flow with Clerk's test credentials, which skip the real inbox: any address containing
+`+clerk_test`, the phone numbers `+1 555 555 0100` to `0199`, and `424242` as the code for both.
+Every field Clerk marks required must be filled or the browser blocks the submit silently, with
+no error text and no network request. Phone is currently required alongside email, so the run is
+email, phone, then two `424242` codes, then `/dashboard`.
+
+The dashboard that follows shows the seeded `alice@acmecorp.com`, not the account just created.
+That is ClerkAuthGuard falling back to the `x-dev-user-email` header because the API has no
+`CLERK_SECRET_KEY`. Set that key to see the real signed-up user.
 
 ## Working agreements
 
