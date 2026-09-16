@@ -36,18 +36,24 @@ async function getClerkToken(): Promise<string | null> {
       loaded?: boolean;
       session?: { getToken: () => Promise<string | null> } | null;
     };
-    // Wait up to 5s for Clerk to fully initialize (SDK load + session establishment).
-    // Checking clerk.loaded (not just clerk !== undefined) prevents grabbing a null
-    // session during the brief window between SDK mount and session resolution.
-    let attempts = 0;
-    while (attempts < 50) {
-      const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
-      if (clerk?.loaded) break;
-      await new Promise((r) => setTimeout(r, 100));
-      attempts++;
-    }
-    const clerk = (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
-    return (await clerk?.session?.getToken()) ?? null;
+    const read = () => (window as typeof window & { Clerk?: ClerkGlobal }).Clerk;
+    const tick = () => new Promise((r) => setTimeout(r, 100));
+
+    // Wait up to 5s for the SDK itself to mount.
+    for (let i = 0; i < 50 && !read()?.loaded; i++) await tick();
+
+    // `loaded` alone is not enough on the path that matters most. Signing in or
+    // signing up ends in a client-side navigation to /dashboard, where the SDK
+    // is already loaded from the auth page, so the wait above returns at once
+    // while the session is still being established. The request then goes out
+    // with no Authorization header, the API answers 401, and UserContext
+    // redirects to /login — which bounces straight back, because by then the
+    // session exists. That is the post-login flicker. Give the session its own
+    // 2s window; a genuinely signed-out visitor never reaches this code,
+    // because clerkMiddleware redirects them server-side first.
+    for (let i = 0; i < 20 && read()?.loaded && !read()?.session; i++) await tick();
+
+    return (await read()?.session?.getToken()) ?? null;
   } catch {
     return null;
   }
