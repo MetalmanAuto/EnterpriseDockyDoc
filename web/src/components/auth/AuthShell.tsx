@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@/components/brand/Logo';
 
 /**
  * Shared frame for /login and /register: the animated "expiry radar" hero on
@@ -32,14 +33,8 @@ export default function AuthShell({
 
       {/* ── Form panel ─────────────────────────────────────────────── */}
       <div className="relative w-full lg:w-[520px] flex-shrink-0 flex flex-col justify-between gap-10 px-6 sm:px-12 lg:px-16 py-10 bg-[#0b1220] border-t lg:border-t-0 lg:border-l border-slate-400/[0.12] animate-rise">
-        <Link href="/" className="flex items-center gap-2.5 w-fit">
-          <div className="w-[30px] h-[30px] rounded-lg bg-brand-400 flex items-center justify-center">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-              <path d="M14 3v5h5" />
-            </svg>
-          </div>
-          <span className="font-extrabold text-base tracking-[-0.02em] text-white">DockyDoc</span>
+        <Link href="/" className="w-fit">
+          <Logo size={30} motion="always" />
         </Link>
 
         <div className="flex flex-col gap-7">

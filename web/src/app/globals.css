@@ -128,6 +128,19 @@
 @keyframes dd-slide-right-in  { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes dd-slide-right-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
 @keyframes dd-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* ── Brand mark motion (ring-D radar) ─────────────────────────── */
+@keyframes dd-logo-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes dd-logo-blip  { 0%, 78%, 100% { opacity: 1; transform: scale(1); } 86% { opacity: 0.35; transform: scale(1.7); } }
+@keyframes dd-logo-word  { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+.logo-sweep { transform-origin: 30px 32px; transform-box: view-box; }
+.logo-blip  { transform-origin: 38.5px 35px; transform-box: view-box; }
+.logo-motion .logo-sweep, .logo-hover:hover .logo-sweep { animation: dd-logo-sweep 2.6s linear infinite; }
+.logo-motion .logo-blip,  .logo-hover:hover .logo-blip  { animation: dd-logo-blip 2.6s ease-in-out infinite; }
+.logo-hover .logo-sweep { animation: dd-logo-sweep 1.4s cubic-bezier(.4,0,.2,1) 1; }
+.logo-word { animation: dd-logo-word 0.6s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .logo-sweep, .logo-blip, .logo-word { animation: none !important; }
+}
 @keyframes dd-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 /* ------------------------------------------------------------------ */

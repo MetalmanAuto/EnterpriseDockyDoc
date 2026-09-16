@@ -23,6 +23,13 @@ export const metadata: Metadata = {
     template: '%s | DockyDoc',
   },
   description: 'Know what expires before it does — document expiry tracking with email and SMS reminders.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {

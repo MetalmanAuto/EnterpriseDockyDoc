@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import Logo from '@/components/brand/Logo';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/context/UserContext';
@@ -71,15 +72,9 @@ export default function Sidebar() {
         )}
       >
         {/* ── Logo bar ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2.5 px-4 h-[52px] border-b border-slate-400/[0.12] flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-brand-400 flex items-center justify-center flex-shrink-0">
-            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-slate-900">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth={2.6} />
-              <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth={2.6} strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="text-sm font-extrabold text-white tracking-[-0.02em]">DockyDoc</span>
-        </div>
+        <Link href="/dashboard" className="flex items-center px-4 h-[52px] border-b border-slate-400/[0.12] flex-shrink-0">
+          <Logo size={26} motion="hover" />
+        </Link>
 
         {/* ── Active workspace ─────────────────────────────────────── */}
         <div className="px-3 pt-3 pb-2 flex-shrink-0">
