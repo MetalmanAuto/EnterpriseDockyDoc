@@ -1,16 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
-import type { WorkspaceType } from '@/types';
-
-const TYPE_BADGE: Record<WorkspaceType, string> = {
-  ENTERPRISE: 'bg-purple-500/20 text-purple-300',
-  PERSONAL:   'bg-blue-500/20 text-blue-300',
-  FAMILY:     'bg-emerald-500/20 text-emerald-300',
-};
 
 /**
  * WorkspaceSwitcher — workspace selector in the sidebar.
@@ -74,15 +68,12 @@ export default function WorkspaceSwitcher() {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-white/90 truncate leading-tight">
+          <p className="text-xs font-bold text-white truncate leading-tight">
             {activeWorkspace.workspaceName}
           </p>
-          <span className={cn(
-            'inline-block text-[10px] font-medium px-1.5 py-px rounded-sm leading-tight mt-0.5',
-            TYPE_BADGE[activeWorkspace.workspaceType],
-          )}>
-            {activeWorkspace.workspaceType}
-          </span>
+          <p className="font-mono text-[10px] text-slate-400 truncate leading-tight mt-0.5 uppercase tracking-label">
+            {activeWorkspace.workspaceType.slice(0, 3)} &middot; {activeWorkspace.role}
+          </p>
         </div>
         <svg
           className={cn('flex-shrink-0 text-white/30 transition-transform duration-150', open && 'rotate-180')}
@@ -101,7 +92,7 @@ export default function WorkspaceSwitcher() {
         >
           <div className="px-3 py-2 border-b border-gray-100 dark:border-stroke">
             <p className="text-[10px] font-semibold text-gray-400 dark:text-ink-3 uppercase tracking-widest">
-              Workspaces
+              {user.workspaces.length > 1 ? 'Switch workspace' : 'Workspaces'}
             </p>
           </div>
           <ul className="py-1 max-h-56 overflow-y-auto">
@@ -153,6 +144,16 @@ export default function WorkspaceSwitcher() {
               );
             })}
           </ul>
+          <Link
+            href="/workspaces"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-100 dark:border-stroke text-xs font-semibold text-brand-600 dark:text-brand-300 hover:bg-gray-50 dark:hover:bg-surface-high"
+          >
+            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            Manage workspaces
+          </Link>
         </div>
       )}
     </div>

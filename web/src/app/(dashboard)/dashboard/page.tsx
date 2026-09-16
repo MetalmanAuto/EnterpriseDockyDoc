@@ -6,7 +6,7 @@ import { useUser } from '@/context/UserContext';
 import { fetchWorkspaceSummary, fetchExpiringDocuments } from '@/lib/documents';
 import { fetchWorkspaceActivity } from '@/lib/audit';
 import { describeAuditLog, auditActionCategory } from '@/lib/audit';
-import { cn } from '@/lib/utils';
+import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import { bucketize, formatDate, isSnoozed, type ExpiryBucket } from '@/lib/expiry';
 import ExpiryActions from '@/components/expiry/ExpiryActions';
@@ -214,7 +214,7 @@ export default function DashboardPage() {
               {activity.map((log) => {
                 const category = auditActionCategory(log.action);
                 const actor = log.user
-                  ? `${log.user.firstName} ${log.user.lastName}`
+                  ? fullName(log.user)
                   : 'External';
                 const diff = Date.now() - new Date(log.createdAt).getTime();
                 const m = Math.floor(diff / 60000);

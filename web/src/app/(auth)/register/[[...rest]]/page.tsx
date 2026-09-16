@@ -18,8 +18,13 @@ const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 export default function RegisterPage() {
   return (
     <AuthShell
-      title="Start tracking expiries in two minutes."
-      subtitle="Verify your email or mobile with a one-time code — your workspace is ready the moment you're in."
+      title="Create your DockyDoc workspace."
+      subtitle="Enter your email, type the 6-digit code we send you, and your workspace is ready. No password, no card."
+      cta={{
+        question: 'Already signed up?',
+        label: 'Sign in instead',
+        href: '/login',
+      }}
       footer={
         <>
           Already have an account?{' '}

@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, unsnoozeDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
 import { apiFetch } from '@/lib/api';
 import { fetchDocumentActivity, describeAuditLog, auditActionCategory, formatAuditAction } from '@/lib/audit';
-import { cn } from '@/lib/utils';
+import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useUser } from '@/context/UserContext';
@@ -2117,7 +2117,7 @@ function DocumentActivitySection({ documentId }: { documentId: string }) {
           {logs.map((log) => {
             const category = auditActionCategory(log.action);
             const actor = log.user
-              ? `${log.user.firstName} ${log.user.lastName}`
+              ? fullName(log.user)
               : 'External user';
             const diff = Date.now() - new Date(log.createdAt).getTime();
             const m = Math.floor(diff / 60000);

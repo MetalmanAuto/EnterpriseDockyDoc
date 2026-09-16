@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, updateFolder, moveFolder, deleteFolder, deleteDocument, updateDocument, fetchTags, bulkMoveDocuments, bulkTagDocuments } from '@/lib/documents';
-import { cn } from '@/lib/utils';
+import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, updateFolder, moveFolder, deleteFolder, deleteDocument, updateDocument, fetchTags, createTag, bulkMoveDocuments, bulkTagDocuments } from '@/lib/documents';
+import { cn, initialsOf } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import type { AiDocumentStatus, DocumentListItem, DocumentStatus, FolderListItem, SearchResult, Tag } from '@/types';
@@ -59,7 +59,7 @@ function FileTypeIcon({ fileType, size = 18 }: { fileType: string; size?: number
 }
 
 function initials(firstName: string, lastName: string) {
-  return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  return initialsOf({ firstName, lastName });
 }
 
 // ------------------------------------------------------------------ //
@@ -76,6 +76,26 @@ function buildTree(folders: FolderListItem[]) {
     }
   }
   return { roots, childMap };
+}
+
+/** "Compliance / Insurance / Policies" — so a picker shows where a folder sits. */
+function folderPath(folders: FolderListItem[], id: string): string {
+  const byId = new Map(folders.map((f) => [f.id, f]));
+  const parts: string[] = [];
+  let current = byId.get(id);
+  // The depth cap stops a malformed cycle from hanging the render
+  for (let i = 0; current && i < 10; i++) {
+    parts.unshift(current.name);
+    current = current.parentFolderId ? byId.get(current.parentFolderId) : undefined;
+  }
+  return parts.join(' / ');
+}
+
+/** Folders ordered so each one reads under its parent, with its full path. */
+function folderOptions(folders: FolderListItem[]): { id: string; path: string }[] {
+  return folders
+    .map((f) => ({ id: f.id, path: folderPath(folders, f.id) }))
+    .sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /** A folder plus everything nested underneath it. */
@@ -233,6 +253,13 @@ function DocumentsPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFolderId, showTrash, filterTagIds]);
 
+  // A fresh ?q= from the header search (the page does not remount between them)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setSearchQuery(q);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Debounced search — fires 350 ms after the user stops typing
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -267,6 +294,8 @@ function DocumentsPageInner() {
     if (searchParams.get('upload') === '1' && canEdit) {
       setShowUpload(true);
     }
+    const q = searchParams.get('q');
+    if (q) setSearchQuery(q);
     if (searchParams.get('view') === 'trash') {
       setShowTrash(true);
       setSelectedFolderId(null);
@@ -984,6 +1013,7 @@ function DocumentsPageInner() {
         <UploadModal
           workspaceId={activeWorkspace.workspaceId}
           folders={folders}
+          tags={tags}
           defaultFolderId={selectedFolderId ?? undefined}
           initialFile={dropFile ?? undefined}
           onClose={() => { setShowUpload(false); setDropFile(null); }}
@@ -991,7 +1021,9 @@ function DocumentsPageInner() {
             setShowUpload(false);
             setDropFile(null);
             refreshDocuments();
-            toast.success('Document uploaded successfully.');
+            refreshFolders();
+            refreshTags();
+            toast.success('Uploaded. AI is reading it now — check the document for suggestions.');
           }}
         />
       )}
@@ -1182,6 +1214,7 @@ export default function DocumentsPage() {
 function UploadModal({
   workspaceId,
   folders,
+  tags,
   defaultFolderId,
   initialFile,
   onClose,
@@ -1189,6 +1222,7 @@ function UploadModal({
 }: {
   workspaceId: string;
   folders: FolderListItem[];
+  tags: Tag[];
   defaultFolderId?: string;
   initialFile?: File;
   onClose: () => void;
@@ -1201,6 +1235,53 @@ function UploadModal({
   const [folderId, setFolderId] = useState(defaultFolderId ?? '');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Folder created from inside this dialog, so people never have to cancel,
+  // go and make a folder, and start the upload again
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [extraFolders, setExtraFolders] = useState<FolderListItem[]>([]);
+
+  // Labels chosen up front. New names are created when the upload runs.
+  const [pickedTagIds, setPickedTagIds] = useState<string[]>([]);
+  const [newTagNames, setNewTagNames] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState('');
+
+  const allFolders = [...folders, ...extraFolders];
+  const options = folderOptions(allFolders);
+
+  async function handleCreateFolder() {
+    const trimmed = newFolderName.trim();
+    if (!trimmed || creatingFolder) return;
+    setCreatingFolder(true);
+    setError(null);
+    try {
+      const created = await createFolder({
+        workspaceId,
+        name: trimmed,
+        parentFolderId: folderId || undefined,
+      });
+      setExtraFolders((prev) => [...prev, created]);
+      setFolderId(created.id);
+      setNewFolderName('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create that folder.');
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
+
+  function addTagDraft() {
+    const trimmed = tagDraft.trim();
+    if (!trimmed) return;
+    const existing = tags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      setPickedTagIds((prev) => (prev.includes(existing.id) ? prev : [...prev, existing.id]));
+    } else if (!newTagNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+      setNewTagNames((prev) => [...prev, trimmed]);
+    }
+    setTagDraft('');
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -1220,12 +1301,25 @@ function UploadModal({
     setError(null);
 
     try {
+      // Any label typed but not yet created is created now. createTag hands
+      // back the existing label when the name is already taken.
+      const createdIds: string[] = [];
+      for (const label of newTagNames) {
+        try {
+          const tag = await createTag(workspaceId, label);
+          createdIds.push(tag.id);
+        } catch {
+          // A label that cannot be created should not lose the upload
+        }
+      }
+
       await uploadDocument({
         workspaceId,
         name: name.trim(),
         file,
         description: description.trim() || undefined,
         folderId: folderId || undefined,
+        tags: [...pickedTagIds, ...createdIds],
       });
       onSuccess();
     } catch (err) {
@@ -1329,26 +1423,131 @@ function UploadModal({
             />
           </div>
 
-          {/* Folder */}
-          {folders.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                Folder
-              </label>
-              <select
-                value={folderId}
-                onChange={(e) => setFolderId(e.target.value)}
-                className="w-full rounded-lg border border-stroke px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-surface"
+          {/* Folder — full paths, and a way to make one without leaving */}
+          <div>
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">
+              Folder
+            </label>
+            <select
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+              className="w-full rounded-lg border border-stroke px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-surface"
+            >
+              <option value="">No folder</option>
+              {options.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.path}
+                </option>
+              ))}
+            </select>
+
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); void handleCreateFolder(); }
+                }}
+                placeholder={folderId ? 'New folder inside the one above…' : 'Or type a new folder name…'}
+                className="flex-1 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-ink-3"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCreateFolder()}
+                disabled={creatingFolder || !newFolderName.trim()}
+                className="btn-ghost px-3 py-1.5 text-xs"
               >
-                <option value="">No folder</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
+                {creatingFolder ? 'Creating…' : 'Create'}
+              </button>
             </div>
-          )}
+          </div>
+
+          {/* Labels */}
+          <div>
+            <label className="block text-xs font-medium text-ink-2 mb-1.5">
+              Labels
+            </label>
+
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tags.map((t) => {
+                  const on = pickedTagIds.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() =>
+                        setPickedTagIds((prev) =>
+                          prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id],
+                        )
+                      }
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                        on
+                          ? 'border-brand-400 bg-brand-50 text-brand-700 font-semibold'
+                          : 'border-stroke bg-surface text-ink-2 hover:border-brand-300',
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: t.color ?? '#94a3b8' }}
+                      />
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {newTagNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {newTagNames.map((label) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brand-400 bg-brand-50 px-2.5 py-1 text-xs text-brand-700"
+                  >
+                    {label}
+                    <span className="text-[10px] text-ink-3">new</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${label}`}
+                      onClick={() => setNewTagNames((prev) => prev.filter((n) => n !== label))}
+                      className="text-ink-3 hover:text-red-600"
+                    >
+                      &times;
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagDraft(); }
+                }}
+                placeholder={tags.length > 0 ? 'Or type a new label…' : 'Type a label and press Enter…'}
+                className="flex-1 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-ink-3"
+              />
+              <button
+                type="button"
+                onClick={addTagDraft}
+                disabled={!tagDraft.trim()}
+                className="btn-ghost px-3 py-1.5 text-xs"
+              >
+                Add
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-3">
+              AI reads the file after upload and suggests an expiry date, a folder and labels on the
+              document&apos;s page.
+            </p>
+          </div>
 
           {/* Error */}
           {error && (

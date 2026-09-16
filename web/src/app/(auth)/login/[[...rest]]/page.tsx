@@ -20,6 +20,11 @@ export default function LoginPage() {
     <AuthShell
       title="Know what expires before it does."
       subtitle="One-time code by email or SMS. No password to remember."
+      cta={{
+        question: "Don't have an account?",
+        label: 'Create your free workspace',
+        href: '/register',
+      }}
       footer={
         <>
           New team?{' '}

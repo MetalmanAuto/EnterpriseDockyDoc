@@ -10,11 +10,14 @@ export default function AuthShell({
   title,
   subtitle,
   footer,
+  cta,
   children,
 }: {
   title: string;
   subtitle: string;
   footer: React.ReactNode;
+  /** The other door: sign up from the sign-in page, and the reverse. */
+  cta?: { question: string; label: string; href: string };
   children: React.ReactNode;
 }) {
   return (
@@ -32,7 +35,7 @@ export default function AuthShell({
       </div>
 
       {/* ── Form panel ─────────────────────────────────────────────── */}
-      <div className="relative w-full lg:w-[520px] flex-shrink-0 flex flex-col justify-between gap-10 px-6 sm:px-12 lg:px-16 py-10 bg-[#0b1220] border-t lg:border-t-0 lg:border-l border-slate-400/[0.12] animate-rise">
+      <div className="relative w-full lg:w-[520px] flex-shrink-0 flex flex-col justify-between gap-10 px-6 sm:px-10 lg:px-12 py-10 bg-[#0b1220] border-t lg:border-t-0 lg:border-l border-slate-400/[0.12] animate-rise">
         <Link href="/" className="w-fit">
           <Logo size={30} motion="always" />
         </Link>
@@ -46,6 +49,24 @@ export default function AuthShell({
           </div>
           {/* `dark` scopes the app's dark tokens to the panel so Clerk's inputs read correctly */}
           <div className="dark flex justify-center">{children}</div>
+
+          {cta && (
+            <div className="flex flex-col gap-2.5 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-slate-400/15" />
+                <span className="font-mono text-[10px] uppercase tracking-label text-slate-500">
+                  {cta.question}
+                </span>
+                <span className="h-px flex-1 bg-slate-400/15" />
+              </div>
+              <Link
+                href={cta.href}
+                className="flex h-12 items-center justify-center rounded-[10px] border border-brand-400/40 bg-brand-400/[0.08] text-sm font-bold text-brand-200 hover:bg-brand-400/[0.14] hover:border-brand-400/70 transition-colors"
+              >
+                {cta.label}
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-500">
@@ -57,31 +78,50 @@ export default function AuthShell({
   );
 }
 
-/** Clerk `appearance.elements` for the dark auth panel — shared by SignIn and SignUp. */
+/**
+ * Clerk `appearance.elements` for the dark auth panel — shared by SignIn and SignUp.
+ *
+ * The card header stays visible on purpose. Hiding it also hid the one-time-code
+ * step's own heading, which is what tells people a code was sent and where to,
+ * leaving a bare row of boxes with no explanation.
+ */
 export const authPanelAppearance = {
   elements: {
     rootBox: 'w-full',
     cardBox: 'w-full shadow-none',
     card: 'w-full shadow-none border-0 bg-transparent p-0',
-    header: 'hidden',
+    header: 'mb-5 text-left items-start',
+    headerTitle: 'text-lg font-bold text-white text-left',
+    headerSubtitle: 'text-sm text-slate-400 text-left',
     footer: 'bg-transparent',
-    footerAction: 'hidden',
+    footerAction: 'bg-transparent',
+    footerActionText: 'text-slate-400',
+    footerActionLink: 'font-semibold text-brand-300 hover:text-brand-200 no-underline',
     formFieldLabel: 'font-mono text-[11px] tracking-label uppercase text-slate-500',
     formFieldInput: 'h-11 rounded-[10px] bg-[#111a2e] border-slate-400/20 text-slate-200 focus:border-brand-400',
     formButtonPrimary: 'h-12 rounded-[10px] bg-brand-400 hover:bg-brand-300 text-slate-900 font-extrabold normal-case shadow-none text-sm',
-    socialButtonsBlockButton: 'border-slate-400/20 text-slate-200 hover:bg-white/5',
+    socialButtonsBlockButton: 'h-11 border-slate-400/20 text-slate-200 hover:bg-white/5',
     dividerLine: 'bg-slate-400/20',
     dividerText: 'text-slate-500',
     phoneInputBox: 'bg-[#111a2e] border-slate-400/20 text-slate-200',
-    otpCodeFieldInput: 'bg-[#111a2e] border-slate-400/20 text-slate-100 font-mono',
+    // One-time code: give the boxes a real size and keep the row on one line
+    otpCodeFieldInputs: 'gap-2 justify-start flex-nowrap',
+    otpCodeField: 'w-full',
+    otpCodeFieldInput:
+      'w-11 h-12 min-w-0 flex-1 max-w-[52px] rounded-[10px] bg-[#111a2e] border border-slate-400/25 ' +
+      'text-slate-100 text-lg font-mono text-center focus:border-brand-400',
+    formResendCodeLink: 'text-brand-300 hover:text-brand-200',
     identityPreview: 'bg-[#111a2e] border-slate-400/20',
     identityPreviewText: 'text-slate-200',
-    alternativeMethodsBlockButton: 'border-slate-400/20 text-slate-200 hover:bg-white/5',
-    formResendCodeLink: 'text-brand-300',
+    identityPreviewEditButton: 'text-brand-300',
+    alternativeMethodsBlockButton: 'h-11 border-slate-400/20 text-slate-200 hover:bg-white/5',
     backLink: 'text-brand-300',
     formFieldHintText: 'text-slate-500',
     formFieldSuccessText: 'text-brand-300',
     formFieldErrorText: 'text-red-300',
+    formFieldAction: 'text-brand-300',
+    formFieldInfoText: 'text-slate-500',
+    otpCodeFieldErrorText: 'text-red-300',
   },
 };
 

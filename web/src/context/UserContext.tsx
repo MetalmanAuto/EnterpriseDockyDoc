@@ -28,6 +28,11 @@ interface UserContextValue {
    */
   switchWorkspace: (workspaceId: string) => Promise<void>;
   /**
+   * The workspace being switched to, while the switch is in flight.
+   * Drives the app-wide "switching workspace" overlay so the change is visible.
+   */
+  switchingTo: WorkspaceMembership | null;
+  /**
    * Re-fetch the current user (refreshes workspace names, roles, etc.).
    * Call after renaming a workspace or after a role change that affects the current user.
    * Pass workspaceId to atomically switch to a specific workspace after the refresh
@@ -48,12 +53,16 @@ const UserContext = createContext<UserContextValue | null>(null);
 
 const STORAGE_KEY = 'dockydoc:activeWorkspaceId';
 
+/** Minimum time the switching overlay stays up, so the change registers. */
+const SWITCH_MIN_MS = 550;
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [activeWorkspace, setActiveWorkspace] =
     useState<WorkspaceMembership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [switchingTo, setSwitchingTo] = useState<WorkspaceMembership | null>(null);
   const router = useRouter();
 
   // Fetch current user on mount
@@ -149,17 +158,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const previous = activeWorkspace;
       const optimistic =
         user.workspaces.find((w) => w.workspaceId === workspaceId) ?? null;
+
+      setSwitchingTo(optimistic);
       setActiveWorkspace(optimistic);
 
       try {
         // Server validates membership
-        await switchWorkspaceApi(workspaceId);
+        await Promise.all([
+          switchWorkspaceApi(workspaceId),
+          // Hold the overlay long enough to be seen. Without this the switch
+          // finishes in a blink and nothing tells the user it happened.
+          new Promise((resolve) => setTimeout(resolve, SWITCH_MIN_MS)),
+        ]);
         // Persist selection
         localStorage.setItem(STORAGE_KEY, workspaceId);
       } catch (err) {
         // Revert on failure
         setActiveWorkspace(previous);
         throw err;
+      } finally {
+        setSwitchingTo(null);
       }
     },
     [user, activeWorkspace],
@@ -167,7 +185,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <UserContext.Provider
-      value={{ user, activeWorkspace, isLoading, error, switchWorkspace, refreshUser, logout }}
+      value={{ user, activeWorkspace, isLoading, error, switchWorkspace, switchingTo, refreshUser, logout }}
     >
       {children}
     </UserContext.Provider>

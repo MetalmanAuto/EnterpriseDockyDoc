@@ -16,7 +16,7 @@ import {
   mergeTag,
 } from '@/lib/documents';
 import type { AiSettings } from '@/lib/documents';
-import { cn } from '@/lib/utils';
+import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import type { Tag, WorkspaceDetail } from '@/types';
@@ -334,7 +334,7 @@ function GeneralSection({
       {/* Account */}
       <SectionCard title="Account" subtitle="Your personal account information">
         <div className="divide-y divide-stroke-soft">
-          <InfoRow label="Name"  value={user ? `${user.firstName} ${user.lastName}` : '—'} />
+          <InfoRow label="Name"  value={user ? fullName(user) : '—'} />
           <InfoRow label="Email" value={user?.email ?? '—'} last />
         </div>
       </SectionCard>

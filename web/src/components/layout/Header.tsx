@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useSidebar } from '@/context/SidebarContext';
-import { cn } from '@/lib/utils';
+import { cn, fullName, initialsOf } from '@/lib/utils';
 
 // ------------------------------------------------------------------ //
 // Theme hook — reads/writes localStorage, toggles .dark on <html>
@@ -60,7 +60,8 @@ export default function Header() {
   const pathname = usePathname();
 
   const pageTitle = resolveTitle(pathname);
-  const initials = user ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : '?';
+  const initials = initialsOf(user);
+  const name = fullName(user);
 
   return (
     <header className="h-[52px] bg-surface border-b border-stroke flex items-center gap-3 px-4 flex-shrink-0">
@@ -87,14 +88,7 @@ export default function Header() {
 
       {/* Right controls */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <Link
-          href="/documents"
-          className="hidden md:flex items-center gap-2 h-8 w-60 px-3 rounded-lg bg-surface-high border border-stroke text-xs text-ink-3 hover:border-brand-400 transition-colors"
-        >
-          <SearchIcon />
-          <span className="flex-1 text-left">Search documents…</span>
-          <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-stroke text-ink-3">⌘K</kbd>
-        </Link>
+        <HeaderSearch />
         <Link href="/documents?upload=1" className="btn-primary h-8 px-3 py-0 text-xs">
           Upload
         </Link>
@@ -116,10 +110,10 @@ export default function Header() {
 
         {/* User avatar */}
         <div
-          title={user ? `${user.firstName} ${user.lastName} — ${user.email}` : ''}
+          title={user ? `${name} — ${user.email}` : ''}
           className="w-7 h-7 rounded-full bg-brand-400/20 flex items-center justify-center text-[11px] font-extrabold text-brand-700 dark:text-brand-300 flex-shrink-0 select-none"
           role="img"
-          aria-label={user ? `${user.firstName} ${user.lastName}` : 'User'}
+          aria-label={name || 'User'}
         >
           {isLoading ? '…' : initials}
         </div>
@@ -139,6 +133,76 @@ export default function Header() {
         </button>
       </div>
     </header>
+  );
+}
+
+// ------------------------------------------------------------------ //
+// Search — a real input, not a link that pretended to be one
+// ------------------------------------------------------------------ //
+
+function HeaderSearch() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState('');
+
+  // ⌘K / Ctrl-K focuses the box from anywhere in the app
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+      if (e.key === 'Escape' && document.activeElement === inputRef.current) {
+        inputRef.current?.blur();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Leaving the documents page clears the box, so it never shows a stale query
+  useEffect(() => {
+    if (!pathname.startsWith('/documents')) setValue('');
+  }, [pathname]);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = value.trim();
+    if (!q) return;
+    router.push(`/documents?q=${encodeURIComponent(q)}`);
+  }
+
+  return (
+    <form onSubmit={submit} className="hidden md:block" role="search">
+      <div className="relative w-60">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none">
+          <SearchIcon />
+        </span>
+        <input
+          ref={inputRef}
+          type="search"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Search documents…"
+          aria-label="Search documents"
+          className="h-8 w-full rounded-lg bg-surface-high border border-stroke pl-8 pr-12 text-xs text-ink placeholder:text-ink-3"
+        />
+        {value ? (
+          <button
+            type="submit"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-300 hover:underline"
+          >
+            Search
+          </button>
+        ) : (
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] px-1.5 py-0.5 rounded border border-stroke text-ink-3 pointer-events-none">
+            ⌘K
+          </kbd>
+        )}
+      </div>
+    </form>
   );
 }
 

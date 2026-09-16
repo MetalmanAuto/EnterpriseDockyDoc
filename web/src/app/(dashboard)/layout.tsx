@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import WorkspaceAwareMain from '@/components/layout/WorkspaceAwareMain';
 import { ToastProvider } from '@/components/ui/Toast';
+import WorkspaceSwitchOverlay from '@/components/workspace/WorkspaceSwitchOverlay';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <WorkspaceAwareMain>{children}</WorkspaceAwareMain>
             </div>
           </div>
+          <WorkspaceSwitchOverlay />
         </SidebarProvider>
       </ToastProvider>
     </UserProvider>

@@ -10,7 +10,7 @@ import {
   buildSharePageUrl,
 } from '@/lib/shares';
 import { fetchWorkspaceDetail } from '@/lib/documents';
-import { cn } from '@/lib/utils';
+import { cn, initialsOf } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import type {
@@ -185,7 +185,7 @@ function ActiveSharesTab({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-[10px] font-semibold text-brand-700 flex-shrink-0">
-                    {s.sharedWith.firstName[0]}{s.sharedWith.lastName[0]}
+                    {initialsOf(s.sharedWith)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-ink truncate">
@@ -367,7 +367,7 @@ function InternalShareTab({
                   className="w-3.5 h-3.5 rounded border-stroke text-brand-600"
                 />
                 <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-[9px] font-semibold text-brand-700 flex-shrink-0">
-                  {m.firstName[0]}{m.lastName[0]}
+                  {initialsOf(m)}
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-ink">{m.firstName} {m.lastName}</p>

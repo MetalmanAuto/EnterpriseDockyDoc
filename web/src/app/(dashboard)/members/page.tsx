@@ -11,7 +11,7 @@ import {
   revokeInvitation,
   updateWorkspaceMember,
 } from '@/lib/documents';
-import { cn } from '@/lib/utils';
+import { cn, fullName, initialsOf } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import type { WorkspaceDetail, WorkspaceMember, WorkspaceInvitation, WorkspaceUserRole } from '@/types';
@@ -26,7 +26,7 @@ const ROLE_BADGE: Record<WorkspaceUserRole, { label: string; class: string }> = 
 };
 
 function initials(firstName: string, lastName: string) {
-  return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  return initialsOf({ firstName, lastName });
 }
 
 /** Returns a color-coded expiry label: red if ≤2 days, amber if ≤7 days, gray otherwise. */
@@ -89,7 +89,7 @@ export default function MembersPage() {
     setPendingRemove(null);
     try {
       await removeWorkspaceMember(activeWorkspace.workspaceId, pendingRemove.id);
-      toast.success(`${pendingRemove.firstName} ${pendingRemove.lastName} removed.`);
+      toast.success(`${fullName(pendingRemove)} removed.`);
       load(activeWorkspace.workspaceId, true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove member.');
@@ -415,7 +415,7 @@ export default function MembersPage() {
       {pendingRemove && (
         <ConfirmModal
           title="Remove member"
-          body={`${pendingRemove.firstName} ${pendingRemove.lastName} will lose access to this workspace immediately.`}
+          body={`${fullName(pendingRemove)} will lose access to this workspace immediately.`}
           confirmLabel="Remove Member"
           danger
           loading={removingId === pendingRemove.id}

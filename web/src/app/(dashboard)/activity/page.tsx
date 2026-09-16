@@ -8,7 +8,7 @@ import {
   auditActionCategory,
   formatAuditAction,
 } from '@/lib/audit';
-import { cn } from '@/lib/utils';
+import { cn, fullName } from '@/lib/utils';
 import type { AuditAction, AuditEntityType, AuditLog } from '@/types';
 
 // ------------------------------------------------------------------ //
@@ -381,7 +381,7 @@ export default function ActivityPage() {
 function ActivityRow({ log }: { log: AuditLog }) {
   const category = auditActionCategory(log.action);
   const actor = log.user
-    ? `${log.user.firstName} ${log.user.lastName}`
+    ? fullName(log.user)
     : 'External';
 
   return (
