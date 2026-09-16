@@ -43,6 +43,7 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
   reading coverage with batch analyse, apply-suggestion list, risk flags), AI marker on
   document rows, AI/OCR engine status in Settings. Backed by
   `GET /ai/workspaces/:id/overview` and `POST /ai/workspaces/:id/extract-batch`.
+  Reports keeps its per-report AI insights only; its old ask box now links to `/assistant`.
 
 ## Next up (in order)
 
@@ -52,9 +53,7 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
    `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`.
 3. Infra: re-link Vercel and Render to MetalmanAuto/EnterpriseDockyDoc, delete the London Neon
    project after a week, rotate any API tokens that were pasted into chat.
-4. Reports still has its own "AI Document Assistant" ask box, which now duplicates `/assistant`.
-   Decide whether to drop it from Reports and keep the insight generation there only.
-5. Linting is broken in both apps: `next lint` was removed in Next 16, and the API has no
+4. Linting is broken in both apps: `next lint` was removed in Next 16, and the API has no
    ESLint 9 `eslint.config.js`. Builds and `tsc` are the only checks that run today.
 
 ## Working agreements
