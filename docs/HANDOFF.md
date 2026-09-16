@@ -75,12 +75,24 @@ start it on port 5433, `npx prisma migrate deploy`, seed a workspace, then run
 Without `CLERK_SECRET_KEY` the guard falls back to an `x-dev-user-email` header, so
 endpoints can be called with curl as any seeded user.
 
-## What cannot be tested in a Claude Code session
+## Running the app inside a Claude Code session
 
-The Clerk-rendered auth pages and anything behind the dashboard login. There is no Clerk
-key in the container and the middleware redirects to Clerk's hosted domain, so `/login`,
-`/register` and every `(dashboard)` route fail to render locally. Changes to those need
-checking on dockydoc.app after deploy. Backend endpoints can be exercised fully (see above).
+`./scripts/claude-sandbox.sh up` starts the whole stack: Postgres (from the binaries in the
+container, since `dev.sh` needs a Docker daemon these containers do not run), migrations, the
+seed, the API and the web app. `down` stops and deletes it, `status` reports what is running.
+Screenshot it with Playwright against `/opt/pw-browsers/chromium`.
+
+With no Clerk keys it runs in dev-auth mode as `alice@acmecorp.com` and the API trusts an
+`x-dev-user-email` header. The middleware passes through in that mode — do not move that key
+check back inside the `clerkMiddleware()` handler, which throws before the check can run and
+makes every route 500.
+
+To see the real Clerk screens (sign-up, the one-time-code step, passkeys, the social buttons),
+set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` from a Clerk **development** instance in the Claude Code
+environment variables. A production `pk_live_` key is domain-locked and will not run on
+localhost. The publishable key is not a secret; it already ships in the browser bundle.
+`CLERK_SECRET_KEY` is only needed to verify sessions server-side or to call Clerk's Backend API,
+and `api.clerk.com` is reachable from the container.
 
 ## Working agreements
 
