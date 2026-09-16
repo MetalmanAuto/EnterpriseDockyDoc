@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
+import { fetchAiStatus, fetchOcrStatus, type AiOcrStatus } from '@/lib/ai';
 import {
   fetchWorkspaceDetail,
   fetchTags,
@@ -636,6 +638,7 @@ function AiSection({
 }) {
   return (
     <SectionCard title="AI Configuration" subtitle="Manage how DockyDoc AI processes your documents">
+      <AiEngineStatus />
       {loading ? (
         <div className="py-6 text-center text-sm text-ink-3">Loading AI settings…</div>
       ) : settings === null ? (
@@ -760,6 +763,98 @@ function AiSection({
         </form>
       )}
     </SectionCard>
+  );
+}
+
+/**
+ * Live server-side status: is an AI key configured, and can scans be read?
+ * This is separate from the workspace's plan and BYOK settings below.
+ */
+function AiEngineStatus() {
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
+  const [ocr, setOcr] = useState<AiOcrStatus | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchAiStatus(), fetchOcrStatus()])
+      .then(([status, ocrStatus]) => {
+        if (cancelled) return;
+        setAiEnabled(status.enabled);
+        setOcr(ocrStatus);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (failed) return null;
+
+  const available = ocr?.providers.filter((p) => p.available) ?? [];
+
+  return (
+    <div className="mb-5 rounded-xl border border-stroke bg-surface-high p-4 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-ink">AI engine</p>
+          <p className="text-xs text-ink-3 mt-0.5">Whether the server can run AI at all</p>
+        </div>
+        <StatusPill
+          ok={aiEnabled === true}
+          pending={aiEnabled === null}
+          okLabel="Running"
+          offLabel="No key set"
+        />
+      </div>
+
+      <div className="flex items-center justify-between pt-2.5 border-t border-stroke-soft">
+        <div>
+          <p className="text-sm font-medium text-ink">Scanned documents</p>
+          <p className="text-xs text-ink-3 mt-0.5">
+            {available.length > 0
+              ? `Read by ${available.map((p) => p.name).join(', ')}`
+              : 'Scans and photos cannot be read until an OCR provider is configured'}
+          </p>
+        </div>
+        <StatusPill
+          ok={ocr?.anyAvailable === true}
+          pending={ocr === null}
+          okLabel="Ready"
+          offLabel="Not configured"
+        />
+      </div>
+
+      {aiEnabled === true && (
+        <Link href="/assistant" className="inline-block pt-1 text-xs font-semibold text-brand-600 hover:underline">
+          Open the assistant
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function StatusPill({
+  ok,
+  pending,
+  okLabel,
+  offLabel,
+}: {
+  ok: boolean;
+  pending: boolean;
+  okLabel: string;
+  offLabel: string;
+}) {
+  if (pending) {
+    return <span className="text-xs text-ink-3">Checking…</span>;
+  }
+  return (
+    <span
+      className={cn(
+        'text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
+        ok ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800',
+      )}
+    >
+      {ok ? okLabel : offLabel}
+    </span>
   );
 }
 

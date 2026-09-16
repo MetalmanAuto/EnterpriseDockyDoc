@@ -10,12 +10,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 import { AiService } from './ai.service';
 import { ReportsService } from '../reports/reports.service';
 import { OcrService } from '../document-intelligence/ocr.service';
 import { DevAuthGuard, type DevUserPayload } from '../../common/guards/dev-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  assertEditorOrAbove,
+  assertWorkspaceMembership,
+} from '../../common/helpers/workspace-access.helper';
 
 // ------------------------------------------------------------------ //
 // DTOs
@@ -38,6 +42,18 @@ class AiApplyFieldsDto {
   @IsArray()
   @IsString({ each: true })
   fields!: string[];
+}
+
+class AiBatchExtractDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  limit?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  includeFailed?: boolean;
 }
 
 class AiReportInsightsDto {
@@ -142,6 +158,39 @@ export class AiController {
     @Body() dto: AiApplyFieldsDto,
   ) {
     return this.aiService.applyFields(id, dto.fields ?? []);
+  }
+
+  // ---------------------------------------------------------------- //
+  // Workspace-level intelligence
+  // ---------------------------------------------------------------- //
+
+  @Get('workspaces/:workspaceId/overview')
+  @ApiOperation({ summary: 'AI coverage, risk flags and unapplied suggestions for a workspace' })
+  @ApiResponse({ status: 200, description: 'AiWorkspaceOverview' })
+  workspaceOverview(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: DevUserPayload,
+  ) {
+    assertWorkspaceMembership(user, workspaceId);
+    return this.aiService.getWorkspaceOverview(workspaceId);
+  }
+
+  @Post('workspaces/:workspaceId/extract-batch')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Queue AI extraction for documents that have not been analysed yet' })
+  @ApiResponse({ status: 202, description: 'Number of documents queued' })
+  extractBatch(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: AiBatchExtractDto,
+    @CurrentUser() user: DevUserPayload,
+  ) {
+    // Batch extraction spends money on the AI provider, so keep it to editors and above.
+    assertEditorOrAbove(user, workspaceId);
+    return this.aiService.extractWorkspaceBatch(
+      workspaceId,
+      dto.limit ?? 10,
+      dto.includeFailed ?? false,
+    );
   }
 
   // ---------------------------------------------------------------- //

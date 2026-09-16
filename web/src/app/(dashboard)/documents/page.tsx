@@ -8,7 +8,7 @@ import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploa
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import type { DocumentListItem, DocumentStatus, FolderListItem, SearchResult } from '@/types';
+import type { AiDocumentStatus, DocumentListItem, DocumentStatus, FolderListItem, SearchResult } from '@/types';
 
 interface PendingConfirm {
   title: string;
@@ -1383,6 +1383,50 @@ function expiryBadge(expiryDate: string | null | undefined): {
   return null;
 }
 
+/**
+ * Small "AI read this" marker on a document row.
+ * Silent when the document has never been analysed, so the list stays calm.
+ */
+function AiRowBadge({ status, confidence }: { status: AiDocumentStatus; confidence: number }) {
+  if (status === 'none' || status === 'disabled') return null;
+
+  if (status === 'running') {
+    return (
+      <span
+        title="AI is reading this document"
+        className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700"
+      >
+        <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
+        AI
+      </span>
+    );
+  }
+
+  if (status === 'failed') {
+    return (
+      <span
+        title="AI could not read this document"
+        className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600"
+      >
+        AI failed
+      </span>
+    );
+  }
+
+  const pct = Math.round(confidence * 100);
+  return (
+    <span
+      title={`AI read this document with ${pct}% confidence`}
+      className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700"
+    >
+      <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+        <path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.3l-1.9-5.5L4.5 10.9 10.1 9z" strokeLinejoin="round" />
+      </svg>
+      AI
+    </span>
+  );
+}
+
 function DocumentRow({
   doc,
   snippet,
@@ -1491,6 +1535,7 @@ function DocumentRow({
 
       {/* Status + expiry chips */}
       <div className="flex items-center gap-1 flex-shrink-0">
+        <AiRowBadge status={doc.aiStatus} confidence={doc.aiConfidence} />
         <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', badge.class)}>
           {badge.label}
         </span>

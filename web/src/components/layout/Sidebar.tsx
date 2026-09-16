@@ -21,6 +21,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Dashboard',  href: '/dashboard',  Icon: GridIcon },
   { label: 'Documents',  href: '/documents',  Icon: DocIcon },
+  { label: 'Assistant',  href: '/assistant',  Icon: SparkIcon },
   { label: 'Workspaces', href: '/workspaces', Icon: LayersIcon },
   { label: 'Members',    href: '/members',    Icon: UsersIcon },
   { label: 'Reminders',  href: '/reminders',  Icon: BellIcon },
@@ -170,6 +171,15 @@ function GridIcon({ active }: { active: boolean }) {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function SparkIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+      <path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.3l-1.9-5.5L4.5 10.9 10.1 9z" strokeLinejoin="round" />
+      <path d="M18.5 3.5v3M20 5h-3" strokeLinecap="round" />
     </svg>
   );
 }

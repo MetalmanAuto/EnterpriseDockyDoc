@@ -41,6 +41,7 @@ const AI_KEYS = {
   APPLIED_FIELDS: 'ai:appliedFields',
   USER_APPLIED_FIELDS: 'ai:userAppliedFields', // fields manually applied by user — never auto-overwrite
   ERROR: 'ai:error',
+  STARTED_AT: 'ai:startedAt',
 } as const;
 
 // ------------------------------------------------------------------ //
@@ -76,6 +77,60 @@ export interface AiExtractionResult {
 }
 
 // ------------------------------------------------------------------ //
+// Workspace-level AI overview
+// ------------------------------------------------------------------ //
+export interface AiWorkspaceOverview {
+  enabled: boolean;
+  ocrAvailable: boolean;
+  totalDocuments: number;
+  analyzed: number;
+  running: number;
+  failed: number;
+  notAnalyzed: number;
+  lastExtractedAt: string | null;
+  riskFlags: { documentId: string; documentName: string; flags: string[] }[];
+  riskFlagCount: number;
+  pendingSuggestions: {
+    documentId: string;
+    documentName: string;
+    fields: string[];
+    expiryDate: string | null;
+    confidence: number;
+  }[];
+  pendingSuggestionCount: number;
+}
+
+/** How many risk-flag / suggestion rows the overview returns before truncating. */
+const OVERVIEW_LIST_LIMIT = 20;
+
+/**
+ * The only metadata the workspace overview reads. Listing them keeps the long
+ * values (summary, key points, per-field confidence) out of a whole-workspace query.
+ */
+const OVERVIEW_META_KEYS: string[] = [
+  'ai:status',
+  'ai:startedAt',
+  'ai:extractedAt',
+  'ai:riskFlags',
+  'ai:appliedFields',
+  'ai:userAppliedFields',
+  'ai:expiryDate',
+  'ai:renewalDueDate',
+  'ai:suggestedTags',
+  'ai:suggestedFolder',
+  'ai:overallConfidence',
+];
+
+/** Hard ceiling on one batch extraction request. */
+const BATCH_MAX = 25;
+
+/**
+ * A document stuck on "running" for longer than this is treated as abandoned
+ * (an API restart mid-batch, say) and can be picked up again.
+ */
+const STALE_RUN_MS = 30 * 60 * 1000;
+
+// ------------------------------------------------------------------ //
 // Helpers
 // ------------------------------------------------------------------ //
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -88,6 +143,27 @@ function safeString(v: unknown): string | null {
   if (v === null || v === undefined || v === '') return null;
   if (typeof v === 'string') return v.trim() || null;
   return String(v).trim() || null;
+}
+
+/**
+ * Has a "running" extraction been abandoned? A missing or unreadable start time
+ * counts as abandoned — rows written before start times were recorded would
+ * otherwise stay stuck on running forever.
+ */
+function isStaleRun(startedAt: string | undefined, staleBefore: number): boolean {
+  const started = Date.parse(startedAt ?? '');
+  return !Number.isFinite(started) || started < staleBefore;
+}
+
+/** Parse a metadata value that holds a JSON array of strings. */
+function parseJsonArrayValue(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 function safeStringArray(v: unknown): string[] {
@@ -225,6 +301,7 @@ export class AiService {
   // ---------------------------------------------------------------- //
   async extractDocument(documentId: string): Promise<AiExtractionResult> {
     await this.upsertMeta(documentId, AI_KEYS.STATUS, 'running');
+    await this.upsertMeta(documentId, AI_KEYS.STARTED_AT, new Date().toISOString());
 
     try {
       // ---- 1. Fetch document (include current version for storageKey/mimeType) //
@@ -1140,5 +1217,191 @@ Respond with JSON:
       confidenceByField: emptyConfidenceByField(), ocrProvider: null,
       extractedAt: null, appliedFields: [], userAppliedFields: [], error,
     };
+  }
+
+  // ---------------------------------------------------------------- //
+  // Workspace overview — how far AI has got across the whole workspace
+  // ---------------------------------------------------------------- //
+  async getWorkspaceOverview(workspaceId: string): Promise<AiWorkspaceOverview> {
+    const docs = await this.prisma.document.findMany({
+      where: { workspaceId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        name: true,
+        expiryDate: true,
+        folderId: true,
+        metadata: {
+          where: { key: { in: OVERVIEW_META_KEYS } },
+          select: { key: true, value: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let analyzed = 0;
+    let running = 0;
+    let failed = 0;
+    let notAnalyzed = 0;
+    let lastExtractedAt: string | null = null;
+
+    const riskFlags: AiWorkspaceOverview['riskFlags'] = [];
+    const pendingSuggestions: AiWorkspaceOverview['pendingSuggestions'] = [];
+
+    const staleBefore = Date.now() - STALE_RUN_MS;
+
+    for (const doc of docs) {
+      const meta = new Map<string, string>(doc.metadata.map((m) => [m.key, m.value]));
+      let status = meta.get(AI_KEYS.STATUS) ?? 'none';
+
+      // A run that never came back (API restart, crash) reads as failed, so the
+      // page stops waiting on it and the retry button can pick it up.
+      if (status === 'running' && isStaleRun(meta.get(AI_KEYS.STARTED_AT), staleBefore)) {
+        status = 'failed';
+      }
+
+      if (status === 'done') analyzed += 1;
+      else if (status === 'running') running += 1;
+      else if (status === 'failed') failed += 1;
+      else notAnalyzed += 1;
+
+      const extractedAt = meta.get(AI_KEYS.EXTRACTED_AT);
+      if (extractedAt && (lastExtractedAt === null || extractedAt > lastExtractedAt)) {
+        lastExtractedAt = extractedAt;
+      }
+
+      if (status !== 'done') continue;
+
+      const flags = parseJsonArrayValue(meta.get(AI_KEYS.RISK_FLAGS));
+      if (flags.length > 0) {
+        riskFlags.push({ documentId: doc.id, documentName: doc.name, flags });
+      }
+
+      // Which suggestions has nobody acted on yet?
+      const alreadyApplied = new Set([
+        ...parseJsonArrayValue(meta.get(AI_KEYS.APPLIED_FIELDS)),
+        ...parseJsonArrayValue(meta.get(AI_KEYS.USER_APPLIED_FIELDS)),
+      ]);
+
+      const suggestedExpiry = isValidDate(meta.get(AI_KEYS.EXPIRY_DATE))
+        ? (meta.get(AI_KEYS.EXPIRY_DATE) as string)
+        : null;
+      const suggestedRenewal = isValidDate(meta.get(AI_KEYS.RENEWAL_DATE))
+        ? (meta.get(AI_KEYS.RENEWAL_DATE) as string)
+        : null;
+      const suggestedTags = parseJsonArrayValue(meta.get(AI_KEYS.SUGGESTED_TAGS));
+      const suggestedFolder = meta.get(AI_KEYS.SUGGESTED_FOLDER)?.trim() || null;
+
+      const fields: string[] = [];
+      if (suggestedExpiry && !alreadyApplied.has('expiryDate') && doc.expiryDate === null) {
+        fields.push('expiryDate');
+      }
+      if (suggestedRenewal && !alreadyApplied.has('renewalDueDate')) {
+        fields.push('renewalDueDate');
+      }
+      if (suggestedTags.length > 0 && !alreadyApplied.has('suggestedTags')) {
+        fields.push('suggestedTags');
+      }
+      if (suggestedFolder && !alreadyApplied.has('suggestedFolder') && doc.folderId === null) {
+        fields.push('suggestedFolder');
+      }
+
+      if (fields.length > 0) {
+        pendingSuggestions.push({
+          documentId: doc.id,
+          documentName: doc.name,
+          fields,
+          expiryDate: suggestedExpiry,
+          confidence: safeNumber(meta.get(AI_KEYS.OVERALL_CONFIDENCE), 0),
+        });
+      }
+    }
+
+    // Highest confidence first so the most trustworthy suggestions lead
+    pendingSuggestions.sort((a, b) => b.confidence - a.confidence);
+
+    return {
+      enabled: this.isEnabled,
+      ocrAvailable: this.ocrService.getProviderStatus().some((p) => p.available),
+      totalDocuments: docs.length,
+      analyzed,
+      running,
+      failed,
+      notAnalyzed,
+      lastExtractedAt,
+      riskFlags: riskFlags.slice(0, OVERVIEW_LIST_LIMIT),
+      riskFlagCount: riskFlags.length,
+      pendingSuggestions: pendingSuggestions.slice(0, OVERVIEW_LIST_LIMIT),
+      pendingSuggestionCount: pendingSuggestions.length,
+    };
+  }
+
+  // ---------------------------------------------------------------- //
+  // Batch extraction — analyse the documents nobody has run AI on yet
+  // ---------------------------------------------------------------- //
+  async extractWorkspaceBatch(
+    workspaceId: string,
+    limit: number,
+    includeFailed: boolean,
+  ): Promise<{ queued: number; documentIds: string[]; remaining: number }> {
+    if (!this.isEnabled) {
+      return { queued: 0, documentIds: [], remaining: 0 };
+    }
+
+    const docs = await this.prisma.document.findMany({
+      where: { workspaceId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        metadata: {
+          where: { key: { in: [AI_KEYS.STATUS, AI_KEYS.STARTED_AT] as string[] } },
+          select: { key: true, value: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const staleBefore = Date.now() - STALE_RUN_MS;
+
+    const eligible = docs
+      .filter((d) => {
+        const meta = new Map(d.metadata.map((m) => [m.key, m.value]));
+        const status = meta.get(AI_KEYS.STATUS) ?? 'none';
+        if (status === 'done') return false;
+        // Only retry a run that has clearly been abandoned
+        if (status === 'running') return isStaleRun(meta.get(AI_KEYS.STARTED_AT), staleBefore);
+        if (status === 'failed') return includeFailed;
+        return true;
+      })
+      .map((d) => d.id);
+
+    const capped = Math.min(Math.max(limit, 1), BATCH_MAX);
+    const queued = eligible.slice(0, capped);
+
+    // Claim every document in the batch now, so a second click (or a second
+    // tab) cannot queue the same files again and pay for them twice.
+    const claimedAt = new Date().toISOString();
+    for (const id of queued) {
+      await this.upsertMeta(id, AI_KEYS.STATUS, 'running');
+      await this.upsertMeta(id, AI_KEYS.STARTED_AT, claimedAt);
+    }
+
+    // Run in the background, one at a time, so a large workspace cannot
+    // stall the request or hammer the AI provider with parallel calls.
+    void this.runBatchSequentially(queued);
+
+    return {
+      queued: queued.length,
+      documentIds: queued,
+      remaining: Math.max(eligible.length - queued.length, 0),
+    };
+  }
+
+  private async runBatchSequentially(documentIds: string[]): Promise<void> {
+    for (const id of documentIds) {
+      try {
+        await this.extractDocument(id);
+      } catch (err) {
+        this.logger.warn(`[BatchExtract] doc=${id} failed: ${(err as Error).message}`);
+      }
+    }
   }
 }

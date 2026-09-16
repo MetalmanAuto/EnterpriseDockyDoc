@@ -30,10 +30,17 @@ import type { UploadDocumentDto, UploadVersionDto } from './dto/upload-document.
 // Prisma include shapes
 // ------------------------------------------------------------------ //
 
+/** The only AI metadata the list route needs; the detail route loads everything. */
+const AI_LIST_KEYS: string[] = ['ai:status', 'ai:overallConfidence'];
+
 const DOC_LIST_INCLUDE = {
   folder: { select: { id: true, name: true } },
   owner: { select: { id: true, firstName: true, lastName: true, email: true } },
   tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
+  metadata: {
+    where: { key: { in: AI_LIST_KEYS } },
+    select: { key: true, value: true },
+  },
   _count: { select: { versions: true } },
 } as const;
 
@@ -795,6 +802,15 @@ export class DocumentsService {
       _count: { versions: number };
     },
   ): DocumentDetailDto {
+    const aiMeta = new Map(doc!.metadata.map((m) => [m.key, m.value]));
+    const rawAiStatus = aiMeta.get('ai:status');
+    const aiStatus: DocumentDetailDto['aiStatus'] =
+      rawAiStatus === 'done' || rawAiStatus === 'running' ||
+      rawAiStatus === 'failed' || rawAiStatus === 'disabled'
+        ? rawAiStatus
+        : 'none';
+    const parsedConfidence = Number(aiMeta.get('ai:overallConfidence'));
+
     return {
       id: doc!.id,
       workspaceId: doc!.workspaceId,
@@ -825,6 +841,8 @@ export class DocumentsService {
       metadata: doc!.metadata,
       createdAt: doc!.createdAt,
       updatedAt: doc!.updatedAt,
+      aiStatus,
+      aiConfidence: Number.isFinite(parsedConfidence) ? parsedConfidence : 0,
     };
   }
 
@@ -833,9 +851,19 @@ export class DocumentsService {
       folder: { id: string; name: string } | null;
       owner: { id: string; firstName: string; lastName: string; email: string };
       tags: { tag: { id: string; name: string; color: string | null } }[];
+      metadata?: { key: string; value: string }[];
       _count: { versions: number };
     },
   ): DocumentListItemDto {
+    const aiMeta = new Map((d.metadata ?? []).map((m) => [m.key, m.value]));
+    const rawAiStatus = aiMeta.get('ai:status');
+    const aiStatus: DocumentListItemDto['aiStatus'] =
+      rawAiStatus === 'done' || rawAiStatus === 'running' ||
+      rawAiStatus === 'failed' || rawAiStatus === 'disabled'
+        ? rawAiStatus
+        : 'none';
+    const parsedConfidence = Number(aiMeta.get('ai:overallConfidence'));
+
     return {
       id: d.id,
       workspaceId: d.workspaceId,
@@ -854,6 +882,8 @@ export class DocumentsService {
       remindersSnoozedUntil: d.remindersSnoozedUntil,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
+      aiStatus,
+      aiConfidence: Number.isFinite(parsedConfidence) ? parsedConfidence : 0,
     };
   }
 }

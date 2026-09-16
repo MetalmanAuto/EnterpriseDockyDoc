@@ -215,6 +215,13 @@ export class DocumentListItemDto {
   remindersSnoozedUntil!: Date | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
+  @ApiProperty({
+    enum: ['none', 'running', 'done', 'failed', 'disabled'],
+    description: 'State of the AI extraction for this document',
+  })
+  aiStatus!: 'none' | 'running' | 'done' | 'failed' | 'disabled';
+  @ApiProperty({ description: 'Overall AI extraction confidence, 0 when never analysed' })
+  aiConfidence!: number;
 }
 
 export class SnoozeRemindersDto {

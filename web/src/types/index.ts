@@ -271,7 +271,13 @@ export interface DocumentListItem {
   remindersSnoozedUntil: string | null;
   createdAt: string;
   updatedAt: string;
+  /** State of the AI extraction for this document. */
+  aiStatus: AiDocumentStatus;
+  /** Overall AI extraction confidence, 0 when never analysed. */
+  aiConfidence: number;
 }
+
+export type AiDocumentStatus = 'none' | 'running' | 'done' | 'failed' | 'disabled';
 
 export interface DocumentVersion {
   id: string;
