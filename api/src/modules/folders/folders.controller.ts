@@ -47,15 +47,16 @@ export class FoldersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Rename a folder' })
+  @ApiOperation({ summary: 'Rename a folder and/or move it under another folder' })
   @ApiResponse({ status: 200, type: FolderResponseDto })
   @ApiResponse({ status: 404, description: 'Folder not found' })
-  rename(
+  @ApiResponse({ status: 409, description: 'A folder with that name is already in that place' })
+  update(
     @Param('id') id: string,
     @Body() dto: UpdateFolderDto,
     @CurrentUser() user: DevUserPayload,
   ): Promise<FolderResponseDto> {
-    return this.foldersService.rename(id, dto, user);
+    return this.foldersService.update(id, dto, user);
   }
 
   @Post(':id/restore')

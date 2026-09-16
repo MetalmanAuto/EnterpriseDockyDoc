@@ -29,6 +29,13 @@ export class UpdateTagDto {
   color?: string | null;
 }
 
+export class MergeTagDto {
+  @ApiProperty({ description: 'The label to keep. The one being merged is deleted.' })
+  @IsString()
+  @IsNotEmpty()
+  intoTagId!: string;
+}
+
 export class TagResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() workspaceId!: string;
@@ -36,4 +43,6 @@ export class TagResponseDto {
   @ApiPropertyOptional() color!: string | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
+  @ApiProperty({ description: 'How many documents carry this label' })
+  documentCount!: number;
 }

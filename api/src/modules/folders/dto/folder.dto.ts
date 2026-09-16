@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 // ------------------------------------------------------------------ //
 // Request DTOs
@@ -30,10 +30,21 @@ export class CreateFolderDto {
 }
 
 export class UpdateFolderDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'New folder name' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  name!: string;
+  name?: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Move under this folder. Pass null to move to the top level. Omit to leave in place.',
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.parentFolderId !== null)
+  @IsString()
+  @IsNotEmpty()
+  parentFolderId?: string | null;
 }
 
 // ------------------------------------------------------------------ //

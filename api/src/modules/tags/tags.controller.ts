@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TagsService } from './tags.service';
-import { CreateTagDto, TagQueryDto, TagResponseDto, UpdateTagDto } from './dto/tag.dto';
+import { CreateTagDto, MergeTagDto, TagQueryDto, TagResponseDto, UpdateTagDto } from './dto/tag.dto';
 import { DevAuthGuard, type DevUserPayload } from '../../common/guards/dev-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -50,6 +50,22 @@ export class TagsController {
     @CurrentUser() user: DevUserPayload,
   ): Promise<TagResponseDto> {
     return this.tagsService.update(id, dto, user);
+  }
+
+  /**
+   * POST /api/v1/tags/:id/merge
+   * Folds this label into another and deletes it.
+   */
+  @Post(':id/merge')
+  @ApiOperation({ summary: 'Merge this label into another, then delete it' })
+  @ApiResponse({ status: 201, type: TagResponseDto, description: 'The surviving label' })
+  @ApiResponse({ status: 404, description: 'Either label not found' })
+  merge(
+    @Param('id') id: string,
+    @Body() dto: MergeTagDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<TagResponseDto> {
+    return this.tagsService.merge(id, dto, user);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -12,6 +12,9 @@ import {
   FolderResponseDto,
   UpdateFolderDto,
 } from './dto/folder.dto';
+
+/** Folders may not nest deeper than this. */
+const MAX_FOLDER_DEPTH = 5;
 
 @Injectable()
 export class FoldersService {
@@ -114,24 +117,27 @@ export class FoldersService {
       if (!parent || parent.workspaceId !== dto.workspaceId) {
         throw new NotFoundException(`Parent folder "${dto.parentFolderId}" not found in workspace`);
       }
-      // Enforce max nesting depth of 5 levels
-      let depth = 1;
-      let current = parent;
-      while (current.parentFolderId) {
-        depth++;
-        if (depth >= 5) {
-          throw new BadRequestException('Maximum folder nesting depth of 5 levels reached');
-        }
-        const next = await this.prisma.folder.findUnique({ where: { id: current.parentFolderId } });
-        if (!next) break;
-        current = next;
+      if (await this.depthOf(parent.id) >= MAX_FOLDER_DEPTH) {
+        throw new BadRequestException(
+          `Maximum folder nesting depth of ${MAX_FOLDER_DEPTH} levels reached`,
+        );
       }
+    }
+
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('Folder name cannot be empty.');
+
+    const clash = await this.findSiblingByName(dto.workspaceId, dto.parentFolderId ?? null, name);
+    if (clash) {
+      throw new ConflictException(
+        `A folder called "${clash.name}" is already here. Pick a different name.`,
+      );
     }
 
     const folder = await this.prisma.folder.create({
       data: {
         workspaceId: dto.workspaceId,
-        name: dto.name,
+        name,
         parentFolderId: dto.parentFolderId ?? null,
         createdById: user.id,
       },
@@ -156,19 +162,42 @@ export class FoldersService {
   }
 
   /**
-   * Rename a folder.
+   * Rename a folder and/or move it under a different parent.
+   * Passing parentFolderId: null moves it to the top level.
    */
-  async rename(id: string, dto: UpdateFolderDto, user: DevUserPayload): Promise<FolderResponseDto> {
+  async update(id: string, dto: UpdateFolderDto, user: DevUserPayload): Promise<FolderResponseDto> {
     const existing = await this.prisma.folder.findUnique({
       where: { id },
-      select: { workspaceId: true },
+      select: { workspaceId: true, name: true, parentFolderId: true, deletedAt: true },
     });
     if (!existing) throw new NotFoundException(`Folder "${id}" not found`);
+    if (existing.deletedAt) throw new BadRequestException('Folder is in trash. Restore it first.');
     assertEditorOrAbove(user, existing.workspaceId);
+
+    const name = dto.name?.trim() ?? existing.name;
+    if (!name) throw new BadRequestException('Folder name cannot be empty.');
+
+    // A move is only intended when the caller actually sent the field
+    const moving = dto.parentFolderId !== undefined;
+    const newParentId = moving ? (dto.parentFolderId ?? null) : existing.parentFolderId;
+
+    if (moving && newParentId !== existing.parentFolderId) {
+      await this.assertValidMove(id, existing.workspaceId, newParentId);
+    }
+
+    const clash = await this.findSiblingByName(existing.workspaceId, newParentId, name, id);
+    if (clash) {
+      throw new ConflictException(
+        `A folder called "${clash.name}" is already here. Pick a different name.`,
+      );
+    }
 
     const folder = await this.prisma.folder.update({
       where: { id },
-      data: { name: dto.name },
+      data: {
+        name,
+        ...(moving && { parentFolderId: newParentId }),
+      },
       include: {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         _count: { select: { documents: { where: { status: { not: DocumentStatus.DELETED } } }, children: { where: { deletedAt: null } } } },
@@ -187,6 +216,96 @@ export class FoldersService {
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,
     };
+  }
+
+  /**
+   * A move is valid when the new parent is a live folder in the same workspace,
+   * is not the folder itself or one of its descendants, and the resulting tree
+   * still fits inside MAX_DEPTH levels.
+   */
+  private async assertValidMove(
+    id: string,
+    workspaceId: string,
+    newParentId: string | null,
+  ): Promise<void> {
+    if (newParentId === null) return;
+
+    if (newParentId === id) {
+      throw new BadRequestException('A folder cannot be moved inside itself.');
+    }
+
+    const parent = await this.prisma.folder.findUnique({ where: { id: newParentId } });
+    if (!parent || parent.workspaceId !== workspaceId || parent.deletedAt) {
+      throw new NotFoundException(`Parent folder "${newParentId}" not found in workspace`);
+    }
+
+    const descendants = await this.collectDescendants(id);
+    if (descendants.includes(newParentId)) {
+      throw new BadRequestException(
+        'A folder cannot be moved inside one of the folders it contains.',
+      );
+    }
+
+    const parentDepth = await this.depthOf(newParentId);
+    const subtreeHeight = await this.heightOf(id);
+    if (parentDepth + subtreeHeight > MAX_FOLDER_DEPTH) {
+      throw new BadRequestException(
+        `That move would nest folders more than ${MAX_FOLDER_DEPTH} levels deep.`,
+      );
+    }
+  }
+
+  /** Is there already a live folder with this name in the same place? */
+  private findSiblingByName(
+    workspaceId: string,
+    parentFolderId: string | null,
+    name: string,
+    excludeId?: string,
+  ) {
+    return this.prisma.folder.findFirst({
+      where: {
+        workspaceId,
+        parentFolderId,
+        deletedAt: null,
+        name: { equals: name, mode: 'insensitive' },
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+    });
+  }
+
+  /** How many levels down this folder sits. A top-level folder is 1. */
+  private async depthOf(folderId: string): Promise<number> {
+    let depth = 1;
+    let current = await this.prisma.folder.findUnique({
+      where: { id: folderId },
+      select: { parentFolderId: true },
+    });
+    while (current?.parentFolderId) {
+      depth++;
+      if (depth > MAX_FOLDER_DEPTH) break;
+      current = await this.prisma.folder.findUnique({
+        where: { id: current.parentFolderId },
+        select: { parentFolderId: true },
+      });
+    }
+    return depth;
+  }
+
+  /** How many levels this folder's own subtree spans. A leaf is 1. */
+  private async heightOf(folderId: string): Promise<number> {
+    let height = 1;
+    let level = [folderId];
+    while (level.length > 0) {
+      const children = await this.prisma.folder.findMany({
+        where: { parentFolderId: { in: level }, deletedAt: null },
+        select: { id: true },
+      });
+      if (children.length === 0) break;
+      height++;
+      if (height > MAX_FOLDER_DEPTH) break;
+      level = children.map((c) => c.id);
+    }
+    return height;
   }
 
   /**

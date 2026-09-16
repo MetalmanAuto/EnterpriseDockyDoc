@@ -32,6 +32,9 @@ import { DocumentsService } from './documents.service';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import {
+  BulkMoveDto,
+  BulkResultDto,
+  BulkTagDto,
   CreateDocumentDto,
   DocumentDetailDto,
   DocumentListItemDto,
@@ -186,6 +189,32 @@ export class DocumentsController {
   // ------------------------------------------------------------------ //
   // Detail
   // ------------------------------------------------------------------ //
+
+  // ------------------------------------------------------------------ //
+  // Bulk actions — must sit above the :id routes
+  // ------------------------------------------------------------------ //
+
+  @Post('bulk/move')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Move several documents into a folder' })
+  @ApiResponse({ status: 200, type: BulkResultDto })
+  bulkMove(
+    @Body() dto: BulkMoveDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<BulkResultDto> {
+    return this.documentsService.bulkMove(dto, user);
+  }
+
+  @Post('bulk/tags')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add or remove labels across several documents' })
+  @ApiResponse({ status: 200, type: BulkResultDto })
+  bulkTag(
+    @Body() dto: BulkTagDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<BulkResultDto> {
+    return this.documentsService.bulkTag(dto, user);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get document detail by ID' })

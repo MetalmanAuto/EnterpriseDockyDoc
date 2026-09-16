@@ -4,11 +4,11 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, renameFolder, deleteFolder, deleteDocument, updateDocument } from '@/lib/documents';
+import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, updateFolder, moveFolder, deleteFolder, deleteDocument, updateDocument, fetchTags, bulkMoveDocuments, bulkTagDocuments } from '@/lib/documents';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import type { AiDocumentStatus, DocumentListItem, DocumentStatus, FolderListItem, SearchResult } from '@/types';
+import type { AiDocumentStatus, DocumentListItem, DocumentStatus, FolderListItem, SearchResult, Tag } from '@/types';
 
 interface PendingConfirm {
   title: string;
@@ -21,6 +21,12 @@ interface PendingConfirm {
 // ------------------------------------------------------------------ //
 // Status helpers
 // ------------------------------------------------------------------ //
+
+/** How many labels the filter bar shows before hiding the rest behind "+N more". */
+const TAG_FILTER_VISIBLE = 8;
+
+/** Shared empty set so the folder tree does not re-render on every pass. */
+const EMPTY_ID_SET: Set<string> = new Set();
 
 const STATUS_BADGE: Record<DocumentStatus, { label: string; class: string }> = {
   ACTIVE: { label: 'Active', class: 'bg-green-100 text-green-700' },
@@ -70,6 +76,22 @@ function buildTree(folders: FolderListItem[]) {
     }
   }
   return { roots, childMap };
+}
+
+/** A folder plus everything nested underneath it. */
+function descendantIds(folders: FolderListItem[], rootId: string): Set<string> {
+  const ids = new Set<string>([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const f of folders) {
+      if (!ids.has(f.id) && f.parentFolderId && ids.has(f.parentFolderId)) {
+        ids.add(f.id);
+        grew = true;
+      }
+    }
+  }
+  return ids;
 }
 
 function buildBreadcrumb(folderId: string | null, folders: FolderListItem[]): FolderListItem[] {
@@ -150,6 +172,16 @@ function DocumentsPageInner() {
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const dragLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Label filter + multi-select
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<'move' | 'label' | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Folder-to-folder drag state
+  const [dragFolderId, setDragFolderId] = useState<string | null>(null);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -168,11 +200,13 @@ function DocumentsPageInner() {
     Promise.all([
       fetchFolders(activeWorkspace.workspaceId),
       fetchDocuments({ workspaceId: activeWorkspace.workspaceId, status: showTrash ? 'DELETED' : undefined }),
+      fetchTags(activeWorkspace.workspaceId).catch(() => [] as Tag[]),
     ])
-      .then(([f, d]) => {
+      .then(([f, d, t]) => {
         if (cancelled) return;
         setFolders(f);
         setDocuments(d);
+        setTags(t);
       })
       .catch(() => {
         if (!cancelled) setError('Failed to load documents. Is the API running?');
@@ -192,11 +226,12 @@ function DocumentsPageInner() {
       workspaceId: activeWorkspace.workspaceId,
       folderId: showTrash ? undefined : (selectedFolderId ?? undefined),
       status: showTrash ? 'DELETED' : undefined,
+      tagIds: showTrash ? undefined : filterTagIds,
     })
       .then(setDocuments)
       .catch(() => {}); // silent on filter change errors
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFolderId, showTrash]);
+  }, [selectedFolderId, showTrash, filterTagIds]);
 
   // Debounced search — fires 350 ms after the user stops typing
   useEffect(() => {
@@ -315,9 +350,22 @@ function DocumentsPageInner() {
         ? (selectedDeletedFolderId ?? undefined)
         : (selectedFolderId ?? undefined),
       status: showTrash ? 'DELETED' : undefined,
+      tagIds: showTrash ? undefined : filterTagIds,
     })
       .then(setDocuments)
       .catch(() => {});
+  }
+
+  function refreshTags() {
+    if (!activeWorkspace) return;
+    fetchTags(activeWorkspace.workspaceId).then(setTags).catch(() => {});
+  }
+
+  function toggleFilterTag(tagId: string) {
+    setSelectedDocIds([]);
+    setFilterTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId],
+    );
   }
 
   function refreshFolders() {
@@ -328,9 +376,94 @@ function DocumentsPageInner() {
     }
   }
 
+  // ---------------------------------------------------------------- //
+  // Multi-select
+  // ---------------------------------------------------------------- //
+
+  function toggleDocSelected(id: string) {
+    setSelectedDocIds((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
+    );
+  }
+
+  function toggleSelectAll(ids: string[]) {
+    setSelectedDocIds((prev) => (prev.length === ids.length ? [] : ids));
+  }
+
+  async function handleBulkMove(folderId: string | null) {
+    if (selectedDocIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await bulkMoveDocuments(selectedDocIds, folderId);
+      const folder = folders.find((f) => f.id === folderId);
+      toast.success(
+        folder
+          ? `Moved ${result.updated} document${result.updated === 1 ? '' : 's'} to "${folder.name}".`
+          : `Took ${result.updated} document${result.updated === 1 ? '' : 's'} out of their folder.`,
+      );
+      setSelectedDocIds([]);
+      setBulkAction(null);
+      refreshDocuments();
+      refreshFolders();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not move those documents.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkLabel(tagIds: string[], action: 'add' | 'remove') {
+    if (selectedDocIds.length === 0 || tagIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await bulkTagDocuments(selectedDocIds, tagIds, action);
+      const label = tagIds.length === 1
+        ? `"${tags.find((t) => t.id === tagIds[0])?.name ?? 'Label'}"`
+        : `${tagIds.length} labels`;
+      toast.success(
+        action === 'add'
+          ? `Added ${label} to ${result.updated} document${result.updated === 1 ? '' : 's'}.`
+          : `Removed ${label} from ${result.updated} document${result.updated === 1 ? '' : 's'}.`,
+      );
+      setSelectedDocIds([]);
+      setBulkAction(null);
+      refreshDocuments();
+      refreshTags();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update those labels.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  /** Move a folder under another folder, or to the top level with null. */
+  async function handleMoveFolder(folderId: string, targetParentId: string | null) {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder || folder.parentFolderId === targetParentId) {
+      setDragFolderId(null);
+      setDragOverFolderId(null);
+      return;
+    }
+    try {
+      await moveFolder(folderId, targetParentId);
+      const target = folders.find((f) => f.id === targetParentId);
+      toast.success(
+        target ? `"${folder.name}" moved into "${target.name}".` : `"${folder.name}" moved to the top level.`,
+      );
+      refreshFolders();
+      refreshDocuments();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not move that folder.');
+    } finally {
+      setDragFolderId(null);
+      setDragOverFolderId(null);
+    }
+  }
+
   function handleSelectFolder(id: string | null) {
     setShowTrash(false);
     setSelectedFolderId(id);
+    setSelectedDocIds([]);
   }
 
   function handleSelectTrash() {
@@ -443,6 +576,11 @@ function DocumentsPageInner() {
   const isSearching = searchQuery.trim().length > 0;
   const displayDocs = isSearching ? searchResults : documents;
 
+  // While dragging a folder, it and its own contents cannot accept the drop
+  const blockedFolderDropIds = dragFolderId
+    ? descendantIds(folders, dragFolderId)
+    : EMPTY_ID_SET;
+
   return (
     <div>
       {/* Page header */}
@@ -543,9 +681,11 @@ function DocumentsPageInner() {
                 active={selectedFolderId === null && !showTrash}
                 onClick={() => handleSelectFolder(null)}
                 iconEl={<AllDocsSvgIcon />}
-                dragHighlight={dragOverFolderId === '__root__' && dragDocId !== null}
+                dragHighlight={dragOverFolderId === '__root__' && (dragDocId !== null || dragFolderId !== null)}
                 onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes('application/dockydoc-docid')) return;
+                  const types = e.dataTransfer.types;
+                  if (!types.includes('application/dockydoc-docid') &&
+                      !types.includes('application/dockydoc-folderid')) return;
                   e.preventDefault();
                   handleFolderDragEnter('__root__');
                 }}
@@ -553,7 +693,9 @@ function DocumentsPageInner() {
                 onDrop={(e) => {
                   e.preventDefault();
                   const docId = e.dataTransfer.getData('application/dockydoc-docid');
+                  const folderId = e.dataTransfer.getData('application/dockydoc-folderid');
                   if (docId) void handleMoveDoc(docId, null);
+                  else if (folderId) void handleMoveFolder(folderId, null);
                   else { setDragDocId(null); setDragOverFolderId(null); }
                 }}
               />
@@ -576,6 +718,12 @@ function DocumentsPageInner() {
                     onDropDoc={handleMoveDoc}
                     onDragFolderEnter={handleFolderDragEnter}
                     onDragFolderLeave={handleFolderDragLeave}
+                    canEdit={canEdit && !showTrash}
+                    dragFolderId={dragFolderId}
+                    onFolderDragStart={setDragFolderId}
+                    onFolderDragEnd={() => { setDragFolderId(null); setDragOverFolderId(null); }}
+                    onDropFolder={(id, parentId) => void handleMoveFolder(id, parentId)}
+                    blockedDropIds={blockedFolderDropIds}
                   />
                 ))
               )}
@@ -653,6 +801,25 @@ function DocumentsPageInner() {
               onNavigate={handleSelectFolder}
             />
           )}
+          {!showTrash && !isSearching && tags.length > 0 && (
+            <TagFilterBar
+              tags={tags}
+              active={filterTagIds}
+              onToggle={toggleFilterTag}
+              onClear={() => { setFilterTagIds([]); setSelectedDocIds([]); }}
+            />
+          )}
+
+          {selectedDocIds.length > 0 && (
+            <SelectionBar
+              count={selectedDocIds.length}
+              busy={bulkBusy}
+              onMove={() => setBulkAction('move')}
+              onLabel={() => setBulkAction('label')}
+              onClear={() => setSelectedDocIds([])}
+            />
+          )}
+
           <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
             {loading || searching ? (
               <TableSkeleton />
@@ -741,6 +908,22 @@ function DocumentsPageInner() {
               </>
             ) : (
               <div className="divide-y divide-stroke-soft">
+                {canEdit && !showTrash && displayDocs.length > 1 && (
+                  <div className="flex items-center gap-3.5 px-5 py-2 bg-surface-high">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all documents"
+                      checked={selectedDocIds.length === displayDocs.length && displayDocs.length > 0}
+                      onChange={() => toggleSelectAll(displayDocs.map((d) => d.id))}
+                      className="w-4 h-4 rounded border-stroke cursor-pointer"
+                    />
+                    <span className="text-xs text-ink-3">
+                      {selectedDocIds.length > 0
+                        ? `${selectedDocIds.length} selected`
+                        : 'Select all'}
+                    </span>
+                  </div>
+                )}
                 {displayDocs.map((doc) => (
                   <DocumentRow
                     key={doc.id}
@@ -748,6 +931,11 @@ function DocumentsPageInner() {
                     snippet={(doc as SearchResult).snippet}
                     deleting={deletingDocId === doc.id}
                     canEdit={canEdit}
+                    selectable={canEdit && !showTrash}
+                    selected={selectedDocIds.includes(doc.id)}
+                    onToggleSelect={() => toggleDocSelected(doc.id)}
+                    activeTagIds={filterTagIds}
+                    onTagClick={showTrash || isSearching ? undefined : toggleFilterTag}
                     onDelete={() => handleDeleteDoc(doc as DocumentListItem)}
                     onRestore={showTrash ? () => { void handleRestoreDoc(doc as DocumentListItem); } : undefined}
                     dragging={dragDocId === doc.id}
@@ -770,6 +958,26 @@ function DocumentsPageInner() {
           </div>
         </div>
       </div>
+
+      {/* Bulk action modals */}
+      {bulkAction === 'move' && (
+        <BulkMoveModal
+          count={selectedDocIds.length}
+          folders={folders}
+          busy={bulkBusy}
+          onMove={(folderId) => void handleBulkMove(folderId)}
+          onClose={() => { if (!bulkBusy) setBulkAction(null); }}
+        />
+      )}
+      {bulkAction === 'label' && (
+        <BulkLabelModal
+          count={selectedDocIds.length}
+          tags={tags}
+          busy={bulkBusy}
+          onApply={(tagIds, action) => void handleBulkLabel(tagIds, action)}
+          onClose={() => { if (!bulkBusy) setBulkAction(null); }}
+        />
+      )}
 
       {/* Upload modal */}
       {showUpload && activeWorkspace && (
@@ -808,11 +1016,13 @@ function DocumentsPageInner() {
         <FolderModal
           workspaceId={renamingFolder.workspaceId}
           folder={renamingFolder}
+          folders={folders}
           onClose={() => setRenamingFolder(null)}
           onSaved={() => {
             setRenamingFolder(null);
             refreshFolders();
-            toast.success('Folder renamed.');
+            refreshDocuments();
+            toast.success('Folder updated.');
           }}
         />
       )}
@@ -852,13 +1062,13 @@ function FolderModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const isEditing = !!folder;
   const [name, setName] = useState(folder?.name ?? '');
-  const [parentFolderId, setParentFolderId] = useState(defaultParentId ?? '');
+  const [parentFolderId, setParentFolderId] = useState(
+    isEditing ? (folder!.parentFolderId ?? '') : (defaultParentId ?? ''),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // When renaming, don't show parent picker (parent doesn't change on rename)
-  const isRename = !!folder;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -866,8 +1076,11 @@ function FolderModal({
     setSaving(true);
     setError(null);
     try {
-      if (isRename) {
-        await renameFolder(folder!.id, name.trim());
+      if (isEditing) {
+        await updateFolder(folder!.id, {
+          name: name.trim(),
+          parentFolderId: parentFolderId || null,
+        });
       } else {
         await createFolder({
           workspaceId,
@@ -883,15 +1096,17 @@ function FolderModal({
     }
   }
 
-  // Exclude self (and descendants) from parent options — for rename this is moot since we hide it
-  const parentOptions = folders.filter((f) => !isRename || f.id !== folder?.id);
+  // A folder cannot be moved into itself or into anything it contains
+  const parentOptions = isEditing
+    ? folders.filter((f) => !descendantIds(folders, folder!.id).has(f.id))
+    : folders;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
       <div className="bg-surface border border-stroke rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 animate-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-ink">
-            {isRename ? 'Rename Folder' : 'New Folder'}
+            {isEditing ? 'Edit Folder' : 'New Folder'}
           </h2>
           <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-xl leading-none">&times;</button>
         </div>
@@ -910,25 +1125,29 @@ function FolderModal({
             />
           </div>
 
-          {!isRename && (
-            <div>
-              <label className="block text-xs font-medium text-ink-2 mb-1">
-                Parent folder <span className="text-ink-3 font-normal">(optional)</span>
-              </label>
-              <select
-                value={parentFolderId}
-                onChange={(e) => setParentFolderId(e.target.value)}
-                className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                <option value="">— Root level —</option>
-                {parentOptions.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.parentFolderId ? '  └ ' : ''}{f.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-ink-2 mb-1">
+              {isEditing ? 'Sits inside' : 'Parent folder'}{' '}
+              <span className="text-ink-3 font-normal">(optional)</span>
+            </label>
+            <select
+              value={parentFolderId}
+              onChange={(e) => setParentFolderId(e.target.value)}
+              className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">— Top level —</option>
+              {parentOptions.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.parentFolderId ? '  └ ' : ''}{f.name}
+                </option>
+              ))}
+            </select>
+            {isEditing && (
+              <p className="mt-1 text-[11px] text-ink-3">
+                Changing this moves the folder and everything inside it.
+              </p>
+            )}
+          </div>
 
           {error && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
@@ -939,7 +1158,7 @@ function FolderModal({
               Cancel
             </button>
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50">
-              {saving ? 'Saving…' : isRename ? 'Rename' : 'Create'}
+              {saving ? 'Saving…' : isEditing ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
@@ -1214,6 +1433,10 @@ function FolderRow({
   onDragLeave,
   onDrop,
   dragHighlight = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  dragging = false,
 }: {
   label: string;
   count?: number;
@@ -1225,11 +1448,18 @@ function FolderRow({
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent<HTMLButtonElement>) => void;
   dragHighlight?: boolean;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: () => void;
+  dragging?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -1240,6 +1470,7 @@ function FolderRow({
           : active
           ? 'bg-brand-50 text-brand-700 font-medium'
           : 'text-ink-2 hover:bg-surface-high',
+        dragging && 'opacity-40',
       )}
       style={{ paddingLeft: `${12 + indent * 14}px` }}
     >
@@ -1270,6 +1501,12 @@ function FolderTreeNode({
   onDropDoc,
   onDragFolderEnter,
   onDragFolderLeave,
+  canEdit,
+  dragFolderId,
+  onFolderDragStart,
+  onFolderDragEnd,
+  onDropFolder,
+  blockedDropIds,
 }: {
   folder: FolderListItem;
   childMap: Map<string, FolderListItem[]>;
@@ -1283,6 +1520,13 @@ function FolderTreeNode({
   onDropDoc: (docId: string, folderId: string) => void;
   onDragFolderEnter: (folderId: string) => void;
   onDragFolderLeave: () => void;
+  canEdit?: boolean;
+  dragFolderId: string | null;
+  onFolderDragStart: (id: string) => void;
+  onFolderDragEnd: () => void;
+  onDropFolder: (folderId: string, targetParentId: string | null) => void;
+  /** The dragged folder and its descendants, which cannot receive the drop. */
+  blockedDropIds: Set<string>;
 }) {
   const children = childMap.get(folder.id) ?? [];
   const [hovered, setHovered] = useState(false);
@@ -1301,8 +1545,21 @@ function FolderTreeNode({
           onClick={() => onSelect(folder.id)}
           indent={depth}
           dragHighlight={dragOverFolderId === folder.id}
+          draggable={!!canEdit}
+          dragging={dragFolderId === folder.id}
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/dockydoc-folderid', folder.id);
+            e.dataTransfer.effectAllowed = 'move';
+            onFolderDragStart(folder.id);
+          }}
+          onDragEnd={onFolderDragEnd}
           onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes('application/dockydoc-docid')) return;
+            const types = e.dataTransfer.types;
+            const isDoc = types.includes('application/dockydoc-docid');
+            const isFolder = types.includes('application/dockydoc-folderid');
+            if (!isDoc && !isFolder) return;
+            // A folder cannot land inside itself or its own contents
+            if (isFolder && blockedDropIds.has(folder.id)) return;
             e.preventDefault();
             onDragFolderEnter(folder.id);
           }}
@@ -1310,14 +1567,16 @@ function FolderTreeNode({
           onDrop={(e) => {
             e.preventDefault();
             const docId = e.dataTransfer.getData('application/dockydoc-docid');
-            if (docId) onDropDoc(docId, folder.id);
+            if (docId) { onDropDoc(docId, folder.id); return; }
+            const folderId = e.dataTransfer.getData('application/dockydoc-folderid');
+            if (folderId && !blockedDropIds.has(folder.id)) onDropFolder(folderId, folder.id);
           }}
         />
         {hovered && (
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-surface rounded shadow-sm border border-stroke px-1 py-0.5 z-10">
             <button
               onClick={(e) => { e.stopPropagation(); onRename(folder); }}
-              title="Rename"
+              title="Rename or move"
               className="p-0.5 text-ink-3 hover:text-brand-600 transition-colors"
             >
               <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -1364,6 +1623,12 @@ function FolderTreeNode({
           onDropDoc={onDropDoc}
           onDragFolderEnter={onDragFolderEnter}
           onDragFolderLeave={onDragFolderLeave}
+          canEdit={canEdit}
+          dragFolderId={dragFolderId}
+          onFolderDragStart={onFolderDragStart}
+          onFolderDragEnd={onFolderDragEnd}
+          onDropFolder={onDropFolder}
+          blockedDropIds={blockedDropIds}
         />
       ))}
     </>
@@ -1384,11 +1649,302 @@ function expiryBadge(expiryDate: string | null | undefined): {
 }
 
 /**
+ * Label filter above the list. Picking more than one narrows to documents
+ * carrying all of them, which is how people expect filters to stack.
+ */
+function TagFilterBar({
+  tags,
+  active,
+  onToggle,
+  onClear,
+}: {
+  tags: Tag[];
+  active: string[];
+  onToggle: (id: string) => void;
+  onClear: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  // Busiest labels first, but anything already picked stays visible
+  const ordered = [...tags].sort((a, b) => b.documentCount - a.documentCount);
+  const visible = expanded
+    ? ordered
+    : [
+        ...ordered.slice(0, TAG_FILTER_VISIBLE),
+        ...ordered.slice(TAG_FILTER_VISIBLE).filter((t) => active.includes(t.id)),
+      ];
+  const hidden = ordered.length - visible.length;
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-1.5">
+      <span className="label-mono mr-1">Labels</span>
+      {visible.map((tag) => {
+        const on = active.includes(tag.id);
+        return (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => onToggle(tag.id)}
+            aria-pressed={on}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+              on
+                ? 'border-brand-400 bg-brand-50 text-brand-700 font-semibold'
+                : 'border-stroke bg-surface text-ink-2 hover:border-brand-300 hover:text-ink',
+            )}
+          >
+            <span
+              aria-hidden
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: tag.color ?? '#94a3b8' }}
+            />
+            {tag.name}
+            <span className="tabular-nums text-ink-3">{tag.documentCount}</span>
+          </button>
+        );
+      })}
+
+      {hidden > 0 && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="text-xs text-ink-3 hover:text-ink-2 px-1.5"
+        >
+          +{hidden} more
+        </button>
+      )}
+      {expanded && ordered.length > TAG_FILTER_VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="text-xs text-ink-3 hover:text-ink-2 px-1.5"
+        >
+          show fewer
+        </button>
+      )}
+      {active.length > 0 && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="ml-1 text-xs font-semibold text-brand-600 hover:underline"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Appears once documents are ticked, and holds the actions that apply to all of them. */
+function SelectionBar({
+  count,
+  busy,
+  onMove,
+  onLabel,
+  onClear,
+}: {
+  count: number;
+  busy: boolean;
+  onMove: () => void;
+  onLabel: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand-300 bg-brand-50 px-4 py-2.5">
+      <span className="text-sm font-semibold text-brand-800">
+        {count} document{count === 1 ? '' : 's'} selected
+      </span>
+      <div className="ml-auto flex items-center gap-2">
+        <button type="button" onClick={onMove} disabled={busy} className="btn-ghost px-3 py-1.5 text-xs">
+          Move to folder
+        </button>
+        <button type="button" onClick={onLabel} disabled={busy} className="btn-ghost px-3 py-1.5 text-xs">
+          Labels
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={busy}
+          className="text-xs font-semibold text-ink-2 hover:text-ink px-2"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Pick one destination folder for every selected document. */
+function BulkMoveModal({
+  count,
+  folders,
+  busy,
+  onMove,
+  onClose,
+}: {
+  count: number;
+  folders: FolderListItem[];
+  busy: boolean;
+  onMove: (folderId: string | null) => void;
+  onClose: () => void;
+}) {
+  const [choice, setChoice] = useState<string>('');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
+      <div className="bg-surface border border-stroke rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 animate-in">
+        <h2 className="text-base font-semibold text-ink">
+          Move {count} document{count === 1 ? '' : 's'}
+        </h2>
+        <p className="mt-1 text-xs text-ink-3">Every selected document goes to the same place.</p>
+
+        <select
+          value={choice}
+          onChange={(e) => setChoice(e.target.value)}
+          className="mt-4 w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2"
+        >
+          <option value="">— No folder —</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.parentFolderId ? '   ' : ''}{f.name}
+            </option>
+          ))}
+        </select>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(choice || null)}
+            disabled={busy}
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+          >
+            {busy ? 'Moving…' : 'Move'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Add or take away labels across every selected document. */
+function BulkLabelModal({
+  count,
+  tags,
+  busy,
+  onApply,
+  onClose,
+}: {
+  count: number;
+  tags: Tag[];
+  busy: boolean;
+  onApply: (tagIds: string[], action: 'add' | 'remove') => void;
+  onClose: () => void;
+}) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+
+  const matches = search.trim()
+    ? tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+    : tags;
+
+  function toggle(id: string) {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
+      <div className="bg-surface border border-stroke rounded-xl shadow-xl w-full max-w-md mx-4 p-6 animate-in">
+        <h2 className="text-base font-semibold text-ink">
+          Labels for {count} document{count === 1 ? '' : 's'}
+        </h2>
+        <p className="mt-1 text-xs text-ink-3">
+          Pick the labels, then choose whether to add or take them away.
+        </p>
+
+        {tags.length > 8 && (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search labels…"
+            className="mt-4 w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink"
+          />
+        )}
+
+        <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-stroke divide-y divide-stroke-soft">
+          {matches.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-ink-3">
+              {tags.length === 0 ? 'No labels in this workspace yet.' : 'No labels match.'}
+            </p>
+          ) : (
+            matches.map((t) => (
+              <label
+                key={t.id}
+                className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-surface-high"
+              >
+                <input
+                  type="checkbox"
+                  checked={picked.includes(t.id)}
+                  onChange={() => toggle(t.id)}
+                  className="w-4 h-4 rounded border-stroke"
+                />
+                <span
+                  aria-hidden
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: t.color ?? '#94a3b8' }}
+                />
+                <span className="text-sm text-ink truncate">{t.name}</span>
+                <span className="ml-auto text-xs text-ink-3 tabular-nums">{t.documentCount}</span>
+              </label>
+            ))
+          )}
+        </div>
+
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onApply(picked, 'remove')}
+            disabled={busy || picked.length === 0}
+            className="px-4 py-2 text-sm font-semibold text-ink-2 border border-stroke rounded-lg hover:bg-surface-high disabled:opacity-50"
+          >
+            Remove
+          </button>
+          <button
+            type="button"
+            onClick={() => onApply(picked, 'add')}
+            disabled={busy || picked.length === 0}
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+          >
+            {busy ? 'Applying…' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Small "AI read this" marker on a document row.
  * Silent when the document has never been analysed, so the list stays calm.
  */
-function AiRowBadge({ status, confidence }: { status: AiDocumentStatus; confidence: number }) {
-  if (status === 'none' || status === 'disabled') return null;
+function AiRowBadge({ status, confidence }: { status?: AiDocumentStatus; confidence?: number }) {
+  // Search results come from a different endpoint and carry no AI fields
+  if (status !== 'running' && status !== 'failed' && status !== 'done') return null;
 
   if (status === 'running') {
     return (
@@ -1413,7 +1969,7 @@ function AiRowBadge({ status, confidence }: { status: AiDocumentStatus; confiden
     );
   }
 
-  const pct = Math.round(confidence * 100);
+  const pct = Math.round((confidence ?? 0) * 100);
   return (
     <span
       title={`AI read this document with ${pct}% confidence`}
@@ -1438,6 +1994,11 @@ function DocumentRow({
   onDragStart,
   onDragEnd,
   fromParam,
+  selectable,
+  selected,
+  onToggleSelect,
+  activeTagIds,
+  onTagClick,
 }: {
   doc: DocumentListItem;
   snippet?: string;
@@ -1449,6 +2010,11 @@ function DocumentRow({
   onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
   fromParam?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+  activeTagIds?: string[];
+  onTagClick?: (tagId: string) => void;
 }) {
   const badge = STATUS_BADGE[doc.status];
   const expiry = expiryBadge(doc.expiryDate);
@@ -1464,6 +2030,7 @@ function DocumentRow({
         'group flex items-center gap-3.5 px-5 py-4',
         'hover:bg-surface-high transition-colors duration-100 cursor-default',
         dragging && 'opacity-40 bg-surface-high',
+        selected && 'bg-brand-50',
       )}
       draggable={!!onDragStart}
       onDragStart={onDragStart ? (e) => {
@@ -1473,6 +2040,16 @@ function DocumentRow({
       } : undefined}
       onDragEnd={onDragEnd}
     >
+      {selectable && (
+        <input
+          type="checkbox"
+          aria-label={`Select ${doc.name}`}
+          checked={!!selected}
+          onChange={onToggleSelect}
+          className="w-4 h-4 rounded border-stroke cursor-pointer flex-shrink-0"
+        />
+      )}
+
       {/* File type icon */}
       <div className="flex-shrink-0">
         <FileTypeIcon fileType={doc.fileType} />
@@ -1511,13 +2088,21 @@ function DocumentRow({
         </div>
       </div>
 
-      {/* Tags — sm+ only */}
+      {/* Tags — sm+ only. Clicking one filters the list by it. */}
       {doc.tags.length > 0 && (
         <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
           {doc.tags.slice(0, 2).map((tag) => (
-            <span
+            <button
               key={tag.id}
-              className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium"
+              type="button"
+              disabled={!onTagClick}
+              title={onTagClick ? `Show everything labelled "${tag.name}"` : tag.name}
+              onClick={(e) => { e.stopPropagation(); onTagClick?.(tag.id); }}
+              className={cn(
+                'inline-block px-1.5 py-0.5 rounded text-[10px] font-medium transition-opacity',
+                onTagClick && 'hover:opacity-80 cursor-pointer',
+                activeTagIds?.includes(tag.id) && 'ring-1 ring-offset-1 ring-brand-500 dark:ring-offset-canvas',
+              )}
               style={
                 tag.color
                   ? { backgroundColor: `${tag.color}18`, color: tag.color }
@@ -1525,7 +2110,7 @@ function DocumentRow({
               }
             >
               {tag.name}
-            </span>
+            </button>
           ))}
           {doc.tags.length > 2 && (
             <span className="text-[10px] text-ink-3">+{doc.tags.length - 2}</span>

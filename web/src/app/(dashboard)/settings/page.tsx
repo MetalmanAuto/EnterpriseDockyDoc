@@ -13,6 +13,7 @@ import {
   renameWorkspace,
   fetchAiSettings,
   updateAiSettings,
+  mergeTag,
 } from '@/lib/documents';
 import type { AiSettings } from '@/lib/documents';
 import { cn } from '@/lib/utils';
@@ -373,14 +374,36 @@ function TagsSection({
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Tag | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [mergingTag, setMergingTag] = useState<Tag | null>(null);
+  const [mergeInto, setMergeInto] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'usage'>('name');
 
   // Reset visible count when search changes
-  const filtered = useMemo(
-    () => (search.trim()
+  const filtered = useMemo(() => {
+    const matching = search.trim()
       ? tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
-      : tags),
-    [tags, search],
-  );
+      : tags;
+    // Sorting by usage puts the labels worth keeping at the top and the
+    // one-off mistakes at the bottom, which is where cleanup starts.
+    return sortBy === 'usage'
+      ? [...matching].sort((a, b) => b.documentCount - a.documentCount || a.name.localeCompare(b.name))
+      : matching;
+  }, [tags, search, sortBy]);
+
+  /** Labels that look like near-duplicates of each other, by loose name match. */
+  const duplicateNames = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const t of tags) {
+      const key = t.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    }
+    return new Set(
+      tags
+        .filter((t) => (seen.get(t.name.toLowerCase().replace(/[^a-z0-9]/g, '')) ?? 0) > 1)
+        .map((t) => t.id),
+    );
+  }, [tags]);
   const visible = filtered.slice(0, visibleCount);
   const hasMoreTags = filtered.length > visibleCount;
 
@@ -400,6 +423,22 @@ function TagsSection({
       setError(err instanceof Error ? err.message : 'Failed to create tag.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function confirmMerge() {
+    if (!mergingTag || !mergeInto) return;
+    setMerging(true);
+    try {
+      const survivor = await mergeTag(mergingTag.id, mergeInto);
+      toast.success(`"${mergingTag.name}" merged into "${survivor.name}".`);
+      setMergingTag(null);
+      setMergeInto('');
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to merge labels.');
+    } finally {
+      setMerging(false);
     }
   }
 
@@ -469,6 +508,31 @@ function TagsSection({
                   className="w-full h-9 rounded-lg border border-stroke bg-surface pl-8 pr-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
+            </div>
+          )}
+
+          {tags.length > 1 && (
+            <div className="flex items-center gap-3 mb-3 text-xs">
+              <span className="text-ink-3">Sort by</span>
+              <button
+                type="button"
+                onClick={() => setSortBy('name')}
+                className={cn('font-semibold', sortBy === 'name' ? 'text-brand-600' : 'text-ink-3 hover:text-ink-2')}
+              >
+                name
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('usage')}
+                className={cn('font-semibold', sortBy === 'usage' ? 'text-brand-600' : 'text-ink-3 hover:text-ink-2')}
+              >
+                most used
+              </button>
+              {duplicateNames.size > 0 && (
+                <span className="ml-auto text-amber-700">
+                  {duplicateNames.size} look like duplicates
+                </span>
+              )}
             </div>
           )}
 
@@ -550,6 +614,16 @@ function TagsSection({
                         )}
                         {tag.name}
                       </span>
+                      <span className="text-xs text-ink-3 tabular-nums whitespace-nowrap">
+                        {tag.documentCount === 0
+                          ? 'unused'
+                          : `${tag.documentCount} document${tag.documentCount === 1 ? '' : 's'}`}
+                      </span>
+                      {duplicateNames.has(tag.id) && (
+                        <span className="text-[10px] font-semibold text-amber-700 whitespace-nowrap">
+                          possible duplicate
+                        </span>
+                      )}
                       <div className="ml-auto flex items-center gap-1">
                         <button
                           onClick={() => setEditingTag(tag)}
@@ -557,6 +631,14 @@ function TagsSection({
                         >
                           Edit
                         </button>
+                        {tags.length > 1 && (
+                          <button
+                            onClick={() => { setMergingTag(tag); setMergeInto(''); }}
+                            className="text-xs text-ink-3 hover:text-brand-600 transition-colors px-2 py-1"
+                          >
+                            Merge
+                          </button>
+                        )}
                         <button
                           onClick={() => setPendingDelete(tag)}
                           className="text-xs text-ink-3 hover:text-red-600 transition-colors px-2 py-1"
@@ -592,10 +674,26 @@ function TagsSection({
         </>
       )}
 
+      {mergingTag && (
+        <MergeTagModal
+          tag={mergingTag}
+          others={tags.filter((t) => t.id !== mergingTag.id)}
+          selected={mergeInto}
+          onSelect={setMergeInto}
+          merging={merging}
+          onConfirm={confirmMerge}
+          onClose={() => { if (!merging) { setMergingTag(null); setMergeInto(''); } }}
+        />
+      )}
+
       {pendingDelete && (
         <ConfirmModal
           title="Delete tag"
-          body={`"${pendingDelete.name}" will be removed from all documents.`}
+          body={
+            pendingDelete.documentCount === 0
+              ? `"${pendingDelete.name}" is not on any document, so nothing else changes.`
+              : `"${pendingDelete.name}" will be taken off ${pendingDelete.documentCount} document${pendingDelete.documentCount === 1 ? '' : 's'}. To keep those documents labelled, merge it into another label instead.`
+          }
           confirmLabel="Delete Tag"
           danger
           loading={deleting}
@@ -604,6 +702,111 @@ function TagsSection({
         />
       )}
     </SectionCard>
+  );
+}
+
+/**
+ * Fold one label into another. Every document carrying the old label ends up
+ * carrying the kept one, so nothing loses its labelling in the process.
+ */
+function MergeTagModal({
+  tag,
+  others,
+  selected,
+  onSelect,
+  merging,
+  onConfirm,
+  onClose,
+}: {
+  tag: Tag;
+  others: Tag[];
+  selected: string;
+  onSelect: (id: string) => void;
+  merging: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState('');
+  const matches = search.trim()
+    ? others.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+    : others;
+  const target = others.find((t) => t.id === selected) ?? null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop">
+      <div className="bg-surface border border-stroke rounded-xl shadow-xl w-full max-w-md mx-4 p-6 animate-in">
+        <h2 className="text-base font-semibold text-ink">Merge &ldquo;{tag.name}&rdquo;</h2>
+        <p className="mt-1 text-xs text-ink-2 leading-relaxed">
+          Pick the label to keep. The {tag.documentCount} document
+          {tag.documentCount === 1 ? '' : 's'} carrying &ldquo;{tag.name}&rdquo; will carry
+          that one instead, and &ldquo;{tag.name}&rdquo; is deleted.
+        </p>
+
+        {others.length > 6 && (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search labels…"
+            className="mt-4 w-full h-9 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink"
+          />
+        )}
+
+        <div className="mt-3 max-h-56 overflow-y-auto divide-y divide-stroke-soft border border-stroke rounded-lg">
+          {matches.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-ink-3">No other labels match.</p>
+          ) : (
+            matches.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelect(t.id)}
+                className={cn(
+                  'w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors',
+                  selected === t.id ? 'bg-brand-50' : 'hover:bg-surface-high',
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: t.color ?? '#94a3b8' }}
+                />
+                <span className="text-sm text-ink truncate">{t.name}</span>
+                <span className="ml-auto text-xs text-ink-3 tabular-nums whitespace-nowrap">
+                  {t.documentCount}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+
+        {target && (
+          <p className="mt-3 text-xs text-ink-2">
+            After merging, &ldquo;{target.name}&rdquo; will be on up to{' '}
+            {target.documentCount + tag.documentCount} documents.
+          </p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={merging}
+            className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={merging || !selected}
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+          >
+            {merging ? 'Merging…' : 'Merge'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -56,6 +56,24 @@ export function renameFolder(id: string, name: string): Promise<FolderListItem> 
   });
 }
 
+/**
+ * Rename and/or move a folder. Pass parentFolderId: null for the top level,
+ * or leave it out to keep the folder where it is.
+ */
+export function updateFolder(
+  id: string,
+  params: { name?: string; parentFolderId?: string | null },
+): Promise<FolderListItem> {
+  return apiFetch<FolderListItem>(`/api/v1/folders/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+}
+
+export function moveFolder(id: string, parentFolderId: string | null): Promise<FolderListItem> {
+  return updateFolder(id, { parentFolderId });
+}
+
 export function deleteFolder(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/folders/${id}`, { method: 'DELETE' });
 }
@@ -79,6 +97,8 @@ export interface FetchDocumentsParams {
   folderId?: string;
   status?: string;
   ownerUserId?: string;
+  /** Only documents carrying every one of these labels. */
+  tagIds?: string[];
 }
 
 export function fetchDocuments(params: FetchDocumentsParams): Promise<DocumentListItem[]> {
@@ -86,6 +106,7 @@ export function fetchDocuments(params: FetchDocumentsParams): Promise<DocumentLi
   if (params.folderId) qs.set('folderId', params.folderId);
   if (params.status) qs.set('status', params.status);
   if (params.ownerUserId) qs.set('ownerUserId', params.ownerUserId);
+  if (params.tagIds && params.tagIds.length > 0) qs.set('tagIds', params.tagIds.join(','));
   return apiFetch<DocumentListItem[]>(`/api/v1/documents?${qs.toString()}`);
 }
 
@@ -278,6 +299,40 @@ export function updateTag(id: string, params: { name?: string; color?: string | 
 
 export function deleteTag(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/tags/${id}`, { method: 'DELETE' });
+}
+
+/** Fold one label into another. The source label is deleted. */
+export function mergeTag(id: string, intoTagId: string): Promise<Tag> {
+  return apiFetch<Tag>(`/api/v1/tags/${id}/merge`, {
+    method: 'POST',
+    body: JSON.stringify({ intoTagId }),
+  });
+}
+
+export interface BulkResult {
+  updated: number;
+  skipped: string[];
+}
+
+export function bulkMoveDocuments(
+  documentIds: string[],
+  folderId: string | null,
+): Promise<BulkResult> {
+  return apiFetch<BulkResult>('/api/v1/documents/bulk/move', {
+    method: 'POST',
+    body: JSON.stringify({ documentIds, folderId }),
+  });
+}
+
+export function bulkTagDocuments(
+  documentIds: string[],
+  tagIds: string[],
+  action: 'add' | 'remove',
+): Promise<BulkResult> {
+  return apiFetch<BulkResult>('/api/v1/documents/bulk/tags', {
+    method: 'POST',
+    body: JSON.stringify({ documentIds, tagIds, action }),
+  });
 }
 
 export function setDocumentTags(documentId: string, tagIds: string[]): Promise<Tag[]> {

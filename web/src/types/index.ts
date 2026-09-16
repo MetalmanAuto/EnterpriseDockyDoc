@@ -356,6 +356,8 @@ export interface Tag {
   color: string | null;
   createdAt: string;
   updatedAt: string;
+  /** How many documents carry this label. */
+  documentCount: number;
 }
 
 // ================================================================== //

@@ -15,6 +15,9 @@ import {
 } from '../../common/helpers/workspace-access.helper';
 import type { DevUserPayload } from '../../common/guards/dev-auth.guard';
 import {
+  BulkMoveDto,
+  BulkResultDto,
+  BulkTagDto,
   CreateDocumentDto,
   DocumentDetailDto,
   DocumentListItemDto,
@@ -99,12 +102,21 @@ export class DocumentsService {
   async findAll(query: DocumentQueryDto, user: DevUserPayload): Promise<DocumentListItemDto[]> {
     assertWorkspaceMembership(user, query.workspaceId);
 
+    // "Tagged with A and B" means both, so each tag becomes its own condition
+    const tagIds = (query.tagIds ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     const docs = await this.prisma.document.findMany({
       where: {
         workspaceId: query.workspaceId,
         status: query.status ?? { not: DocumentStatus.DELETED },
         ...(query.folderId && { folderId: query.folderId }),
         ...(query.ownerUserId && { ownerUserId: query.ownerUserId }),
+        ...(tagIds.length > 0 && {
+          AND: tagIds.map((tagId) => ({ tags: { some: { tagId } } })),
+        }),
       },
       include: DOC_LIST_INCLUDE,
       orderBy: { createdAt: 'desc' },
@@ -777,6 +789,118 @@ export class DocumentsService {
     });
 
     return this.toListItemDto(updated);
+  }
+
+  // ------------------------------------------------------------------ //
+  // Bulk actions
+  // ------------------------------------------------------------------ //
+
+  /**
+   * Move several documents into a folder (or out of any folder with null).
+   * Documents outside the caller's workspace, or already deleted, are skipped
+   * rather than failing the whole batch.
+   */
+  async bulkMove(dto: BulkMoveDto, user: DevUserPayload): Promise<BulkResultDto> {
+    const { allowed, skipped, workspaceId } = await this.resolveBulkTargets(dto.documentIds, user);
+    if (allowed.length === 0) return { updated: 0, skipped };
+
+    const folderId = dto.folderId ?? null;
+    if (folderId) {
+      const folder = await this.prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.workspaceId !== workspaceId || folder.deletedAt) {
+        throw new NotFoundException(`Folder "${folderId}" not found in this workspace`);
+      }
+    }
+
+    const result = await this.prisma.document.updateMany({
+      where: { id: { in: allowed } },
+      data: { folderId },
+    });
+
+    this.audit.log({
+      workspaceId,
+      userId: user.id,
+      action: AuditAction.DOCUMENT_UPDATED,
+      entityType: AuditEntityType.DOCUMENT,
+      entityId: allowed[0],
+      metadata: { bulk: 'move', count: result.count, folderId },
+    });
+
+    return { updated: result.count, skipped };
+  }
+
+  /** Add or remove labels across several documents in one go. */
+  async bulkTag(dto: BulkTagDto, user: DevUserPayload): Promise<BulkResultDto> {
+    const { allowed, skipped, workspaceId } = await this.resolveBulkTargets(dto.documentIds, user);
+    if (allowed.length === 0 || dto.tagIds.length === 0) {
+      return { updated: 0, skipped };
+    }
+
+    const tags = await this.prisma.documentTag.findMany({
+      where: { id: { in: dto.tagIds }, workspaceId },
+      select: { id: true },
+    });
+    if (tags.length === 0) {
+      throw new NotFoundException('None of those labels belong to this workspace');
+    }
+    const tagIds = tags.map((t) => t.id);
+
+    if (dto.action === 'add') {
+      const data = allowed.flatMap((documentId) => tagIds.map((tagId) => ({ documentId, tagId })));
+      await this.prisma.documentTagMapping.createMany({ data, skipDuplicates: true });
+    } else {
+      await this.prisma.documentTagMapping.deleteMany({
+        where: { documentId: { in: allowed }, tagId: { in: tagIds } },
+      });
+    }
+
+    this.audit.log({
+      workspaceId,
+      userId: user.id,
+      action: AuditAction.DOCUMENT_UPDATED,
+      entityType: AuditEntityType.DOCUMENT,
+      entityId: allowed[0],
+      metadata: { bulk: `tag:${dto.action}`, count: allowed.length, tagIds },
+    });
+
+    return { updated: allowed.length, skipped };
+  }
+
+  /**
+   * Narrow a list of document IDs down to the live ones the caller may edit.
+   * Every document in a batch must sit in the same workspace.
+   */
+  private async resolveBulkTargets(
+    documentIds: string[],
+    user: DevUserPayload,
+  ): Promise<{ allowed: string[]; skipped: string[]; workspaceId: string }> {
+    const unique = Array.from(new Set(documentIds));
+    if (unique.length === 0) {
+      throw new BadRequestException('No documents selected.');
+    }
+
+    const docs = await this.prisma.document.findMany({
+      where: { id: { in: unique }, status: { not: DocumentStatus.DELETED } },
+      select: { id: true, workspaceId: true },
+    });
+
+    const workspaceIds = new Set(docs.map((d) => d.workspaceId));
+    if (workspaceIds.size > 1) {
+      throw new BadRequestException('All documents must be in the same workspace.');
+    }
+
+    const workspaceId = docs[0]?.workspaceId;
+    if (!workspaceId) {
+      throw new NotFoundException('None of those documents could be found.');
+    }
+    assertEditorOrAbove(user, workspaceId);
+
+    const found = new Set(docs.map((d) => d.id));
+    return {
+      allowed: docs.map((d) => d.id),
+      skipped: unique.filter((id) => !found.has(id)),
+      workspaceId,
+    };
   }
 
   // ------------------------------------------------------------------ //

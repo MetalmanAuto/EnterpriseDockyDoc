@@ -287,6 +287,7 @@ model DocumentTag {
   workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   documents DocumentTagMapping[]
 
+  @@unique([workspaceId, name])
   @@index([workspaceId])
   @@map("document_tags")
 }

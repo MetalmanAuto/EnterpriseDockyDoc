@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -40,6 +41,14 @@ export class DocumentQueryDto {
   @IsOptional()
   @IsString()
   ownerUserId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Comma-separated tag IDs. A document must carry every listed tag to match.',
+  })
+  @IsOptional()
+  @IsString()
+  tagIds?: string;
 }
 
 export class CreateDocumentDto {
@@ -89,6 +98,49 @@ export class UpdateDocumentDto {
   @IsOptional()
   @IsBoolean()
   isReminderEnabled?: boolean;
+}
+
+// ------------------------------------------------------------------ //
+// Bulk action DTOs
+// ------------------------------------------------------------------ //
+
+export class BulkMoveDto {
+  @ApiProperty({ type: [String], description: 'Documents to move (max 200)' })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  documentIds!: string[];
+
+  @ApiPropertyOptional({ nullable: true, description: 'Destination folder, or null for no folder' })
+  @IsOptional()
+  @ValidateIf((o) => o.folderId !== null)
+  @IsString()
+  folderId?: string | null;
+}
+
+export class BulkTagDto {
+  @ApiProperty({ type: [String], description: 'Documents to label (max 200)' })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  documentIds!: string[];
+
+  @ApiProperty({ type: [String], description: 'Labels to add or remove' })
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  tagIds!: string[];
+
+  @ApiProperty({ enum: ['add', 'remove'], description: 'Whether to add or remove these labels' })
+  @IsEnum(['add', 'remove'])
+  action!: 'add' | 'remove';
+}
+
+export class BulkResultDto {
+  @ApiProperty({ description: 'How many documents were changed' })
+  updated!: number;
+  @ApiProperty({ type: [String], description: 'Documents skipped because they were not found' })
+  skipped!: string[];
 }
 
 // ------------------------------------------------------------------ //
