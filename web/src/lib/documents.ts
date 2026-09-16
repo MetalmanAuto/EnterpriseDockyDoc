@@ -324,6 +324,13 @@ export function bulkMoveDocuments(
   });
 }
 
+export function bulkDeleteDocuments(documentIds: string[]): Promise<BulkResult> {
+  return apiFetch<BulkResult>('/api/v1/documents/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ documentIds }),
+  });
+}
+
 export function bulkTagDocuments(
   documentIds: string[],
   tagIds: string[],

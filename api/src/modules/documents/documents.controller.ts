@@ -32,6 +32,7 @@ import { DocumentsService } from './documents.service';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import {
+  BulkDeleteDto,
   BulkMoveDto,
   BulkResultDto,
   BulkTagDto,
@@ -203,6 +204,17 @@ export class DocumentsController {
     @CurrentUser() user: DevUserPayload,
   ): Promise<BulkResultDto> {
     return this.documentsService.bulkMove(dto, user);
+  }
+
+  @Post('bulk/delete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Move several documents to trash' })
+  @ApiResponse({ status: 200, type: BulkResultDto })
+  bulkDelete(
+    @Body() dto: BulkDeleteDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<BulkResultDto> {
+    return this.documentsService.bulkDelete(dto, user);
   }
 
   @Post('bulk/tags')

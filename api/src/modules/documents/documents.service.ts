@@ -15,6 +15,7 @@ import {
 } from '../../common/helpers/workspace-access.helper';
 import type { DevUserPayload } from '../../common/guards/dev-auth.guard';
 import {
+  BulkDeleteDto,
   BulkMoveDto,
   BulkResultDto,
   BulkTagDto,
@@ -864,6 +865,32 @@ export class DocumentsService {
     });
 
     return { updated: allowed.length, skipped };
+  }
+
+  /**
+   * Move several documents to trash in one go. This is the same soft delete as
+   * the single-document route: files stay in storage and everything can be
+   * restored from Trash, so a mis-click is recoverable.
+   */
+  async bulkDelete(dto: BulkDeleteDto, user: DevUserPayload): Promise<BulkResultDto> {
+    const { allowed, skipped, workspaceId } = await this.resolveBulkTargets(dto.documentIds, user);
+    if (allowed.length === 0) return { updated: 0, skipped };
+
+    const result = await this.prisma.document.updateMany({
+      where: { id: { in: allowed } },
+      data: { status: DocumentStatus.DELETED },
+    });
+
+    this.audit.log({
+      workspaceId,
+      userId: user.id,
+      action: AuditAction.DOCUMENT_DELETED,
+      entityType: AuditEntityType.DOCUMENT,
+      entityId: allowed[0],
+      metadata: { bulk: 'delete', count: result.count, documentIds: allowed },
+    });
+
+    return { updated: result.count, skipped };
   }
 
   /**

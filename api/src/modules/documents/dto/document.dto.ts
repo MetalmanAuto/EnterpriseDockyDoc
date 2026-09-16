@@ -136,6 +136,14 @@ export class BulkTagDto {
   action!: 'add' | 'remove';
 }
 
+export class BulkDeleteDto {
+  @ApiProperty({ type: [String], description: 'Documents to move to trash (max 200)' })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  documentIds!: string[];
+}
+
 export class BulkResultDto {
   @ApiProperty({ description: 'How many documents were changed' })
   updated!: number;

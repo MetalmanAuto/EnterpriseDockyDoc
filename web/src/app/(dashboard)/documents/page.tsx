@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, updateFolder, moveFolder, deleteFolder, deleteDocument, updateDocument, fetchTags, createTag, bulkMoveDocuments, bulkTagDocuments } from '@/lib/documents';
+import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploadDocument, searchDocuments, createFolder, updateFolder, moveFolder, deleteFolder, deleteDocument, updateDocument, fetchTags, createTag, fetchWorkspaceSummary, bulkMoveDocuments, bulkTagDocuments, bulkDeleteDocuments } from '@/lib/documents';
 import { cn, initialsOf } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -196,11 +196,16 @@ function DocumentsPageInner() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [bulkAction, setBulkAction] = useState<'move' | 'label' | null>(null);
+  const [bulkAction, setBulkAction] = useState<'move' | 'label' | 'delete' | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   // Folder-to-folder drag state
   const [dragFolderId, setDragFolderId] = useState<string | null>(null);
+
+  // Everything not in the trash, ignoring the folder and label filters. The
+  // "All documents" row must keep showing the workspace total while a folder
+  // is selected, not the count of what happens to be on screen.
+  const [totalDocCount, setTotalDocCount] = useState<number | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -221,12 +226,14 @@ function DocumentsPageInner() {
       fetchFolders(activeWorkspace.workspaceId),
       fetchDocuments({ workspaceId: activeWorkspace.workspaceId, status: showTrash ? 'DELETED' : undefined }),
       fetchTags(activeWorkspace.workspaceId).catch(() => [] as Tag[]),
+      fetchWorkspaceSummary(activeWorkspace.workspaceId).catch(() => null),
     ])
-      .then(([f, d, t]) => {
+      .then(([f, d, t, summary]) => {
         if (cancelled) return;
         setFolders(f);
         setDocuments(d);
         setTags(t);
+        setTotalDocCount(summary?.totalDocuments ?? d.length);
       })
       .catch(() => {
         if (!cancelled) setError('Failed to load documents. Is the API running?');
@@ -383,11 +390,21 @@ function DocumentsPageInner() {
     })
       .then(setDocuments)
       .catch(() => {});
+    // The "All documents" total is a separate count, so it stays right while
+    // a folder or label filter is narrowing the list below it.
+    refreshTotalCount();
   }
 
   function refreshTags() {
     if (!activeWorkspace) return;
     fetchTags(activeWorkspace.workspaceId).then(setTags).catch(() => {});
+  }
+
+  function refreshTotalCount() {
+    if (!activeWorkspace) return;
+    fetchWorkspaceSummary(activeWorkspace.workspaceId)
+      .then((s) => setTotalDocCount(s.totalDocuments))
+      .catch(() => {});
   }
 
   function toggleFilterTag(tagId: string) {
@@ -460,6 +477,25 @@ function DocumentsPageInner() {
       refreshTags();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not update those labels.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedDocIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await bulkDeleteDocuments(selectedDocIds);
+      toast.success(
+        `${result.updated} document${result.updated === 1 ? '' : 's'} moved to Trash. Restore from there if that was a mistake.`,
+      );
+      setSelectedDocIds([]);
+      setBulkAction(null);
+      refreshDocuments();
+      refreshFolders();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete those documents.');
     } finally {
       setBulkBusy(false);
     }
@@ -706,7 +742,7 @@ function DocumentsPageInner() {
               {/* All documents — also accepts doc drops to remove from folder */}
               <FolderRow
                 label="All documents"
-                count={!showTrash ? documents.length : undefined}
+                count={!showTrash ? (totalDocCount ?? undefined) : undefined}
                 active={selectedFolderId === null && !showTrash}
                 onClick={() => handleSelectFolder(null)}
                 iconEl={<AllDocsSvgIcon />}
@@ -845,6 +881,7 @@ function DocumentsPageInner() {
               busy={bulkBusy}
               onMove={() => setBulkAction('move')}
               onLabel={() => setBulkAction('label')}
+              onDelete={() => setBulkAction('delete')}
               onClear={() => setSelectedDocIds([])}
             />
           )}
@@ -995,6 +1032,21 @@ function DocumentsPageInner() {
           folders={folders}
           busy={bulkBusy}
           onMove={(folderId) => void handleBulkMove(folderId)}
+          onClose={() => { if (!bulkBusy) setBulkAction(null); }}
+        />
+      )}
+      {bulkAction === 'delete' && (
+        <ConfirmModal
+          title={`Delete ${selectedDocIds.length} document${selectedDocIds.length === 1 ? '' : 's'}?`}
+          body={
+            `${selectedDocIds.length === 1 ? 'This document' : `All ${selectedDocIds.length} documents`} will be moved to Trash, ` +
+            'along with any reminders and share links. Nothing is erased: you can restore from Trash, ' +
+            'and files are only removed for good when a document is shredded there.'
+          }
+          confirmLabel={`Move ${selectedDocIds.length === 1 ? 'it' : 'them'} to Trash`}
+          danger
+          loading={bulkBusy}
+          onConfirm={() => void handleBulkDelete()}
           onClose={() => { if (!bulkBusy) setBulkAction(null); }}
         />
       )}
@@ -1939,12 +1991,14 @@ function SelectionBar({
   busy,
   onMove,
   onLabel,
+  onDelete,
   onClear,
 }: {
   count: number;
   busy: boolean;
   onMove: () => void;
   onLabel: () => void;
+  onDelete: () => void;
   onClear: () => void;
 }) {
   return (
@@ -1958,6 +2012,19 @@ function SelectionBar({
         </button>
         <button type="button" onClick={onLabel} disabled={busy} className="btn-ghost px-3 py-1.5 text-xs">
           Labels
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-surface px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+          </svg>
+          Delete
         </button>
         <button
           type="button"
