@@ -16,7 +16,7 @@ import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
-import { buildExternalShareEmail, buildInternalShareEmail } from './share-emails';
+import { buildExternalShareEmail } from './share-emails';
 import {
   assertWorkspaceMembership,
   assertEditorOrAbove,
@@ -31,10 +31,8 @@ import {
 } from './share-crypto.util';
 import type {
   CreateExternalShareDto,
-  CreateInternalShareDto,
   DocumentSharesResponseDto,
   ExternalShareDto,
-  InternalShareDto,
   PublicShareInfoDto,
   VerifyShareResponseDto,
 } from './dto/share.dto';
@@ -124,103 +122,6 @@ export class SharesService {
   }
 
   // ------------------------------------------------------------------ //
-  // POST /documents/:id/share/internal
-  // ------------------------------------------------------------------ //
-
-  async createInternalShare(
-    documentId: string,
-    dto: CreateInternalShareDto,
-    user: DevUserPayload,
-  ): Promise<InternalShareDto[]> {
-    const doc = await this.requireAccessibleDocument(documentId, user);
-
-    // Validate that all target users are active workspace members
-    const workspaceMembers = await this.prisma.workspaceUser.findMany({
-      where: {
-        workspaceId: doc.workspaceId,
-        userId: { in: dto.userIds },
-        status: 'ACTIVE',
-      },
-      select: { userId: true },
-    });
-
-    const validUserIds = new Set(workspaceMembers.map((m) => m.userId));
-    const invalidIds = dto.userIds.filter((id) => !validUserIds.has(id));
-    if (invalidIds.length > 0) {
-      throw new BadRequestException(
-        `User(s) not found in this workspace: ${invalidIds.join(', ')}`,
-      );
-    }
-
-    // Find or create the single INTERNAL share record for this document+creator
-    let share = await this.prisma.documentShare.findFirst({
-      where: { documentId, shareType: 'INTERNAL', isActive: true, createdById: user.id },
-    });
-    if (!share) {
-      share = await this.prisma.documentShare.create({
-        data: {
-          documentId,
-          createdById: user.id,
-          shareType: 'INTERNAL',
-          allowDownload: dto.permission === 'DOWNLOAD',
-          isActive: true,
-        },
-      });
-    }
-
-    // Upsert InternalDocumentShare rows — update permission if already shared
-    const results: InternalShareDto[] = [];
-    for (const userId of dto.userIds) {
-      const internal = await this.prisma.internalDocumentShare.upsert({
-        where: {
-          documentShareId_sharedWithUserId: {
-            documentShareId: share.id,
-            sharedWithUserId: userId,
-          },
-        },
-        update: { permission: dto.permission },
-        create: {
-          documentShareId: share.id,
-          sharedWithUserId: userId,
-          permission: dto.permission,
-        },
-        include: { sharedWithUser: { select: USER_SELECT } },
-      });
-
-      results.push({
-        id: internal.id,
-        shareId: share.id,
-        sharedWith: internal.sharedWithUser,
-        permission: internal.permission,
-        createdAt: internal.createdAt.toISOString(),
-      });
-    }
-
-    // Until now this wrote a record and nothing else. Tell the colleague, so
-    // "I shared it with you" means something arrived.
-    await this.emailInternalRecipients(results.map((r) => r.sharedWith.email), {
-      documentName: doc.name,
-      sharedByName: displayName(user),
-      workspaceName: (await this.prisma.workspace.findUnique({ where: { id: doc.workspaceId }, select: { name: true } }))?.name ?? 'your workspace',
-      documentUrl: `${this.mail.appUrl}/documents/${doc.id}`,
-      permission: dto.permission === 'DOWNLOAD' ? 'DOWNLOAD' : 'VIEW',
-    });
-
-    if (results.length > 0) {
-      this.audit.log({
-        workspaceId: doc.workspaceId,
-        userId: user.id,
-        action: AuditAction.DOCUMENT_SHARED_INTERNAL,
-        entityType: AuditEntityType.SHARE,
-        entityId: share.id,
-        metadata: { documentName: doc.name, sharedWithCount: results.length },
-      });
-    }
-
-    return results;
-  }
-
-  // ------------------------------------------------------------------ //
   // POST /documents/:id/share/external
   // ------------------------------------------------------------------ //
 
@@ -289,37 +190,12 @@ export class SharesService {
     const doc = await this.requireReadableDocument(documentId, user);
 
     const shares = await this.prisma.documentShare.findMany({
-      where: { documentId, isActive: true },
-      include: {
-        createdBy: { select: USER_SELECT },
-        internalShares: {
-          include: { sharedWithUser: { select: USER_SELECT } },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      where: { documentId, isActive: true, shareType: 'EXTERNAL_LINK' },
+      include: { createdBy: { select: USER_SELECT } },
       orderBy: { createdAt: 'desc' },
     });
 
-    const internalShares: InternalShareDto[] = [];
-    const externalShares: ExternalShareDto[] = [];
-
-    for (const share of shares) {
-      if (share.shareType === 'INTERNAL') {
-        for (const is of share.internalShares) {
-          internalShares.push({
-            id: is.id,
-            shareId: share.id,
-            sharedWith: is.sharedWithUser,
-            permission: is.permission,
-            createdAt: is.createdAt.toISOString(),
-          });
-        }
-      } else {
-        externalShares.push(this.toExternalShareDto(share));
-      }
-    }
-
-    return { internalShares, externalShares };
+    return { externalShares: shares.map((share) => this.toExternalShareDto(share)) };
   }
 
   // ------------------------------------------------------------------ //
@@ -530,21 +406,6 @@ export class SharesService {
         await this.mail.send({ to: [to], ...email });
       } catch (err) {
         this.logger.error(`Share email to ${to} failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  }
-
-  private async emailInternalRecipients(
-    recipients: string[],
-    input: Parameters<typeof buildInternalShareEmail>[0],
-  ): Promise<void> {
-    if (recipients.length === 0) return;
-    const email = buildInternalShareEmail(input);
-    for (const to of recipients) {
-      try {
-        await this.mail.send({ to: [to], ...email });
-      } catch (err) {
-        this.logger.error(`Internal share email to ${to} failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

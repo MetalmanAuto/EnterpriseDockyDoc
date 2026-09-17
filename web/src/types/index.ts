@@ -73,14 +73,6 @@ export interface ShareUser {
   email: string;
 }
 
-export interface InternalShare {
-  id: string;
-  shareId: string;
-  sharedWith: ShareUser;
-  permission: SharePermission;
-  createdAt: string;
-}
-
 export interface ExternalShare {
   id: string;
   token: string;
@@ -95,7 +87,6 @@ export interface ExternalShare {
 }
 
 export interface DocumentShares {
-  internalShares: InternalShare[];
   externalShares: ExternalShare[];
 }
 

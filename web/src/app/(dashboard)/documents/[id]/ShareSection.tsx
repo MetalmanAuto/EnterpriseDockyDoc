@@ -1,38 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@/context/UserContext';
 import {
   createExternalShare,
-  createInternalShare,
   fetchDocumentShares,
   revokeShare,
   buildSharePageUrl,
 } from '@/lib/shares';
-import { fetchWorkspaceDetail } from '@/lib/documents';
-import { cn, initialsOf } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import type {
-  DocumentShares,
-  ExternalShare,
-  InternalShare,
-  SharePermission,
-  WorkspaceMember,
-} from '@/types';
+import type { DocumentShares, ExternalShare } from '@/types';
 
-type Tab = 'internal' | 'external' | 'active';
+type Tab = 'external' | 'active';
 
 // ------------------------------------------------------------------ //
 // Root component
 // ------------------------------------------------------------------ //
 
 export default function ShareSection({ documentId }: { documentId: string }) {
-  const { activeWorkspace } = useUser();
   const [tab, setTab] = useState<Tab>('active');
   const [shares, setShares] = useState<DocumentShares | null>(null);
   const [loadingShares, setLoadingShares] = useState(true);
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
 
   function reload() {
     fetchDocumentShares(documentId)
@@ -46,15 +35,8 @@ export default function ShareSection({ documentId }: { documentId: string }) {
       .finally(() => setLoadingShares(false));
   }, [documentId]);
 
-  useEffect(() => {
-    if (!activeWorkspace) return;
-    fetchWorkspaceDetail(activeWorkspace.workspaceId)
-      .then((d) => setMembers(d.members))
-      .catch(() => {});
-  }, [activeWorkspace?.workspaceId]);
 
-  const totalActive =
-    (shares?.internalShares.length ?? 0) + (shares?.externalShares.length ?? 0);
+  const totalActive = shares?.externalShares.length ?? 0;
 
   return (
     <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
@@ -70,7 +52,7 @@ export default function ShareSection({ documentId }: { documentId: string }) {
 
       {/* Tabs */}
       <div className="flex border-b border-stroke-soft">
-        {(['active', 'internal', 'external'] as Tab[]).map((t) => (
+        {(['active', 'external'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -81,7 +63,7 @@ export default function ShareSection({ documentId }: { documentId: string }) {
                 : 'text-ink-3 hover:text-ink-2',
             )}
           >
-            {t === 'active' ? `Active (${totalActive})` : t === 'internal' ? 'Internal' : 'External Link'}
+            {t === 'active' ? `Active (${totalActive})` : 'External Link'}
           </button>
         ))}
       </div>
@@ -97,13 +79,6 @@ export default function ShareSection({ documentId }: { documentId: string }) {
                 .then(reload)
                 .catch(() => {});
             }}
-          />
-        )}
-        {tab === 'internal' && (
-          <InternalShareTab
-            documentId={documentId}
-            members={members}
-            onShared={reload}
           />
         )}
         {tab === 'external' && (
@@ -158,56 +133,18 @@ function ActiveSharesTab({
     );
   }
 
-  const hasShares =
-    (shares?.internalShares.length ?? 0) + (shares?.externalShares.length ?? 0) > 0;
+  const hasShares = (shares?.externalShares.length ?? 0) > 0;
 
   if (!hasShares) {
     return (
       <p className="text-sm text-ink-3 text-center py-6">
-        No active shares. Use the tabs above to share this document.
+        No active links. Use the External Link tab to share this document.
       </p>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Internal shares */}
-      {(shares?.internalShares.length ?? 0) > 0 && (
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-label text-ink-3 mb-2">
-            Internal
-          </p>
-          <div className="space-y-2">
-            {shares!.internalShares.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between rounded-lg border border-stroke bg-surface-high px-3 py-2"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-[10px] font-semibold text-brand-700 flex-shrink-0">
-                    {initialsOf(s.sharedWith)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-ink truncate">
-                      {s.sharedWith.firstName} {s.sharedWith.lastName}
-                    </p>
-                    <p className="text-[10px] text-ink-3 truncate">{s.sharedWith.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <PermBadge permission={s.permission} />
-                  <RevokeButton
-                    shareId={s.shareId}
-                    revoking={revoking}
-                    onRevoke={setPendingRevoke}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* External shares */}
       {(shares?.externalShares.length ?? 0) > 0 && (
         <div>
@@ -297,133 +234,6 @@ function ExternalShareRow({
   );
 }
 
-// ------------------------------------------------------------------ //
-// Internal share tab
-// ------------------------------------------------------------------ //
-
-function InternalShareTab({
-  documentId,
-  members,
-  onShared,
-}: {
-  documentId: string;
-  members: WorkspaceMember[];
-  onShared: () => void;
-}) {
-  const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [permission, setPermission] = useState<SharePermission>('VIEW');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
-
-  // Exclude self from list
-  const shareable = members.filter((m) => m.userId !== user?.id);
-
-  function toggleMember(userId: string) {
-    setSelectedIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
-    );
-  }
-
-  async function handleSubmit() {
-    if (selectedIds.length === 0) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      const count = selectedIds.length;
-      await createInternalShare(documentId, selectedIds, permission);
-      setSelectedIds([]);
-      toast.success(`Shared with ${count} ${count === 1 ? 'person' : 'people'}.`);
-      onShared();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to share.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-medium text-ink-2 mb-2">
-          Select workspace members to share with
-        </label>
-        {shareable.length === 0 ? (
-          <p className="text-xs text-ink-3">No other workspace members found.</p>
-        ) : (
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {shareable.map((m) => (
-              <label
-                key={m.userId}
-                className={cn(
-                  'flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors',
-                  selectedIds.includes(m.userId)
-                    ? 'border-brand-300 bg-brand-50'
-                    : 'border-stroke-soft hover:border-stroke',
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(m.userId)}
-                  onChange={() => toggleMember(m.userId)}
-                  className="w-3.5 h-3.5 rounded border-stroke text-brand-600"
-                />
-                <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-[9px] font-semibold text-brand-700 flex-shrink-0">
-                  {initialsOf(m)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-ink">{m.firstName} {m.lastName}</p>
-                  <p className="text-[10px] text-ink-3 truncate">{m.email}</p>
-                </div>
-                <span className="ml-auto text-[10px] text-ink-3 capitalize">{m.role.toLowerCase()}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-ink-2 mb-1.5">Permission</label>
-        <div className="flex gap-2">
-          {(['VIEW', 'DOWNLOAD'] as SharePermission[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPermission(p)}
-              className={cn(
-                'flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors',
-                permission === p
-                  ? 'border-brand-600 bg-brand-600 text-white'
-                  : 'border-stroke text-ink-2 hover:border-brand-400/60',
-              )}
-            >
-              {p === 'VIEW' ? 'View only' : 'View & Download'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
-          {error}
-        </p>
-      )}
-
-      <button
-        onClick={handleSubmit}
-        disabled={submitting || selectedIds.length === 0}
-        className="w-full py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
-      >
-        {submitting ? 'Sharing…' : `Share with ${selectedIds.length || ''} ${selectedIds.length === 1 ? 'person' : 'people'}`}
-      </button>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ //
-// External link tab
-// ------------------------------------------------------------------ //
 
 function ExternalShareTab({
   documentId,
@@ -623,21 +433,6 @@ function ExternalShareTab({
 // ------------------------------------------------------------------ //
 // Small UI helpers
 // ------------------------------------------------------------------ //
-
-function PermBadge({ permission }: { permission: string }) {
-  return (
-    <span
-      className={cn(
-        'text-[10px] font-semibold px-1.5 py-0.5 rounded',
-        permission === 'DOWNLOAD'
-          ? 'bg-blue-100 text-blue-700'
-          : 'bg-surface-high text-ink-2',
-      )}
-    >
-      {permission === 'DOWNLOAD' ? 'Download' : 'View'}
-    </span>
-  );
-}
 
 function RevokeButton({
   shareId,

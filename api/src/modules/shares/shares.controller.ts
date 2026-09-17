@@ -14,10 +14,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SharesService } from './shares.service';
 import {
   CreateExternalShareDto,
-  CreateInternalShareDto,
   DocumentSharesResponseDto,
   ExternalShareDto,
-  InternalShareDto,
 } from './dto/share.dto';
 
 /**
@@ -32,24 +30,6 @@ import {
 @UseGuards(DevAuthGuard)
 export class DocumentSharesController {
   constructor(private readonly sharesService: SharesService) {}
-
-  /**
-   * POST /api/v1/documents/:id/share/internal
-   * Share document with specific workspace members.
-   */
-  @Post(':id/share/internal')
-  @ApiOperation({ summary: 'Share document internally with workspace members' })
-  @ApiParam({ name: 'id', description: 'Document cuid' })
-  @ApiResponse({ status: 201, type: [InternalShareDto] })
-  @ApiResponse({ status: 400, description: 'Document deleted or invalid users' })
-  @ApiResponse({ status: 403, description: 'Not a workspace member' })
-  createInternalShare(
-    @Param('id') id: string,
-    @Body() dto: CreateInternalShareDto,
-    @CurrentUser() user: DevUserPayload,
-  ): Promise<InternalShareDto[]> {
-    return this.sharesService.createInternalShare(id, dto, user);
-  }
 
   /**
    * POST /api/v1/documents/:id/share/external
