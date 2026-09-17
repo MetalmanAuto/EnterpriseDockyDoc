@@ -1,6 +1,9 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { z } from 'zod';
+import { fullCard, plainAnswer, rank, shortLine, toCard } from './assistant-context';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -184,6 +187,32 @@ function emptyConfidenceByField(): ConfidenceByField {
     suggestedTags: 0, suggestedFolder: 0,
   };
 }
+
+// ------------------------------------------------------------------ //
+// Assistant ("when does my Schengen visa expire?")
+// ------------------------------------------------------------------ //
+
+const ASSISTANT_MAX_DOCUMENTS = 300;
+const ASSISTANT_FOCUS_DOCUMENTS = 6;
+const ASSISTANT_TEXT_CHARS = 6000;
+
+const AssistantReply = z.object({
+  answer: z.string().describe('The reply shown to the person, in plain text'),
+  relevantDocumentIds: z.array(z.string()).describe('ids of the documents the answer is based on, most relevant first, up to 5; empty if none'),
+});
+
+const ASSISTANT_SYSTEM = `You are the assistant inside DockyDoc, an app where people store documents such as passports, visas, insurance policies, contracts, licences and certificates and track when they expire.
+
+You are given what the app knows about every document in the person's workspace, then their question. Answer from that material only.
+
+How to answer:
+- Lead with the answer. For a date question, give the exact date and the days remaining, both of which are already worked out in the material, and name the document it comes from.
+- People use everyday names: "Schengen visa" may be stored as "Visa - France 2026", a "car policy" as "Motor insurance". Match on meaning, using type, issuer, labels, summary and scanned text, not just the file name.
+- If several documents could be meant, answer for the likeliest and mention the others in one line.
+- If a document matches but has no expiry date recorded, look for the date in its scanned text. If you find one, give it and say it came from the text and is not yet recorded on the document. If there is no text either, say the document has not been read by AI yet and that opening it and running AI extraction will fill this in.
+- If nothing matches, say so plainly and name the closest documents you saw, so the person can tell whether it is missing or just named differently.
+- Never invent a date, a number or a document. Never quote an id in the answer; use document names.
+- Write in short plain sentences, no headings, no markdown. Two to five sentences is usually right.`;
 
 @Injectable()
 export class AiService {
@@ -1005,58 +1034,84 @@ Respond with this exact JSON structure:
     workspaceId: string,
     question: string,
   ): Promise<{ answer: string; relevantDocuments: { id: string; name: string }[] }> {
-    if (!this.client) {
-      return {
-        answer: 'AI search unavailable — ANTHROPIC_API_KEY not configured.',
-        relevantDocuments: [],
-      };
+    const [workspace, docs] = await Promise.all([
+      this.prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+      this.prisma.document.findMany({
+        where: { workspaceId, status: 'ACTIVE' },
+        select: {
+          id: true, name: true, fileName: true, description: true, expiryDate: true, renewalDueDate: true, updatedAt: true,
+          folder: { select: { name: true } },
+          tags: { select: { tag: { select: { name: true } } } },
+          metadata: { select: { key: true, value: true } },
+          searchContent: { select: { extractedText: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: ASSISTANT_MAX_DOCUMENTS,
+      }),
+    ]);
+    if (!workspace) throw new NotFoundException(`Workspace "${workspaceId}" not found`);
+
+    const cards = docs.map(toCard);
+    const byId = new Map(cards.map((c) => [c.id, c]));
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const pick = (ids: string[]) =>
+      ids.filter((id, i) => byId.has(id) && ids.indexOf(id) === i).map((id) => ({ id, name: byId.get(id)!.name }));
+
+    let routed: Awaited<ReturnType<typeof this.getClientForWorkspace>>;
+    try {
+      routed = await this.getClientForWorkspace(workspaceId);
+    } catch (err) {
+      // Usage limit or a broken BYOK key: say so in the answer instead of a 500.
+      return { answer: err instanceof Error ? err.message : String(err), relevantDocuments: [] };
+    }
+    const client = routed?.client ?? null;
+    if (!client) {
+      const plain = plainAnswer(question, cards, todayIso);
+      return { answer: plain.answer, relevantDocuments: pick(plain.relevantIds) };
     }
 
-    const docs = await this.prisma.document.findMany({
-      where: { workspaceId, status: 'ACTIVE' },
-      include: { searchContent: true },
-      orderBy: { updatedAt: 'desc' },
-      take: 20,
-    });
+    // The documents the question seems to be about get their scanned text;
+    // everything else is one line each, so the model can still spot a match
+    // the word overlap missed.
+    const ranked = rank(question, cards);
+    const focus = ranked.filter((r) => r.score > 0).slice(0, ASSISTANT_FOCUS_DOCUMENTS).map((r) => r.card);
+    const focusIds = new Set(focus.map((c) => c.id));
+    const rest = ranked.map((r) => r.card).filter((c) => !focusIds.has(c.id));
 
-    const docContext = docs
-      .filter((d) => d.searchContent?.extractedText)
-      .slice(0, 10)
-      .map((d) => `[${d.id}] ${d.name}: ${d.searchContent!.extractedText.slice(0, 500)}`)
-      .join('\n\n');
-
-    const prompt = `You are a document search assistant. Answer the user's question based on the documents below.
-
-Question: ${question}
-
-Available documents:
-${docContext || 'No indexed documents found.'}
-
-Respond with JSON:
-{
-  "answer": "Your helpful answer here",
-  "relevantDocumentIds": ["id1", "id2"]
-}`;
-
-    const message = await this.client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const content = message.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected AI response');
+    const context = [
+      `Workspace: ${workspace.name}`,
+      `Today: ${todayIso}`,
+      `Documents in the workspace: ${cards.length}${docs.length === ASSISTANT_MAX_DOCUMENTS ? ' (showing the most recently updated)' : ''}`,
+      '',
+      focus.length ? '## Documents that look relevant\n' : '',
+      ...focus.map((c) => fullCard(c, todayIso, ASSISTANT_TEXT_CHARS)),
+      '',
+      rest.length ? `## All other documents\n${rest.map((c) => shortLine(c, todayIso)).join('\n')}` : '',
+    ].filter((line, i, arr) => line !== '' || arr[i - 1] !== '').join('\n\n');
 
     try {
-      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON');
-      const parsed = JSON.parse(jsonMatch[0]);
-      const relevantDocuments = docs
-        .filter((d) => (parsed.relevantDocumentIds ?? []).includes(d.id))
-        .map((d) => ({ id: d.id, name: d.name }));
-      return { answer: parsed.answer ?? content.text, relevantDocuments };
-    } catch {
-      return { answer: content.text.slice(0, 400), relevantDocuments: [] };
+      const message = await client.messages.parse({
+        model: 'claude-opus-5',
+        max_tokens: 2048,
+        output_config: { effort: 'medium', format: zodOutputFormat(AssistantReply) },
+        system: ASSISTANT_SYSTEM,
+        messages: [{ role: 'user', content: `${context}\n\n## Question\n${question}` }],
+      });
+      await this.trackUsage(workspaceId, message.usage.input_tokens + message.usage.output_tokens);
+
+      if (message.stop_reason === 'refusal' || !message.parsed_output) {
+        this.logger.warn(`Assistant gave no structured answer (stop_reason=${message.stop_reason})`);
+        const plain = plainAnswer(question, cards, todayIso);
+        return { answer: plain.answer, relevantDocuments: pick(plain.relevantIds) };
+      }
+      return { answer: message.parsed_output.answer.trim(), relevantDocuments: pick(message.parsed_output.relevantDocumentIds) };
+    } catch (err) {
+      this.logger.error(`Assistant call failed: ${err instanceof Error ? err.message : String(err)}`);
+      const plain = plainAnswer(question, cards, todayIso);
+      return {
+        answer: `The AI service did not respond, so here is what the records say.\n${plain.answer.replace(/^AI answers are switched off on this server, so here is what the records say\.\n/, '')}`,
+        relevantDocuments: pick(plain.relevantIds),
+      };
     }
   }
 
