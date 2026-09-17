@@ -54,8 +54,21 @@ require_pg() {
 }
 
 stop_all() {
-  # These two run from this repo's dist/.next, so match on what they run
-  pkill -f "node .*${ROOT}/api/dist/main.js" 2>/dev/null || true
+  # The API is started from $ROOT/api as `node dist/main.js`, so its command
+  # line carries no absolute path and a pattern built from $ROOT never matched
+  # it: a stale API survived every restart and kept serving the previous build
+  # on the port, so API changes silently did not take effect. Kill the PID this
+  # script recorded, and fall back to the marker it sets in the process
+  # environment, since the command line alone cannot tell them apart.
+  if [ -f "$STATE_DIR/api.pid" ]; then
+    kill "$(cat "$STATE_DIR/api.pid")" 2>/dev/null || true
+    rm -f "$STATE_DIR/api.pid"
+  fi
+  for pid in $(pgrep -f "node dist/main.js" 2>/dev/null || true); do
+    if tr '\0' '\n' < /proc/"$pid"/environ 2>/dev/null | grep -qx "DOCKYDOC_SANDBOX=api"; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
   pkill -f "next-server" 2>/dev/null || true
   pkill -f "next start" 2>/dev/null || true
   if [ -d "$PGDATA" ]; then
@@ -119,6 +132,7 @@ npm run build 2>&1 | tail -1
 # into development mode, where prerendering fails.
 NODE_ENV=development PORT="$API_PORT" DOCKYDOC_SANDBOX=api \
   setsid nohup node dist/main.js > "$LOG_DIR/api.log" 2>&1 < /dev/null &
+echo $! > "$STATE_DIR/api.pid"
 for _ in $(seq 1 40); do
   curl -fsS -m 2 "http://localhost:${API_PORT}/api/v1/health" >/dev/null 2>&1 && break
   sleep 1
