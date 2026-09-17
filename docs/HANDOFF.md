@@ -114,6 +114,31 @@ The dashboard that follows shows the seeded `alice@acmecorp.com`, not the accoun
 That is ClerkAuthGuard falling back to the `x-dev-user-email` header because the API has no
 `CLERK_SECRET_KEY`. Set that key to see the real signed-up user.
 
+## Platform access from a Claude Code session
+
+The environment carries `RENDER_API_KEY` and `VERCEL_TOKEN`, so a session can read and
+change hosting configuration directly rather than asking for dashboard clicks. Both were
+tested and working on 17 September 2026: `GET /v1/services` on Render and `GET /v2/user`
+on Vercel each returned 200.
+
+| What | Value |
+|---|---|
+| Render service | `dockydoc-api-staging`, id `srv-d7ek95po3t8c73c2daug` |
+| Vercel project | `enterprise-docky-doc`, id `prj_cX9rLE43AzWYmxzeFwgroQHDnTxp` |
+
+There is one Render service, not a staging and a production pair. dockydoc.app talks to
+`dockydoc-api-staging.onrender.com`, which is also the proxy's fallback when `API_URL` is
+unset, so that one service is production.
+
+Read the configuration before advising anyone to change it. As of this check the API
+already has `RESEND_API_KEY`, `CLERK_SECRET_KEY`, `EMAIL_FROM` set to
+`DockyDoc <reminders@dockydoc.app>`, and `APP_URL` set to `https://dockydoc.app`. Email
+delivery and the links inside outgoing mail were never the missing piece; until this
+branch, the invitations module simply never called MailService.
+
+A Render API key is account-wide, so it can change or delete any service on the account.
+Read freely; treat a write as a production change and confirm it first.
+
 ## Working agreements
 
 - Commit to `main` directly (solo founder, no PR flow yet) with clear messages.
