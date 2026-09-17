@@ -49,6 +49,14 @@ trigger a deploy with the Vercel API using `gitSource: {type: github, repoId: 12
   can be moved (edit dialog or drag), and tick-box bulk move / bulk label on the documents list.
   Migration `20260916120000_dedupe_tags_unique_name` merges pre-existing duplicate labels
   before adding the unique index, so it is safe on the live database.
+- Integrations: personal API keys (Settings → Integrations, `dd_live_…`, hashed at rest,
+  read-only or read-and-write), a machine-facing REST surface under `/api/v1/integrations`
+  (`find` resolves "my passport and UK visa" to documents with confidence and alternatives,
+  `deliver` mints short-lived download links as ordinary external shares, `fetch` does both,
+  `upload` stores a file), and an MCP server at `/api/v1/mcp` over the same keys. The resolver
+  uses Claude when `ANTHROPIC_API_KEY` is set and a word-overlap fallback otherwise. Keys ride
+  through `ClerkAuthGuard`, so every existing endpoint accepts one; a read-only key gets GET
+  only elsewhere. Keys cannot create or revoke keys. See `docs/integrations.md`.
 - UI fixes from live use: names no longer render "undefined" (use `fullName`/`initialsOf`
   from `web/src/lib/utils.ts`, never `firstName[0] + lastName[0]`), the header search is a
   real input with Cmd-K, the sidebar workspace card is the switcher with a visible overlay

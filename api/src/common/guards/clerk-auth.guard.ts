@@ -1,11 +1,14 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ApiKeysService, API_KEY_PREFIX, type ApiKeyContext } from '../../modules/api-keys/api-keys.service';
+import { ApiKeyScope } from '@prisma/client';
 import type { User, WorkspaceUser, Workspace } from '@prisma/client';
 import type { Request } from 'express';
 
@@ -27,17 +30,55 @@ const WORKSPACE_INCLUDE = {
 export class ClerkAuthGuard implements CanActivate {
   private readonly logger = new Logger(ClerkAuthGuard.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly apiKeys: ApiKeysService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const secretKey = process.env.CLERK_SECRET_KEY;
+
+    // A personal API key, from other software acting as the person who made
+    // it. Checked first, in both auth modes: the key prefix says what it is
+    // without a database round trip, and a Clerk token never starts that way.
+    const bearer = request.headers.authorization;
+    if (bearer?.startsWith(`Bearer ${API_KEY_PREFIX}`)) {
+      return this.verifyApiKey(request, bearer.slice('Bearer '.length));
+    }
 
     if (secretKey) {
       return this.verifyClerkToken(request, secretKey);
     }
 
     return this.verifyDevHeader(request);
+  }
+
+  // ------------------------------------------------------------------ //
+  // API key path
+  // ------------------------------------------------------------------ //
+
+  private async verifyApiKey(request: Request, raw: string): Promise<boolean> {
+    const result = await this.apiKeys.authenticate(raw);
+    if (!result) {
+      throw new UnauthorizedException('Invalid or revoked API key');
+    }
+
+    // A read-only key may look but not touch. GET and HEAD are the only
+    // methods that change nothing; everything else needs the write scope.
+    const method = request.method.toUpperCase();
+    const reads = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+    if (!reads && !result.key.scopes.includes(ApiKeyScope.DOCUMENTS_WRITE)) {
+      // The machine-facing find and deliver calls are POSTs that write
+      // nothing of the user's; they check the read scope themselves.
+      if (!request.path.includes('/integrations/') && !request.path.endsWith('/mcp')) {
+        throw new ForbiddenException('This API key is read-only');
+      }
+    }
+
+    (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).devUser = result.user;
+    (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).apiKey = result.key;
+    return true;
   }
 
   // ------------------------------------------------------------------ //

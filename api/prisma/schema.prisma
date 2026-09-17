@@ -154,6 +154,7 @@ model User {
   auditLogs              AuditLog[]
   invitationsCreated     WorkspaceInvitation[]   @relation("InvitationsCreated")
   invitationsAccepted    WorkspaceInvitation[]   @relation("InvitationsAccepted")
+  apiKeys                ApiKey[]
 
   @@map("users")
 }
@@ -439,6 +440,35 @@ model AuditLog {
   @@index([createdAt])
   @@index([workspaceId, createdAt])
   @@map("audit_logs")
+}
+
+// ================================================================== //
+// API keys — a person's key for connecting other software
+// ================================================================== //
+
+enum ApiKeyScope {
+  DOCUMENTS_READ
+  DOCUMENTS_WRITE
+}
+
+model ApiKey {
+  id         String        @id @default(cuid())
+  userId     String
+  name       String
+  /// First characters of the key, so a list can show which one is which.
+  prefix     String
+  /// SHA-256 of the full key. The key itself is shown once and never stored.
+  keyHash    String        @unique
+  scopes     ApiKeyScope[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
 }
 
 // ================================================================== //
