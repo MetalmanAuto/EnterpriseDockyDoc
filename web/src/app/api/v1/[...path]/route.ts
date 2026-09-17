@@ -23,6 +23,9 @@ const BACKEND_URL = (() => {
   return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
 })();
 
+/** Statuses the fetch spec forbids a body on. */
+const NULL_BODY_STATUSES = new Set([204, 205, 304]);
+
 const FORWARDED_REQUEST_HEADERS = [
   'authorization',
   'content-type',
@@ -83,6 +86,18 @@ async function proxy(
   if (ct) responseHeaders.set('content-type', ct);
   const cd = upstream.headers.get('content-disposition');
   if (cd) responseHeaders.set('content-disposition', cd);
+
+  // 204, 205 and 304 must not carry a body. The Response constructor throws
+  // on one — an empty ArrayBuffer still counts — and Next turns that throw
+  // into a 500. Every endpoint answering 204 looked broken in the browser
+  // while the API had already done the work: deleting a label, deleting or
+  // restoring a folder, removing a member, revoking an invitation.
+  if (NULL_BODY_STATUSES.has(upstream.status)) {
+    return new NextResponse(null, {
+      status: upstream.status,
+      headers: responseHeaders,
+    });
+  }
 
   // Buffer the response body too — matches the request side and avoids
   // stream-lifetime weirdness when the upstream Response is GC'd.
