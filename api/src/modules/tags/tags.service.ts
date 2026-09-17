@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   assertWorkspaceMembership,
@@ -31,7 +32,13 @@ export class TagsService {
     const tags = await this.prisma.documentTag.findMany({
       where: { workspaceId },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { documents: true } } },
+      // Documents are soft-deleted (status DELETED), so a mapping outlives the
+      // document it points at. Counting those made a label read "2 documents"
+      // with one of them in the bin, and the delete dialog warn about files the
+      // user had already thrown away.
+      include: {
+        _count: { select: { documents: { where: { document: { is: { status: { not: DocumentStatus.DELETED } } } } } } },
+      },
     });
 
     return tags.map(({ _count, ...tag }) => ({
@@ -150,7 +157,10 @@ export class TagsService {
   private async withCount(id: string): Promise<TagResponseDto> {
     const tag = await this.prisma.documentTag.findUniqueOrThrow({
       where: { id },
-      include: { _count: { select: { documents: true } } },
+      // Binned documents do not count — see findAll.
+      include: {
+        _count: { select: { documents: { where: { document: { is: { status: { not: DocumentStatus.DELETED } } } } } } },
+      },
     });
     const { _count, ...rest } = tag;
     return { ...rest, documentCount: _count.documents };
