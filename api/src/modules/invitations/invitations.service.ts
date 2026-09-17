@@ -5,10 +5,13 @@ import {
   ForbiddenException,
   GoneException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { WorkspaceUserRole, WorkspaceUserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { buildInvitationEmail } from './invitation-email';
 import { assertAdminOrAbove, assertWorkspaceMembership } from '../../common/helpers/workspace-access.helper';
 import type { DevUserPayload } from '../../common/guards/dev-auth.guard';
 import type { CreateInvitationDto } from './dto/invitation.dto';
@@ -23,7 +26,12 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class InvitationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(InvitationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   // ------------------------------------------------------------------ //
   // Admin operations (workspace-scoped)
@@ -75,7 +83,40 @@ export class InvitationsService {
       include: { createdBy: true },
     });
 
+    await this.sendInvitationEmail(invite, ws.name);
+
     return this.toResponseDto(invite);
+  }
+
+  /**
+   * Email the invitee their join link. Delivery never decides whether the
+   * invitation exists: the row is already written, the link is on screen for
+   * the admin to copy, and MailService is a no-op when RESEND_API_KEY is unset.
+   * So a failure here is logged and swallowed rather than failing the request.
+   */
+  private async sendInvitationEmail(
+    invite: { email: string; token: string; role: WorkspaceUserRole; expiresAt: Date; createdBy: { firstName: string; lastName: string } | null },
+    workspaceName: string,
+  ): Promise<void> {
+    try {
+      const invitedByName =
+        [invite.createdBy?.firstName, invite.createdBy?.lastName].filter(Boolean).join(' ').trim() ||
+        'A DockyDoc user';
+
+      const email = buildInvitationEmail({
+        workspaceName,
+        invitedByName,
+        role: invite.role,
+        joinUrl: `${this.mail.appUrl}/join/${invite.token}`,
+        expiresAt: invite.expiresAt,
+      });
+
+      await this.mail.send({ to: [invite.email], ...email });
+    } catch (err) {
+      this.logger.error(
+        `Invitation email to ${invite.email} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   /** List PENDING (non-expired) invitations for a workspace */

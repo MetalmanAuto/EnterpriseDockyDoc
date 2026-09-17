@@ -29,6 +29,13 @@ export class MailService {
 
     if (!this.resend) {
       this.logger.warn('RESEND_API_KEY not set — email delivery disabled');
+    } else if (!config.get<string>('APP_URL')) {
+      // Every link in an outgoing email is built from appUrl. Sending real mail
+      // with the localhost default means invitation and reminder links that
+      // nobody outside this machine can open, and nothing else reports it.
+      this.logger.error(
+        `APP_URL not set while email is enabled — links in outgoing email will point at ${this.appUrl} and will not work for recipients`,
+      );
     }
   }
 

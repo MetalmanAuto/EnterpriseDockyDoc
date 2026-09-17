@@ -56,7 +56,19 @@ const STORAGE_KEY = 'dockydoc:activeWorkspaceId';
 /** Minimum time the switching overlay stays up, so the change registers. */
 const SWITCH_MIN_MS = 550;
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+export function UserProvider({
+  children,
+  /**
+   * Send a signed-out visitor to /login when the API answers 401. True for the
+   * dashboard, where every page needs an account. The invitation page at
+   * /join/:token sets it false: it is meant to be read by someone who has no
+   * account yet, and bouncing them to /login loses the invitation.
+   */
+  redirectOnUnauthenticated = true,
+}: {
+  children: React.ReactNode;
+  redirectOnUnauthenticated?: boolean;
+}) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [activeWorkspace, setActiveWorkspace] =
     useState<WorkspaceMembership | null>(null);
@@ -90,8 +102,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiError && err.status === 401) {
-            // Token is missing or expired — soft navigation avoids a full page reload
-            router.replace('/login');
+            // Token is missing or expired. Where a page is readable signed out,
+            // leave user null and let it render; otherwise send them to sign in
+            // (soft navigation, so no full page reload).
+            if (redirectOnUnauthenticated) {
+              router.replace('/login');
+            }
             return;
           }
           console.error('[UserContext] Failed to load user:', err);
@@ -106,7 +122,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, redirectOnUnauthenticated]);
 
   const refreshUser = useCallback(async (workspaceId?: string) => {
     try {
