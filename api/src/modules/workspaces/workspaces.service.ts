@@ -4,10 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { WorkspaceUserRole, WorkspaceUserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
+import { buildMemberAddedEmail } from './member-added-email';
 import {
   assertWorkspaceMembership,
   assertAdminOrAbove,
@@ -36,10 +39,13 @@ const MANAGER_ROLES = new Set<WorkspaceUserRole>([
 
 @Injectable()
 export class WorkspacesService {
+  private readonly logger = new Logger(WorkspacesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly encryption: EncryptionService,
+    private readonly mail: MailService,
   ) {}
 
   // ------------------------------------------------------------------ //
@@ -295,6 +301,7 @@ export class WorkspacesService {
     let user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
+    const isNewAccount = !user;
     if (!user) {
       user = await this.prisma.user.create({
         data: {
@@ -344,6 +351,25 @@ export class WorkspacesService {
       entityId: user.id,
       metadata: { email: dto.email, role: dto.role },
     });
+
+    // Adding someone directly used to be silent: they were a member and nobody
+    // told them. Delivery never decides whether the membership exists.
+    try {
+      const addedByName =
+        [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim() || 'A DockyDoc user';
+      const email = buildMemberAddedEmail({
+        workspaceName: workspace.name,
+        addedByName,
+        role: dto.role,
+        loginUrl: `${this.mail.appUrl}/login`,
+        isNewAccount,
+      });
+      await this.mail.send({ to: [user.email], ...email });
+    } catch (err) {
+      this.logger.error(
+        `Member-added email to ${user.email} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     return this.toMemberDto(membership);
   }

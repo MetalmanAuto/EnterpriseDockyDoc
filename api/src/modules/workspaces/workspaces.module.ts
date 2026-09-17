@@ -5,6 +5,7 @@ import { WorkspacesService } from './workspaces.service';
 import { DevAuthGuard } from '../../common/guards/dev-auth.guard';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
+import { MailModule } from '../mail/mail.module';
 import { EncryptionService } from '../../common/services/encryption.service';
 
 /**
@@ -14,7 +15,7 @@ import { EncryptionService } from '../../common/services/encryption.service';
  * Users belong to one or more workspaces with a specific role.
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, AuditModule],
+  imports: [ConfigModule, PrismaModule, AuditModule, MailModule],
   controllers: [WorkspacesController],
   providers: [WorkspacesService, DevAuthGuard, EncryptionService],
   exports: [WorkspacesService, EncryptionService],
