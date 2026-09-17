@@ -285,6 +285,9 @@ function ExternalShareRow({
           <RevokeButton shareId={share.id} revoking={revoking} onRevoke={onRevoke} />
         </div>
       </div>
+      {share.recipientEmails?.length > 0 && (
+        <p className="text-xs text-ink-3 mt-1">Emailed to {share.recipientEmails.join(', ')}</p>
+      )}
       {share.expiresAt && (
         <p className={cn('text-[10px]', isExpired ? 'text-red-500' : 'text-ink-3')}>
           {isExpired ? 'Expired' : 'Expires'} {new Date(share.expiresAt).toLocaleDateString()}
@@ -438,6 +441,15 @@ function ExternalShareTab({
   const [error, setError] = useState<string | null>(null);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [recipientsText, setRecipientsText] = useState('');
+  const [message, setMessage] = useState('');
+  const [sentTo, setSentTo] = useState<string[]>([]);
+
+  const recipients = recipientsText
+    .split(/[\s,;]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const badRecipient = recipients.find((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
 
   async function handleCreate() {
     setError(null);
@@ -447,8 +459,11 @@ function ExternalShareTab({
         allowDownload,
         password: hasPassword && password ? password : undefined,
         expiresAt: hasExpiry && expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        recipients: recipients.length ? recipients : undefined,
+        message: message.trim() || undefined,
       });
       const url = buildSharePageUrl(share.token);
+      setSentTo(share.recipientEmails ?? []);
       setGeneratedLink(url);
       onShared();
     } catch (err) {
@@ -470,7 +485,9 @@ function ExternalShareTab({
     return (
       <div className="space-y-3">
         <p className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-          Link created successfully!
+          {sentTo.length > 0
+            ? `Link created and emailed to ${sentTo.join(', ')}.${hasPassword ? ' The password was not included; send it to them separately.' : ''}`
+            : 'Link created successfully!'}
         </p>
         <div className="flex items-center gap-2">
           <input
@@ -492,6 +509,9 @@ function ExternalShareTab({
             setHasPassword(false);
             setHasExpiry(false);
             setExpiresAt('');
+            setRecipientsText('');
+            setMessage('');
+            setSentTo([]);
           }}
           className="text-xs text-brand-600 hover:underline"
         >
@@ -558,6 +578,31 @@ function ExternalShareTab({
         )}
       </div>
 
+      {/* Email the link */}
+      <div className="space-y-2">
+        <label className="block text-sm text-ink-2">Email this link to <span className="text-ink-3">(optional)</span></label>
+        <textarea
+          value={recipientsText}
+          onChange={(e) => setRecipientsText(e.target.value)}
+          rows={2}
+          placeholder="one@example.com, two@example.com"
+          className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        {badRecipient && <p className="text-xs text-red-600">&ldquo;{badRecipient}&rdquo; does not look like an email address.</p>}
+        {recipients.length > 0 && !badRecipient && (
+          <input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            maxLength={500}
+            placeholder="A short note to include (optional)"
+            className="w-full text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        )}
+        {recipients.length > 0 && hasPassword && (
+          <p className="text-xs text-ink-3">The password is never put in the email. Pass it on another way.</p>
+        )}
+      </div>
+
       {error && (
         <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
           {error}
@@ -566,10 +611,10 @@ function ExternalShareTab({
 
       <button
         onClick={handleCreate}
-        disabled={submitting || (hasPassword && password.length < 4)}
+        disabled={submitting || (hasPassword && password.length < 4) || !!badRecipient}
         className="w-full py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
       >
-        {submitting ? 'Creating…' : 'Generate Link'}
+        {submitting ? 'Creating…' : recipients.length > 0 ? `Generate link and email ${recipients.length}` : 'Generate Link'}
       </button>
     </div>
   );

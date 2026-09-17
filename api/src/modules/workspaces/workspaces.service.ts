@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { buildMemberAddedEmail } from './member-added-email';
+import type { GrantWorkspaceAccessDto, GrantWorkspaceAccessResultDto } from './dto/grant-access.dto';
 import {
   assertWorkspaceMembership,
   assertAdminOrAbove,
@@ -313,6 +314,73 @@ export class WorkspacesService {
       });
     }
 
+    return this.addUserToWorkspace(workspace, user, dto.role, currentUser, isNewAccount);
+  }
+
+  /**
+   * Add someone directly to several workspaces at once, without re-typing
+   * their details for each. The caller must manage the workspace the member
+   * is in and every target workspace; a target they cannot manage comes back
+   * as "forbidden" rather than failing the whole request, so the rest go
+   * through and the caller can see which did not.
+   */
+  async grantAccess(
+    sourceWorkspaceId: string,
+    memberId: string,
+    dto: GrantWorkspaceAccessDto,
+    currentUser: DevUserPayload,
+  ): Promise<GrantWorkspaceAccessResultDto[]> {
+    this.assertManagerRole(currentUser, sourceWorkspaceId);
+
+    const membership = await this.prisma.workspaceUser.findUnique({
+      where: { id: memberId },
+      include: { user: true },
+    });
+    if (!membership || membership.workspaceId !== sourceWorkspaceId) {
+      throw new NotFoundException('Member not found in this workspace');
+    }
+    const role = dto.role ?? membership.role;
+    const targets = [...new Set(dto.workspaceIds)].filter((id) => id !== sourceWorkspaceId);
+    const workspaces = await this.prisma.workspace.findMany({ where: { id: { in: targets } } });
+    const byId = new Map(workspaces.map((w) => [w.id, w]));
+
+    const results: GrantWorkspaceAccessResultDto[] = [];
+    for (const workspaceId of targets) {
+      const workspace = byId.get(workspaceId);
+      if (!workspace) throw new NotFoundException(`Workspace "${workspaceId}" not found`);
+
+      const mine = currentUser.workspaces.find((w) => w.workspaceId === workspaceId);
+      if (!mine || !MANAGER_ROLES.has(mine.role as WorkspaceUserRole)) {
+        results.push({ workspaceId, workspaceName: workspace.name, outcome: 'forbidden' });
+        continue;
+      }
+
+      const existing = await this.prisma.workspaceUser.findUnique({
+        where: { userId_workspaceId: { userId: membership.userId, workspaceId } },
+      });
+      if (existing?.status === WorkspaceUserStatus.ACTIVE) {
+        results.push({ workspaceId, workspaceName: workspace.name, outcome: 'already_member', role: existing.role });
+        continue;
+      }
+
+      await this.addUserToWorkspace(workspace, membership.user, role, currentUser, false);
+      results.push({ workspaceId, workspaceName: workspace.name, outcome: existing ? 'reactivated' : 'added', role });
+    }
+    return results;
+  }
+
+  /**
+   * The part of adding a member that happens once the person is known:
+   * create or reactivate the membership, audit it, and tell them by email.
+   */
+  private async addUserToWorkspace(
+    workspace: { id: string; name: string },
+    user: { id: string; email: string },
+    role: WorkspaceUserRole,
+    currentUser: DevUserPayload,
+    isNewAccount: boolean,
+  ): Promise<WorkspaceMemberDto> {
+    const workspaceId = workspace.id;
     // Check for existing membership
     const existing = await this.prisma.workspaceUser.findUnique({
       where: {
@@ -322,7 +390,7 @@ export class WorkspacesService {
 
     if (existing?.status === WorkspaceUserStatus.ACTIVE) {
       throw new ConflictException(
-        `${dto.email} is already an active member of this workspace`,
+        `${user.email} is already an active member of this workspace`,
       );
     }
 
@@ -330,14 +398,14 @@ export class WorkspacesService {
     const membership = existing
       ? await this.prisma.workspaceUser.update({
           where: { id: existing.id },
-          data: { role: dto.role, status: WorkspaceUserStatus.ACTIVE },
+          data: { role: role, status: WorkspaceUserStatus.ACTIVE },
           include: { user: true },
         })
       : await this.prisma.workspaceUser.create({
           data: {
             workspaceId,
             userId: user.id,
-            role: dto.role,
+            role: role,
             status: WorkspaceUserStatus.ACTIVE,
           },
           include: { user: true },
@@ -349,7 +417,7 @@ export class WorkspacesService {
       action: AuditAction.MEMBER_ADDED,
       entityType: AuditEntityType.USER,
       entityId: user.id,
-      metadata: { email: dto.email, role: dto.role },
+      metadata: { email: user.email, role: role },
     });
 
     // Adding someone directly used to be silent: they were a member and nobody
@@ -360,7 +428,7 @@ export class WorkspacesService {
       const email = buildMemberAddedEmail({
         workspaceName: workspace.name,
         addedByName,
-        role: dto.role,
+        role: role,
         loginUrl: `${this.mail.appUrl}/login`,
         isNewAccount,
       });
@@ -373,6 +441,7 @@ export class WorkspacesService {
 
     return this.toMemberDto(membership);
   }
+
 
   // ------------------------------------------------------------------ //
   // Update member role / status

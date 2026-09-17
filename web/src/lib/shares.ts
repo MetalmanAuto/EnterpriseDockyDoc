@@ -34,7 +34,7 @@ export function createInternalShare(
 
 export function createExternalShare(
   documentId: string,
-  params: { expiresAt?: string; password?: string; allowDownload: boolean },
+  params: { expiresAt?: string; password?: string; allowDownload: boolean; recipients?: string[]; message?: string },
 ): Promise<ExternalShare> {
   return apiFetch<ExternalShare>(`/api/v1/documents/${documentId}/share/external`, {
     method: 'POST',

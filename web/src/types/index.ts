@@ -90,6 +90,8 @@ export interface ExternalShare {
   isActive: boolean;
   createdAt: string;
   createdBy: ShareUser;
+  /** Who the link was emailed to when it was created. */
+  recipientEmails: string[];
 }
 
 export interface DocumentShares {

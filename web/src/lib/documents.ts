@@ -384,6 +384,25 @@ export function addWorkspaceMember(
   });
 }
 
+export interface GrantAccessResult {
+  workspaceId: string;
+  workspaceName: string;
+  outcome: 'added' | 'reactivated' | 'already_member' | 'forbidden';
+  role?: string;
+}
+
+/** Add an existing member to other workspaces the caller manages, in one go. */
+export function grantWorkspaceAccess(
+  workspaceId: string,
+  memberId: string,
+  params: { workspaceIds: string[]; role?: string },
+): Promise<GrantAccessResult[]> {
+  return apiFetch<GrantAccessResult[]>(`/api/v1/workspaces/${workspaceId}/members/${memberId}/workspaces`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export function updateWorkspaceMember(
   workspaceId: string,
   memberId: string,

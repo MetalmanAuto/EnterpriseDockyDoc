@@ -1,14 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsBoolean,
-  IsDateString,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { SharePermission, ShareType } from '@prisma/client';
 
 // ================================================================== //
@@ -38,6 +29,23 @@ export class CreateExternalShareDto {
   @IsString()
   @MinLength(4)
   password?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Email the link to these people. The password, if any, is never included.',
+    maxItems: 20,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsEmail({}, { each: true })
+  recipients?: string[];
+
+  @ApiPropertyOptional({ description: 'A short note to include in the email' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  message?: string;
 
   @ApiProperty({ description: 'Whether the link allows file download', default: true })
   @IsBoolean()
@@ -76,6 +84,7 @@ export class ExternalShareDto {
   @ApiPropertyOptional({ nullable: true }) expiresAt!: string | null;
   @ApiProperty() allowDownload!: boolean;
   @ApiProperty() hasPassword!: boolean;
+  @ApiProperty({ type: [String], description: 'Who the link was emailed to when created' }) recipientEmails!: string[];
   @ApiProperty() isActive!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiProperty({ type: ShareUserDto }) createdBy!: ShareUserDto;
