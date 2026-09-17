@@ -1,22 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { SharePermission, ShareType } from '@prisma/client';
 
 // ================================================================== //
 // Request DTOs
 // ================================================================== //
-
-export class CreateInternalShareDto {
-  @ApiProperty({ type: [String], description: 'User IDs to share with' })
-  @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty({ each: true })
-  userIds!: string[];
-
-  @ApiProperty({ enum: SharePermission })
-  @IsEnum(SharePermission)
-  permission!: SharePermission;
-}
 
 export class CreateExternalShareDto {
   @ApiPropertyOptional({ description: 'ISO date string — when the link expires' })
@@ -70,14 +58,6 @@ export class ShareUserDto {
   @ApiProperty() email!: string;
 }
 
-export class InternalShareDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() shareId!: string;
-  @ApiProperty({ type: ShareUserDto }) sharedWith!: ShareUserDto;
-  @ApiProperty({ enum: SharePermission }) permission!: SharePermission;
-  @ApiProperty() createdAt!: string;
-}
-
 export class ExternalShareDto {
   @ApiProperty() id!: string;
   @ApiProperty() token!: string;
@@ -91,7 +71,6 @@ export class ExternalShareDto {
 }
 
 export class DocumentSharesResponseDto {
-  @ApiProperty({ type: [InternalShareDto] }) internalShares!: InternalShareDto[];
   @ApiProperty({ type: [ExternalShareDto] }) externalShares!: ExternalShareDto[];
 }
 

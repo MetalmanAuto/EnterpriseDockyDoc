@@ -94,37 +94,3 @@ export function buildExternalShareEmail(input: ExternalShareEmailInput): Rendere
   );
   return { subject, html, text };
 }
-
-// ---- internal: a colleague in the same workspace ------------------------- //
-
-export interface InternalShareEmailInput {
-  documentName: string;
-  sharedByName: string;
-  workspaceName: string;
-  documentUrl: string;
-  permission: 'VIEW' | 'DOWNLOAD';
-}
-
-export function buildInternalShareEmail(input: InternalShareEmailInput): RenderedEmail {
-  const doc = escapeHtml(input.documentName);
-  const by = escapeHtml(input.sharedByName);
-  const subject = `${input.sharedByName} shared "${input.documentName}" with you`;
-  const what = input.permission === 'DOWNLOAD' ? 'view and download' : 'view';
-
-  const text = [
-    `${input.sharedByName} shared "${input.documentName}" with you in the ${input.workspaceName} workspace on DockyDoc.`,
-    `You can ${what} it.`,
-    '',
-    `Open it: ${input.documentUrl}`,
-  ].join('\n');
-
-  const html = layout(
-    'A colleague shared a document',
-    `${by} shared, in ${escapeHtml(input.workspaceName)}`,
-    doc,
-    [`You can ${what} it. Sign in with your DockyDoc account to open it.`],
-    { label: 'Open document', url: input.documentUrl },
-    'You are receiving this because you are a member of the workspace this document is in.',
-  );
-  return { subject, html, text };
-}

@@ -5,9 +5,7 @@ import { apiFetch } from './api';
 import type {
   DocumentShares,
   ExternalShare,
-  InternalShare,
   PublicShareInfo,
-  SharePermission,
   VerifyShareResponse,
 } from '@/types';
 
@@ -19,17 +17,6 @@ const API_URL = ''; // Relative → Next.js /api/v1/* proxy → no CORS
 
 export function fetchDocumentShares(documentId: string): Promise<DocumentShares> {
   return apiFetch<DocumentShares>(`/api/v1/documents/${documentId}/shares`);
-}
-
-export function createInternalShare(
-  documentId: string,
-  userIds: string[],
-  permission: SharePermission,
-): Promise<InternalShare[]> {
-  return apiFetch<InternalShare[]>(`/api/v1/documents/${documentId}/share/internal`, {
-    method: 'POST',
-    body: JSON.stringify({ userIds, permission }),
-  });
 }
 
 export function createExternalShare(
