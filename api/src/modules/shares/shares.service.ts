@@ -8,12 +8,15 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
+import { buildExternalShareEmail, buildInternalShareEmail } from './share-emails';
 import {
   assertWorkspaceMembership,
   assertEditorOrAbove,
@@ -61,6 +64,8 @@ interface RateLimitEntry {
 
 @Injectable()
 export class SharesService {
+  private readonly logger = new Logger(SharesService.name);
+
   /**
    * Rate-limit state for share password verification.
    * Key: `${token}:${ip}` — scoped to one token+IP pair.
@@ -72,6 +77,7 @@ export class SharesService {
     private readonly prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {
     // Validate required secrets at startup — fail fast rather than silently using an insecure default
     if (!process.env.SHARE_GRANT_SECRET) {
@@ -190,6 +196,16 @@ export class SharesService {
       });
     }
 
+    // Until now this wrote a record and nothing else. Tell the colleague, so
+    // "I shared it with you" means something arrived.
+    await this.emailInternalRecipients(results.map((r) => r.sharedWith.email), {
+      documentName: doc.name,
+      sharedByName: displayName(user),
+      workspaceName: (await this.prisma.workspace.findUnique({ where: { id: doc.workspaceId }, select: { name: true } }))?.name ?? 'your workspace',
+      documentUrl: `${this.mail.appUrl}/documents/${doc.id}`,
+      permission: dto.permission === 'DOWNLOAD' ? 'DOWNLOAD' : 'VIEW',
+    });
+
     if (results.length > 0) {
       this.audit.log({
         workspaceId: doc.workspaceId,
@@ -218,6 +234,7 @@ export class SharesService {
     const token = generateShareToken();
     const passwordHash = dto.password ? hashPassword(dto.password) : null;
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    const recipients = [...new Set((dto.recipients ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean))];
 
     const share = await this.prisma.documentShare.create({
       data: {
@@ -228,9 +245,20 @@ export class SharesService {
         passwordHash,
         expiresAt,
         allowDownload: dto.allowDownload,
+        recipientEmails: recipients,
         isActive: true,
       },
       include: { createdBy: { select: USER_SELECT } },
+    });
+
+    await this.emailExternalRecipients(recipients, {
+      documentName: doc.name,
+      sharedByName: displayName(user),
+      shareUrl: `${this.mail.appUrl}/share/${token}`,
+      expiresAt,
+      hasPassword: !!passwordHash,
+      allowDownload: dto.allowDownload,
+      message: dto.message?.trim() || undefined,
     });
 
     this.audit.log({
@@ -243,6 +271,7 @@ export class SharesService {
         documentName: doc.name,
         hasPassword: !!dto.password,
         allowDownload: dto.allowDownload,
+        emailedTo: recipients.length,
       },
     });
 
@@ -489,6 +518,37 @@ export class SharesService {
    * Used for write operations (create share, revoke).
    * Requires EDITOR role or above — VIEWERs are blocked.
    */
+  /** Delivery never decides whether the share exists; a failure is logged and the share stands. */
+  private async emailExternalRecipients(
+    recipients: string[],
+    input: Parameters<typeof buildExternalShareEmail>[0],
+  ): Promise<void> {
+    if (recipients.length === 0) return;
+    const email = buildExternalShareEmail(input);
+    for (const to of recipients) {
+      try {
+        await this.mail.send({ to: [to], ...email });
+      } catch (err) {
+        this.logger.error(`Share email to ${to} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  private async emailInternalRecipients(
+    recipients: string[],
+    input: Parameters<typeof buildInternalShareEmail>[0],
+  ): Promise<void> {
+    if (recipients.length === 0) return;
+    const email = buildInternalShareEmail(input);
+    for (const to of recipients) {
+      try {
+        await this.mail.send({ to: [to], ...email });
+      } catch (err) {
+        this.logger.error(`Internal share email to ${to} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
   private async requireAccessibleDocument(documentId: string, user: DevUserPayload) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
@@ -534,6 +594,7 @@ export class SharesService {
     passwordHash: string | null;
     isActive: boolean;
     createdAt: Date;
+    recipientEmails?: string[];
     createdBy: { id: string; firstName: string; lastName: string; email: string };
   }): ExternalShareDto {
     return {
@@ -542,9 +603,15 @@ export class SharesService {
       expiresAt: share.expiresAt?.toISOString() ?? null,
       allowDownload: share.allowDownload,
       hasPassword: !!share.passwordHash,
+      recipientEmails: share.recipientEmails ?? [],
       isActive: share.isActive,
       createdAt: share.createdAt.toISOString(),
       createdBy: share.createdBy,
     };
   }
+}
+
+
+function displayName(user: { firstName?: string | null; lastName?: string | null; email: string }): string {
+  return [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email;
 }

@@ -6,6 +6,8 @@ import {
   addWorkspaceMember,
   createInvitation,
   fetchWorkspaceDetail,
+  grantWorkspaceAccess,
+  type GrantAccessResult,
   listInvitations,
   removeWorkspaceMember,
   revokeInvitation,
@@ -53,10 +55,19 @@ export default function MembersPage() {
   const [editingMember, setEditingMember] = useState<WorkspaceMember | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [pendingRemove, setPendingRemove] = useState<WorkspaceMember | null>(null);
+  const [grantingFor, setGrantingFor] = useState<WorkspaceMember | null>(null);
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
+  // Other workspaces where this admin can add people, for the "+ Workspaces" action.
+  const manageableElsewhere = useMemo(
+    () =>
+      (user?.workspaces ?? []).filter(
+        (w) => w.workspaceId !== activeWorkspace?.workspaceId && (w.role === 'OWNER' || w.role === 'ADMIN'),
+      ),
+    [user?.workspaces, activeWorkspace?.workspaceId],
+  );
   const canManage =
     activeWorkspace?.role === 'OWNER' || activeWorkspace?.role === 'ADMIN';
 
@@ -196,7 +207,16 @@ export default function MembersPage() {
 
                 {/* Actions — fixed width so role badge + joined date stay aligned across all rows */}
                 {canManage && !isYou && (activeWorkspace?.role === 'OWNER' || !isOwner) ? (
-                  <div className="flex items-center justify-end gap-1.5 flex-shrink-0 w-[152px]">
+                  <div className="flex items-center justify-end gap-1.5 flex-shrink-0 w-[248px]">
+                    {manageableElsewhere.length > 0 && (
+                      <button
+                        onClick={() => setGrantingFor(member)}
+                        title="Add this person to other workspaces you manage"
+                        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+                      >
+                        + Workspaces
+                      </button>
+                    )}
                     <button
                       onClick={() => setEditingMember(member)}
                       className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
@@ -224,7 +244,7 @@ export default function MembersPage() {
                   </div>
                 ) : (
                   /* No actions — same fixed width keeps preceding columns aligned */
-                  <div className="w-[152px] flex-shrink-0" />
+                  <div className="w-[248px] flex-shrink-0" />
                 )}
               </div>
             );
@@ -412,6 +432,14 @@ export default function MembersPage() {
         />
       )}
 
+      {grantingFor && activeWorkspace && (
+        <GrantAccessModal
+          workspaceId={activeWorkspace.workspaceId}
+          member={grantingFor}
+          workspaces={manageableElsewhere}
+          onClose={() => setGrantingFor(null)}
+        />
+      )}
       {pendingRemove && (
         <ConfirmModal
           title="Remove member"
@@ -430,6 +458,114 @@ export default function MembersPage() {
 // ------------------------------------------------------------------ //
 // Edit Role Modal
 // ------------------------------------------------------------------ //
+
+function GrantAccessModal({
+  workspaceId,
+  member,
+  workspaces,
+  onClose,
+}: {
+  workspaceId: string;
+  member: WorkspaceMember;
+  workspaces: { workspaceId: string; workspaceName: string }[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [role, setRole] = useState<WorkspaceUserRole>(member.role === 'OWNER' ? 'ADMIN' : member.role);
+  const [submitting, setSubmitting] = useState(false);
+  const [results, setResults] = useState<GrantAccessResult[] | null>(null);
+
+  function toggle(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function handleSubmit() {
+    if (selected.length === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await grantWorkspaceAccess(workspaceId, member.id, { workspaceIds: selected, role });
+      setResults(res);
+      const added = res.filter((r) => r.outcome === 'added' || r.outcome === 'reactivated').length;
+      if (added > 0) toast.success(`${fullName(member)} added to ${added} workspace${added === 1 ? '' : 's'}. They have been emailed.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add them.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const OUTCOME: Record<GrantAccessResult['outcome'], string> = {
+    added: 'Added',
+    reactivated: 'Access restored',
+    already_member: 'Already a member',
+    forbidden: 'You cannot manage this workspace',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-surface border border-stroke shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <h2 className="text-base font-semibold text-ink">Add to other workspaces</h2>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-xl leading-none">&times;</button>
+        </div>
+        <p className="text-xs text-ink-3 mb-4">
+          {fullName(member)} ({member.email}) joins each workspace you tick, with the role below. No re-typing, and they get one email per workspace.
+        </p>
+
+        {results ? (
+          <div className="space-y-2 mb-4">
+            {results.map((r) => (
+              <div key={r.workspaceId} className="flex items-center justify-between text-sm py-1.5 border-b border-stroke-soft last:border-0">
+                <span className="text-ink">{r.workspaceName}</span>
+                <span className={cn('text-xs font-medium', r.outcome === 'forbidden' ? 'text-red-600' : r.outcome === 'already_member' ? 'text-ink-3' : 'text-green-700')}>
+                  {OUTCOME[r.outcome]}{r.role && r.outcome !== 'forbidden' ? ` · ${r.role.toLowerCase()}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-stroke divide-y divide-stroke-soft mb-4">
+              {workspaces.map((w) => (
+                <label key={w.workspaceId} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-high">
+                  <input type="checkbox" checked={selected.includes(w.workspaceId)} onChange={() => toggle(w.workspaceId)} className="w-3.5 h-3.5" />
+                  <span className="text-sm text-ink">{w.workspaceName}</span>
+                </label>
+              ))}
+            </div>
+            <label className="block text-xs font-medium text-ink-3 mb-1">Role in those workspaces</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as WorkspaceUserRole)}
+              className="w-full mb-4 rounded-lg border border-stroke bg-surface px-3 py-2 text-sm text-ink"
+            >
+              <option value="VIEWER">Viewer — read and download</option>
+              <option value="EDITOR">Editor — upload, edit and share</option>
+              <option value="ADMIN">Admin — manage documents, members and settings</option>
+            </select>
+          </>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-ink-2 border border-stroke rounded-lg hover:bg-surface-high">
+            {results ? 'Done' : 'Cancel'}
+          </button>
+          {!results && (
+            <button
+              type="button"
+              disabled={selected.length === 0 || submitting}
+              onClick={() => void handleSubmit()}
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+            >
+              {submitting ? 'Adding…' : `Add to ${selected.length || ''} workspace${selected.length === 1 ? '' : 's'}`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function EditRoleModal({
   workspaceId,

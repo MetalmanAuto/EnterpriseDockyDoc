@@ -351,6 +351,8 @@ model DocumentShare {
   expiresAt     DateTime?
   allowDownload Boolean    @default(true)
   isActive      Boolean    @default(true)
+  /// Addresses the link was emailed to when it was made. Record only; the link itself is what grants access.
+  recipientEmails String[] @default([])
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

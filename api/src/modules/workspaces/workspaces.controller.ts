@@ -28,6 +28,7 @@ import {
 } from './dto/workspace-response.dto';
 import { WorkspaceUserStatus } from '@prisma/client';
 import { CreateWorkspaceDto, AddWorkspaceMemberDto, UpdateWorkspaceMemberDto, UpdateWorkspaceDto } from './dto/add-member.dto';
+import { GrantWorkspaceAccessDto, GrantWorkspaceAccessResultDto } from './dto/grant-access.dto';
 import { UpdateAiSettingsDto, AiSettingsResponseDto } from './dto/ai-settings.dto';
 
 /**
@@ -142,6 +143,21 @@ export class WorkspacesController {
     @CurrentUser() user: DevUserPayload,
   ): Promise<WorkspaceMemberDto> {
     return this.workspacesService.addMember(id, dto, user);
+  }
+
+  @Post(':id/members/:memberId/workspaces')
+  @UseGuards(DevAuthGuard)
+  @ApiOperation({ summary: 'Add an existing member to other workspaces you manage (OWNER/ADMIN only)' })
+  @ApiParam({ name: 'id', description: 'Workspace the member is in' })
+  @ApiParam({ name: 'memberId', description: 'Membership id in that workspace' })
+  @ApiResponse({ status: 201, type: [GrantWorkspaceAccessResultDto] })
+  grantAccess(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @Body() dto: GrantWorkspaceAccessDto,
+    @CurrentUser() user: DevUserPayload,
+  ): Promise<GrantWorkspaceAccessResultDto[]> {
+    return this.workspacesService.grantAccess(id, memberId, dto, user);
   }
 
   /**
