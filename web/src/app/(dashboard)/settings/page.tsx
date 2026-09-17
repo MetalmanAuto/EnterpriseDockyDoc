@@ -16,6 +16,7 @@ import {
   mergeTag,
 } from '@/lib/documents';
 import type { AiSettings } from '@/lib/documents';
+import { createApiKey, fetchApiKeys, revokeApiKey, type ApiKey, type CreatedApiKey } from '@/lib/api-keys';
 import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -1084,19 +1085,218 @@ function RetentionSection() {
 }
 
 function IntegrationsSection() {
+  const toast = useToast();
+  const [keys, setKeys] = useState<ApiKey[] | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [canWrite, setCanWrite] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [justCreated, setJustCreated] = useState<CreatedApiKey | null>(null);
+  const [pendingRevoke, setPendingRevoke] = useState<ApiKey | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dockydoc.app';
+
+  async function load() {
+    try {
+      setKeys(await fetchApiKeys());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not load API keys.');
+      setKeys([]);
+    }
+  }
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleCreate() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const created = await createApiKey({ name: name.trim(), canWrite });
+      setJustCreated(created);
+      setName('');
+      setCanWrite(false);
+      setCreating(false);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not create the key.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRevoke() {
+    if (!pendingRevoke) return;
+    setRevoking(true);
+    try {
+      await revokeApiKey(pendingRevoke.id);
+      toast.success(`Key "${pendingRevoke.name}" revoked. Anything using it stops working now.`);
+      setPendingRevoke(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not revoke the key.');
+    } finally {
+      setRevoking(false);
+    }
+  }
+
+  async function copy(text: string, what: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${what} copied.`);
+    } catch {
+      toast.error('Could not copy. Select the text and copy it by hand.');
+    }
+  }
+
   return (
-    <SectionCard title="Integrations" subtitle="Connect DockyDoc with third-party tools and services">
-      <div className="py-8 text-center">
-        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center mx-auto mb-3">
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-ink-3">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-        </div>
-        <p className="text-sm text-ink-3 font-medium">Integrations coming soon</p>
-        <p className="text-xs text-ink-3 mt-1">Connect with Slack, Google Drive, and more.</p>
-      </div>
-    </SectionCard>
+    <div className="space-y-6">
+      <SectionCard
+        title="API keys"
+        subtitle="Let other software act as you: a WhatsApp bot, an assistant, a script. Each key is you, with your workspaces."
+        action={
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition-colors"
+          >
+            + New key
+          </button>
+        }
+      >
+        {justCreated && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-400/40 p-4">
+            <p className="text-sm font-semibold text-ink">Copy this key now. It will not be shown again.</p>
+            <p className="text-xs text-ink-3 mt-0.5">For &ldquo;{justCreated.name}&rdquo;. If you lose it, revoke it and make a new one.</p>
+            <div className="mt-3 flex items-center gap-2">
+              <code className="flex-1 min-w-0 truncate rounded-lg bg-surface-high px-3 py-2 font-mono text-xs text-ink select-all">
+                {justCreated.key}
+              </code>
+              <button
+                type="button"
+                onClick={() => copy(justCreated.key, 'Key')}
+                className="px-3 py-2 rounded-lg border border-stroke text-xs font-semibold text-ink hover:bg-surface-high"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => setJustCreated(null)}
+                className="px-3 py-2 rounded-lg text-xs font-semibold text-ink-3 hover:text-ink"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {creating && (
+          <div className="mb-4 rounded-xl border border-stroke bg-surface-high p-4 space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-3 mb-1">What is this key for?</label>
+              <input
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleCreate(); }}
+                placeholder="e.g. Clawdbot on WhatsApp"
+                className="w-full rounded-lg border border-stroke bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-3"
+              />
+            </div>
+            <label className="flex items-start gap-2 text-sm text-ink cursor-pointer">
+              <input type="checkbox" checked={canWrite} onChange={(e) => setCanWrite(e.target.checked)} className="mt-0.5" />
+              <span>
+                Allow uploads and changes
+                <span className="block text-xs text-ink-3">Off means the key can only find and download documents. Leave it off unless the bot needs to save files.</span>
+              </span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setCreating(false); setName(''); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-ink-3 hover:text-ink">
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!name.trim() || saving}
+                onClick={() => void handleCreate()}
+                className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 disabled:opacity-50"
+              >
+                {saving ? 'Creating…' : 'Create key'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {keys === null ? (
+          <p className="text-sm text-ink-3 py-4">Loading…</p>
+        ) : keys.length === 0 ? (
+          <p className="text-sm text-ink-3 py-4">No keys yet. Create one to connect something.</p>
+        ) : (
+          <div>
+            {keys.map((k, i) => (
+              <div key={k.id} className={cn('flex items-center justify-between gap-4 py-3', i < keys.length - 1 && 'border-b border-stroke-soft')}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">{k.name}</p>
+                  <p className="text-xs text-ink-3 mt-0.5">
+                    <code className="font-mono">{k.prefix}…</code>
+                    {' · '}{k.canWrite ? 'read and write' : 'read only'}
+                    {' · '}{k.lastUsedAt ? `last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : 'never used'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingRevoke(k)}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 flex-shrink-0"
+                >
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Connect" subtitle="Where to point the other software. Both use the key above as a Bearer token.">
+        <ConnectRow label="REST base URL" value={`${origin}/api/v1/integrations`} onCopy={copy} />
+        <ConnectRow label="MCP server URL" value={`${origin}/api/v1/mcp`} onCopy={copy} />
+        <ConnectRow label="One-call fetch" value={`POST ${origin}/api/v1/integrations/fetch  {"query": "my passport and UK visa"}`} onCopy={copy} last />
+        <p className="text-xs text-ink-3 mt-3">
+          Full instructions, including the Clawdbot setup, are in <code className="font-mono">docs/integrations.md</code> in the repository.
+        </p>
+      </SectionCard>
+
+      {pendingRevoke && (
+        <ConfirmModal
+          title="Revoke this key?"
+          body={`"${pendingRevoke.name}" stops working immediately. Anything connected with it will be cut off until you give it a new key.`}
+          confirmLabel="Revoke key"
+          danger
+          loading={revoking}
+          onConfirm={() => void handleRevoke()}
+          onClose={() => setPendingRevoke(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConnectRow({
+  label,
+  value,
+  onCopy,
+  last = false,
+}: {
+  label: string;
+  value: string;
+  onCopy: (text: string, what: string) => void;
+  last?: boolean;
+}) {
+  return (
+    <div className={cn('flex items-center gap-3 py-2.5', !last && 'border-b border-stroke-soft')}>
+      <span className="text-xs font-medium text-ink-3 w-32 flex-shrink-0">{label}</span>
+      <code className="flex-1 min-w-0 truncate font-mono text-xs text-ink">{value}</code>
+      <button type="button" onClick={() => onCopy(value, label)} className="text-xs font-semibold text-brand-600 hover:underline flex-shrink-0">
+        Copy
+      </button>
+    </div>
   );
 }
 

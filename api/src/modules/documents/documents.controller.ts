@@ -96,7 +96,7 @@ const EXPLICITLY_UNSUPPORTED = new Set([
   'image/avif',
 ]);
 
-function uploadFileInterceptor() {
+export function uploadFileInterceptor() {
   return FileInterceptor('file', {
     storage: undefined, // use default memoryStorage
     limits: { fileSize: MAX_FILE_SIZE },

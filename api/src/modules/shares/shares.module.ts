@@ -11,5 +11,6 @@ import { DevAuthGuard } from '../../common/guards/dev-auth.guard';
     PublicSharesController,
   ],
   providers: [SharesService, DevAuthGuard],
+  exports: [SharesService],
 })
 export class SharesModule {}
