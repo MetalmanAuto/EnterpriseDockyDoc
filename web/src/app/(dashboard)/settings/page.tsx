@@ -876,7 +876,7 @@ function AiSection({
               )}>
                 {account?.planName ?? settings.plan}
               </span>
-              <Link href="/pricing" className="text-xs font-semibold text-brand-600 hover:underline">See plans</Link>
+              <Link href="/plans" className="text-xs font-semibold text-brand-600 hover:underline">See plans</Link>
             </div>
           </div>
 
@@ -942,7 +942,7 @@ function AiSection({
                 </p>
                 {pct >= 90 && (
                   <p className="text-xs text-red-600">
-                    Nearly out of AI actions. <Link href="/pricing" className="underline">See plans</Link>.
+                    Nearly out of AI actions. <Link href="/plans" className="underline">See plans</Link>.
                   </p>
                 )}
               </div>
@@ -1179,7 +1179,7 @@ function IntegrationsSection() {
       {!apiAllowed && (
         <div className="rounded-xl border border-brand-500/40 bg-brand-500/5 px-4 py-3 text-sm text-ink">
           API keys, REST and MCP access are part of the <strong>Business</strong> plan and above. Keys already created stop working until the account is upgraded.{' '}
-          <Link href="/pricing" className="font-semibold text-brand-600 hover:underline">See plans</Link>
+          <Link href="/plans" className="font-semibold text-brand-600 hover:underline">See plans</Link>
         </div>
       )}
       <SectionCard
