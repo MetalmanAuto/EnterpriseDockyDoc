@@ -1,4 +1,12 @@
 
+## Release checks, monitoring and CI (added 21 Sept 2026)
+
+- **`scripts/release-check.sh [api] [web]`**: run after every deploy (defaults to production). Checks health and deep health, the plans endpoint, that protected routes refuse anonymous callers, security headers, every public page, CORS for the web origin, and response time. Prints PASS/FAIL per line, exit 1 on any failure.
+- **`scripts/load-test.sh [api] [N] [C]`**: N requests, C at a time, at the plans endpoint; prints p50/p95/max and status counts. Run it against the sandbox; production has the 100/min per-IP throttle.
+- **`GET /api/v1/health/deep`**: database, file storage and process uptime; 503 when a dependency is down. Point the uptime monitor here (Better Stack or UptimeRobot, 1-minute interval, alert to the phone). `GET /health` stays the cheap check Render uses.
+- **CI** (`.github/workflows/ci.yml`): typechecks `api` (with `prisma generate`) and `web` on every PR and on main, and refuses a badly named migration folder.
+- **Alerts** go by email to `PLATFORM_ADMIN_EMAILS` (see Enterprise controls). Render's own notifications (deploy failed, service unhealthy) should be switched on in the Render dashboard under the service's Settings → Notifications.
+
 ## Enterprise controls (added 21 Sept 2026)
 
 - **Upload checks** (`api/src/common/upload/sniff.ts`): every upload's first bytes are read with `file-type`. Programs (exe, elf, jar, msi, sh...) are refused, and a declared type that does not match the real contents (an HTML page named `.pdf`) is refused with a plain message. Runs inside `DocumentsService.upload`, so the REST/MCP upload path is covered too.

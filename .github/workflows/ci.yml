@@ -1,0 +1,47 @@
+# Typechecks both apps on every pull request and push to main. Vercel and
+# Render build on their own; this catches a broken build before they do.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    name: API typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit -p tsconfig.json
+      - name: Migrations are in order
+        run: |
+          # Every migration folder must start with a 14-digit timestamp, or prisma migrate deploy will refuse it.
+          bad=$(ls prisma/migrations | grep -vE '^[0-9]{14}_' | grep -v migration_lock.toml || true)
+          if [ -n "$bad" ]; then echo "Badly named migrations: $bad"; exit 1; fi
+
+  web:
+    name: Web typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
