@@ -1,4 +1,11 @@
 
+## Running it alone: onboarding mails, weekly report, sign-up sources, help centre (added 21 Sept 2026)
+
+- **Sign-up source**: the marketing pages store utm tags or the referrer in a `dd_source` cookie. After the first sign-in the web posts it once to `POST /auth/attribution`; the API keeps only the first value in `users.signupSource`. The admin page shows sign-ups by source and the source under each person's join date.
+- **Onboarding mails** (`api/src/modules/operations`): an hourly pass sends a welcome mail one hour after sign-up (three things to do first, link to help) and a nudge after three days with no document uploaded. Each goes once (`welcomeSentAt`, `nudgeSentAt`). Both mails ask the person to reply; replies land in the Resend sender's inbox, so set `EMAIL_FROM` to an address someone reads.
+- **Weekly report**: Monday 03:30 UTC (09:00 IST) to `PLATFORM_ADMIN_EMAILS`: sign-ups this week and last (by source), people active, documents added, AI actions, revenue by currency, paying subscriptions, everyone by plan. `GET /admin/weekly` shows the same numbers; `POST /admin/weekly/send` sends it now; `POST /admin/onboarding/run` runs the mail pass now.
+- **Help centre** at `/help` (public, in the sitemap and footer): getting started, AI and actions, reminders, sharing, workspaces and roles, bin and retention and legal hold, plans and billing, API and MCP, data and account, troubleshooting. Update it when a feature changes; the welcome mail links to it.
+
 ## Billing: Razorpay and Paddle (added 21 Sept 2026)
 
 - **Who charges whom**: rupees go through Razorpay (Excelleta is the seller, GST invoice from Razorpay); dollars go through Paddle as merchant of record (Paddle adds the buyer's local tax and files it). The web picks the currency from the `dd_country` cookie the middleware sets from Vercel's country header (IN → INR), with a switch on the Plans and Billing pages.

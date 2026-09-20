@@ -18,6 +18,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-ink-2">
             <Link href="/pricing" className="hover:text-ink">Pricing</Link>
             <Link href="/security" className="hover:text-ink">Security</Link>
+            <Link href="/help" className="hover:text-ink">Help</Link>
             <Link href="/login" className="hover:text-ink">Sign in</Link>
           </nav>
           <Link href="/register" className="h-9 px-4 inline-flex items-center rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">
@@ -40,6 +41,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <p className="font-semibold text-ink">Product</p>
             <FooterLink href="/pricing">Pricing</FooterLink>
             <FooterLink href="/security">Security and data</FooterLink>
+            <FooterLink href="/help">Help centre</FooterLink>
             <FooterLink href="/register">Start free</FooterLink>
             <FooterLink href="/login">Sign in</FooterLink>
           </div>

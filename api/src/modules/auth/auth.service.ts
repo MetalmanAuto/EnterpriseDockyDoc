@@ -66,10 +66,18 @@ export class AuthService {
       lastName: devUser.lastName,
       isActive: devUser.isActive,
       isPlatformAdmin: isPlatformAdmin(devUser.email),
+      signupSource: devUser.signupSource ?? null,
       plan: devUser.plan,
       workspaces,
       defaultWorkspace,
     };
+  }
+
+  async recordAttribution(userId: string, source: string): Promise<{ recorded: boolean }> {
+    const clean = source.replace(/[^\w=&.\-:/ ]/g, '').slice(0, 300);
+    if (!clean) return { recorded: false };
+    const r = await this.prisma.user.updateMany({ where: { id: userId, signupSource: null }, data: { signupSource: clean } });
+    return { recorded: r.count > 0 };
   }
 
   getUserWorkspaces(devUser: DevUserPayload): WorkspaceMembershipDto[] {

@@ -30,6 +30,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AccountModule } from './modules/account/account.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { RetentionModule } from './modules/retention/retention.module';
+import { OperationsModule } from './modules/operations/operations.module';
 
 /**
  * Root application module.
@@ -80,6 +81,7 @@ import { RetentionModule } from './modules/retention/retention.module';
     AccountModule,
     AlertsModule,
     RetentionModule,
+    OperationsModule,
   ],
   providers: [
     // Apply ThrottlerGuard to every route in the application.

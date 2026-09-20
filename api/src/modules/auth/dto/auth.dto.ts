@@ -50,6 +50,9 @@ export class MeResponseDto {
   @ApiProperty({ description: 'True for the people named in PLATFORM_ADMIN_EMAILS, who can open the platform admin page' })
   isPlatformAdmin!: boolean;
 
+  @ApiProperty({ nullable: true, description: 'Where the sign-up came from, once recorded' })
+  signupSource!: string | null;
+
   @ApiProperty()
   email!: string;
 
