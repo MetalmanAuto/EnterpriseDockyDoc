@@ -8,8 +8,8 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { ApiHeader, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { DevAuthGuard, type DevUserPayload } from '../../common/guards/dev-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -23,6 +23,13 @@ import {
 // ------------------------------------------------------------------ //
 // Inline DTOs for the stubbed login endpoint
 // ------------------------------------------------------------------ //
+
+class AttributionDto {
+  @ApiProperty({ description: 'e.g. "source=linkedin&campaign=launch" or "ref=news.ycombinator.com"' })
+  @IsString()
+  @MaxLength(300)
+  source!: string;
+}
 
 class LoginDto {
   @IsEmail()
@@ -72,6 +79,20 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Dev user not found in database' })
   me(@CurrentUser() user: DevUserPayload): MeResponseDto {
     return this.authService.getMe(user);
+  }
+
+  /**
+   * POST /api/v1/auth/attribution
+   *
+   * Records where a sign-up came from (the dd_source cookie the marketing
+   * pages set from utm tags or the referrer). Written once; later calls
+   * are ignored so an ad click after sign-up cannot rewrite it.
+   */
+  @Post('attribution')
+  @UseGuards(DevAuthGuard)
+  @ApiOperation({ summary: 'Record the sign-up source once' })
+  async attribution(@CurrentUser() user: DevUserPayload, @Body() dto: AttributionDto): Promise<{ recorded: boolean }> {
+    return this.authService.recordAttribution(user.id, dto.source);
   }
 
   /**

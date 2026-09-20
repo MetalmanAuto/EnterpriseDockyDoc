@@ -126,6 +126,8 @@ export interface CurrentUser {
   isActive: boolean;
   /** Named in PLATFORM_ADMIN_EMAILS on the server; unlocks the /admin page. */
   isPlatformAdmin?: boolean;
+  /** Where the sign-up came from, once recorded. */
+  signupSource?: string | null;
   /** FREE, PERSONAL, BUSINESS, TEAM or ENTERPRISE. */
   plan?: 'FREE' | 'PERSONAL' | 'BUSINESS' | 'TEAM' | 'ENTERPRISE';
   workspaces: WorkspaceMembership[];

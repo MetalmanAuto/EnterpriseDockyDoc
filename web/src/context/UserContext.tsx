@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchCurrentUser, switchWorkspaceApi, ApiError } from '@/lib/api';
+import { recordAttribution, fetchCurrentUser, switchWorkspaceApi, ApiError } from '@/lib/api';
 import type { CurrentUser, WorkspaceMembership } from '@/types';
 
 // ------------------------------------------------------------------ //
@@ -123,6 +123,17 @@ export function UserProvider({
       cancelled = true;
     };
   }, [router, redirectOnUnauthenticated]);
+
+  // Tell the API where this sign-up came from, once, from the cookie the
+  // marketing pages set. Harmless if the person signed up long ago.
+  useEffect(() => {
+    if (!user || user.signupSource !== null && user.signupSource !== undefined) return;
+    const m = document.cookie.match(/(?:^|; )dd_source=([^;]*)/);
+    if (!m) return;
+    const source = decodeURIComponent(m[1]).slice(0, 300);
+    if (!source) return;
+    recordAttribution(source).catch(() => {});
+  }, [user]);
 
   const refreshUser = useCallback(async (workspaceId?: string) => {
     try {

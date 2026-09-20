@@ -5,6 +5,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 import { AdminService, type AdminOverview } from './admin.service';
 import { SetPlanDto } from './dto/set-plan.dto';
 import { RetentionService } from '../retention/retention.service';
+import { OperationsService } from '../operations/operations.service';
 
 /**
  * Platform-level view for the people who run DockyDoc: who has signed up,
@@ -15,7 +16,25 @@ import { RetentionService } from '../retention/retention.service';
 @Controller('admin')
 @UseGuards(DevAuthGuard, PlatformAdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService, private readonly retention: RetentionService) {}
+  constructor(private readonly admin: AdminService, private readonly retention: RetentionService, private readonly operations: OperationsService) {}
+
+  @Get('weekly')
+  @ApiOperation({ summary: 'The numbers the Monday report emails, as JSON' })
+  weekly() {
+    return this.operations.weeklyNumbers();
+  }
+
+  @Post('weekly/send')
+  @ApiOperation({ summary: 'Email the weekly report to the platform admins now' })
+  sendWeekly() {
+    return this.operations.sendWeeklyReport();
+  }
+
+  @Post('onboarding/run')
+  @ApiOperation({ summary: 'Run the onboarding mail pass now' })
+  runOnboarding() {
+    return this.operations.runOnboarding();
+  }
 
   @Post('retention/run')
   @ApiOperation({ summary: 'Run the nightly retention job now (bin purge and folder policies)' })

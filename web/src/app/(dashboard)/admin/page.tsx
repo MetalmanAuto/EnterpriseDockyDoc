@@ -92,6 +92,11 @@ export default function AdminPage() {
         <>
           <KpiRow data={data} />
           <SignupsChart days={data.signupsByDay} />
+          {data.signupsBySource.length > 0 && (
+            <p className="mt-3 text-xs text-ink-3">
+              By source: {data.signupsBySource.map((s) => `${s.source} ${s.count}`).join(' · ')}
+            </p>
+          )}
           <PeopleTable users={data.users} />
           <WorkspacesTable workspaces={data.workspaces} />
           <ActivityFeed rows={data.recentActivity} />
@@ -315,7 +320,7 @@ function PeopleTable({ users: initialUsers }: { users: AdminUserRow[] }) {
                     {u.planSource === 'complimentary' && u.planRenewsAt ? ` \u00b7 free until ${shortDate(u.planRenewsAt)}` : u.planSource ? ` \u00b7 ${u.planSource}` : ''}
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap" title={u.joinedAt}>{shortDate(u.joinedAt)}</td>
+                <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap" title={u.signupSource ?? 'direct'}>{shortDate(u.joinedAt)}{u.signupSource && <span className="block text-[10px] text-ink-3 truncate max-w-[10rem]">{u.signupSource}</span>}</td>
                 <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap" title={u.lastActiveAt ?? undefined}>{u.lastActiveAt ? timeAgo(u.lastActiveAt) : <span className="text-ink-3">never</span>}</td>
                 <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1">

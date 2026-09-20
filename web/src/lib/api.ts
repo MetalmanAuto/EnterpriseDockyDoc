@@ -189,6 +189,11 @@ export async function apiDownload(path: string, fallbackFileName: string): Promi
 // ------------------------------------------------------------------ //
 
 /** Fetch the current user and all workspace memberships. */
+/** Records where the sign-up came from; the API keeps only the first value. */
+export function recordAttribution(source: string): Promise<{ recorded: boolean }> {
+  return apiFetch('/api/v1/auth/attribution', { method: 'POST', body: JSON.stringify({ source }) });
+}
+
 export function fetchCurrentUser(): Promise<CurrentUser> {
   return apiFetch<CurrentUser>('/api/v1/auth/me');
 }

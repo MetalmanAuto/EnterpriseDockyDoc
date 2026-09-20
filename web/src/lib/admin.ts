@@ -27,6 +27,7 @@ export interface AdminUserRow {
   aiActionsUsed: number;
   aiActionsIncluded: number;
   joinedAt: string;
+  signupSource: string | null;
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
   documents: number;
@@ -62,6 +63,7 @@ export interface AdminOverview {
   generatedAt: string;
   totals: AdminTotals;
   signupsByDay: { day: string; count: number }[];
+  signupsBySource: { source: string; count: number }[];
   users: AdminUserRow[];
   workspaces: AdminWorkspaceRow[];
   recentActivity: AdminActivityRow[];

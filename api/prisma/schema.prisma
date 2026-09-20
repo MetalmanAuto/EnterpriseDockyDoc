@@ -151,6 +151,10 @@ model User {
   aiActionsUsed        Int           @default(0)
   aiActionsPeriodStart DateTime      @default(now())
   aiCreditActions      Int           @default(0) // bought top-ups, never reset
+  // Where the sign-up came from (utm tags or referrer, from the dd_source cookie) and onboarding mail state.
+  signupSource         String?
+  welcomeSentAt        DateTime?
+  nudgeSentAt          DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

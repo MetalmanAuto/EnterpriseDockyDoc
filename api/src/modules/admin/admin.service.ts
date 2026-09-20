@@ -32,6 +32,7 @@ export interface AdminUserRow {
   aiActionsUsed: number;
   aiActionsIncluded: number;
   joinedAt: string;
+  signupSource: string | null;
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
   documents: number;
@@ -68,6 +69,7 @@ export interface AdminOverview {
   generatedAt: string;
   totals: AdminTotals;
   signupsByDay: { day: string; count: number }[];
+  signupsBySource: { source: string; count: number }[];
   users: AdminUserRow[];
   workspaces: AdminWorkspaceRow[];
   recentActivity: AdminActivityRow[];
@@ -97,7 +99,7 @@ export class AdminService {
         this.prisma.user.findMany({
           select: {
             id: true, email: true, firstName: true, lastName: true, isActive: true, createdAt: true,
-            plan: true, planSource: true, planRenewsAt: true, aiActionsUsed: true,
+            plan: true, planSource: true, planRenewsAt: true, aiActionsUsed: true, signupSource: true,
             workspaces: {
               where: { status: 'ACTIVE' },
               select: { role: true, workspace: { select: { id: true, name: true, plan: true, aiUsageTokens: true } } },
@@ -182,6 +184,9 @@ export class AdminService {
         pendingInvitations,
       },
       signupsByDay: [...signups].map(([day, count]) => ({ day, count })),
+      signupsBySource: Object.entries(users.reduce<Record<string, number>>((acc, u) => { const k = u.signupSource ?? 'direct'; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {}))
+        .map(([source, count]) => ({ source, count }))
+        .sort((a, b) => b.count - a.count),
       users: users.map((u) => ({
         id: u.id,
         name: `${u.firstName} ${u.lastName}`.trim() || u.email,
@@ -193,6 +198,7 @@ export class AdminService {
         aiActionsUsed: u.aiActionsUsed,
         aiActionsIncluded: PLANS[u.plan].aiActionsPerMonth,
         joinedAt: u.createdAt.toISOString(),
+        signupSource: u.signupSource,
         lastActiveAt: lastActive.get(u.id)?.toISOString() ?? null,
         workspaces: u.workspaces.map((m) => ({ id: m.workspace.id, name: m.workspace.name, role: m.role, plan: m.workspace.plan })),
         documents: docsByOwner.get(u.id) ?? 0,
