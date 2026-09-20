@@ -17,6 +17,7 @@ import {
 } from '@/lib/documents';
 import type { AiSettings } from '@/lib/documents';
 import { fetchBillingAccount, limitLabel, type AccountSummary } from '@/lib/billing';
+import { deleteAccount, downloadAccountExport, fetchDeletionBlockers, type DeletionBlocker } from '@/lib/account';
 import { createApiKey, fetchApiKeys, revokeApiKey, type ApiKey, type CreatedApiKey } from '@/lib/api-keys';
 import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
@@ -1333,18 +1334,102 @@ function ConnectRow({
 }
 
 function SecuritySection() {
+  const toast = useToast();
+  const { logout } = useUser();
+  const [exporting, setExporting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [phrase, setPhrase] = useState('');
+  const [blockers, setBlockers] = useState<DeletionBlocker[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await downloadAccountExport();
+      toast.success('Your export is downloading.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not export your data.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function openDelete() {
+    setPhrase('');
+    setConfirming(true);
+    try {
+      setBlockers(await fetchDeletionBlockers());
+    } catch {
+      setBlockers([]);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const r = await deleteAccount();
+      toast.success(`Account deleted: ${r.deletedWorkspaces} workspace(s) and ${r.deletedDocuments} document(s) removed.`);
+      setTimeout(() => logout(), 800);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete the account.');
+      setDeleting(false);
+    }
+  }
+
   return (
-    <SectionCard title="Security" subtitle="Authentication and access control settings">
-      <div className="py-8 text-center">
-        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center mx-auto mb-3">
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" className="text-ink-3">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+    <div className="space-y-6">
+      <SectionCard title="Sign-in security" subtitle="Two-factor authentication, email addresses and signed-in devices">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+          <p className="text-sm text-ink-2 max-w-xl">Turn on two-factor authentication with an authenticator app, change your email, and sign out other devices. Team workspace admins can require two-factor for every member.</p>
+          <Link href="/account" className="h-9 px-3 inline-flex items-center rounded-lg border border-stroke text-sm font-semibold text-ink hover:bg-surface-high">Manage sign-in</Link>
         </div>
-        <p className="text-sm text-ink-3 font-medium">Security settings coming soon</p>
-        <p className="text-xs text-ink-3 mt-1">SSO, 2FA, and audit access controls.</p>
-      </div>
-    </SectionCard>
+      </SectionCard>
+
+      <SectionCard title="Your data" subtitle="Take a copy of everything DockyDoc holds about you">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+          <p className="text-sm text-ink-2 max-w-xl">One JSON file with your profile, plan, workspaces, every document's details, dates, labels, AI-found fields, reminders, share links, API keys and your activity log. Document files download from the Documents page.</p>
+          <button type="button" onClick={() => void handleExport()} disabled={exporting} className="h-9 px-3 rounded-lg border border-stroke text-sm font-semibold text-ink hover:bg-surface-high disabled:opacity-50">
+            {exporting ? 'Preparing…' : 'Export my data'}
+          </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Delete account" subtitle="Permanent, and done within minutes">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+          <p className="text-sm text-ink-2 max-w-xl">Deletes your account, the workspaces you own and every document in them, your API keys and your sign-in. Workspaces where other people are members must be handed over first. There is no undo.</p>
+          <button type="button" onClick={() => void openDelete()} className="h-9 px-3 rounded-lg border border-red-300 text-sm font-semibold text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30">Delete my account</button>
+        </div>
+      </SectionCard>
+
+      {confirming && (
+        <div role="dialog" aria-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !deleting && setConfirming(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-stroke bg-surface p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-ink">Delete your account?</h3>
+            {blockers === null ? (
+              <p className="mt-2 text-sm text-ink-3">Checking your workspaces…</p>
+            ) : blockers.length > 0 ? (
+              <div className="mt-2 text-sm text-ink-2">
+                <p>These workspaces have other members. Hand them over (make someone else Owner) or remove the members first, so their documents are not deleted by your choice:</p>
+                <ul className="mt-2 list-disc pl-5">{blockers.map((b) => <li key={b.workspaceId}>{b.name}: {b.otherMembers} other member{b.otherMembers === 1 ? '' : 's'}</li>)}</ul>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-ink-2">Everything you own is removed for good. Export your data first if you want a copy. Type <strong className="text-ink">DELETE</strong> to confirm.</p>
+                <input value={phrase} onChange={(e) => setPhrase(e.target.value)} autoFocus className="mt-3 h-10 w-full rounded-lg border border-stroke bg-surface px-3 text-sm text-ink" placeholder="DELETE" />
+              </>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirming(false)} disabled={deleting} className="h-9 px-3 rounded-lg border border-stroke text-sm font-semibold text-ink">Cancel</button>
+              {blockers !== null && blockers.length === 0 && (
+                <button type="button" onClick={() => void handleDelete()} disabled={deleting || phrase !== 'DELETE'} className="h-9 px-3 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                  {deleting ? 'Deleting…' : 'Delete everything'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

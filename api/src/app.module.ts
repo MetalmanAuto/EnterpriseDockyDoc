@@ -26,6 +26,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { McpModule } from './modules/mcp/mcp.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { AccountModule } from './modules/account/account.module';
 
 /**
  * Root application module.
@@ -72,6 +73,7 @@ import { BillingModule } from './modules/billing/billing.module';
     McpModule,
     AdminModule,
     BillingModule,
+    AccountModule,
   ],
   providers: [
     // Apply ThrottlerGuard to every route in the application.

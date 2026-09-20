@@ -36,12 +36,21 @@ export default async function RegisterPage({
       }}
     >
       {clerkEnabled ? (
-        <SignUp
-          forceRedirectUrl={afterAuth}
-          fallbackRedirectUrl={afterAuth}
-          signInUrl={`/login?next=${encodeURIComponent(afterAuth)}`}
-          appearance={authPanelAppearance}
-        />
+        <div className="w-full">
+          <SignUp
+            forceRedirectUrl={afterAuth}
+            fallbackRedirectUrl={afterAuth}
+            signInUrl={`/login?next=${encodeURIComponent(afterAuth)}`}
+            appearance={authPanelAppearance}
+          />
+          <p className="mt-4 text-center text-xs text-slate-400 leading-relaxed">
+            By creating an account you agree to the{' '}
+            <Link href="/terms" className="underline text-slate-300">terms of service</Link> and the{' '}
+            <Link href="/privacy" className="underline text-slate-300">privacy policy</Link>, and you consent to DockyDoc
+            storing your documents and reading them with AI to find their dates, as the policy describes.
+            You can withdraw this by deleting your account at any time.
+          </p>
+        </div>
       ) : (
         <div className="w-full rounded-2xl border border-slate-400/20 bg-[#111a2e] p-6 text-sm text-slate-400">
           Sign-up is handled by Clerk. Set <code className="font-mono text-slate-200">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> to enable it, or{' '}
