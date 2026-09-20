@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PLANS } from '../billing/plans';
+import { BillingService } from '../billing/billing.service';
+import type { WorkspacePlan } from '@prisma/client';
 
 // ------------------------------------------------------------------ //
 // Shape of the overview. Mirrored in web/src/lib/admin.ts.
@@ -23,6 +26,11 @@ export interface AdminUserRow {
   name: string;
   email: string;
   isActive: boolean;
+  plan: string;
+  planSource: string | null;
+  planRenewsAt: string | null;
+  aiActionsUsed: number;
+  aiActionsIncluded: number;
   joinedAt: string;
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
@@ -71,7 +79,14 @@ const RECENT_ACTIVITY = 40;
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly billing: BillingService) {}
+
+  /** Hand someone a plan without payment: friends, pilots, the platform's own accounts. */
+  async setPlan(userId: string, plan: WorkspacePlan, months?: number): Promise<{ plan: WorkspacePlan; renewsAt: string | null }> {
+    const renewsAt = months ? new Date(Date.now() + months * 30.44 * 86_400_000) : null;
+    await this.billing.setPlan(userId, plan, { source: 'complimentary', renewsAt });
+    return { plan, renewsAt: renewsAt?.toISOString() ?? null };
+  }
 
   async overview(): Promise<AdminOverview> {
     const now = new Date();
@@ -82,6 +97,7 @@ export class AdminService {
         this.prisma.user.findMany({
           select: {
             id: true, email: true, firstName: true, lastName: true, isActive: true, createdAt: true,
+            plan: true, planSource: true, planRenewsAt: true, aiActionsUsed: true,
             workspaces: {
               where: { status: 'ACTIVE' },
               select: { role: true, workspace: { select: { id: true, name: true, plan: true, aiUsageTokens: true } } },
@@ -171,6 +187,11 @@ export class AdminService {
         name: `${u.firstName} ${u.lastName}`.trim() || u.email,
         email: u.email,
         isActive: u.isActive,
+        plan: u.plan,
+        planSource: u.planSource,
+        planRenewsAt: u.planRenewsAt?.toISOString() ?? null,
+        aiActionsUsed: u.aiActionsUsed,
+        aiActionsIncluded: PLANS[u.plan].aiActionsPerMonth,
         joinedAt: u.createdAt.toISOString(),
         lastActiveAt: lastActive.get(u.id)?.toISOString() ?? null,
         workspaces: u.workspaces.map((m) => ({ id: m.workspace.id, name: m.workspace.name, role: m.role, plan: m.workspace.plan })),

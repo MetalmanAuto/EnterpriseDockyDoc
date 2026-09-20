@@ -25,6 +25,7 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { McpModule } from './modules/mcp/mcp.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 /**
  * Root application module.
@@ -70,6 +71,7 @@ import { AdminModule } from './modules/admin/admin.module';
     IntegrationsModule,
     McpModule,
     AdminModule,
+    BillingModule,
   ],
   providers: [
     // Apply ThrottlerGuard to every route in the application.

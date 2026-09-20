@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger, NotFoundException } fr
 import { DocumentStatus } from '@prisma/client';
 import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { SearchIndexerService } from '../search/search-indexer.service';
@@ -94,6 +95,7 @@ export class DocumentsService {
     private readonly audit: AuditService,
     private readonly aiService: AiService,
     private readonly reminderPlanner: ReminderPlannerService,
+    private readonly billing: BillingService,
   ) {}
 
   // ------------------------------------------------------------------ //
@@ -148,6 +150,7 @@ export class DocumentsService {
 
   async create(dto: CreateDocumentDto, user: DevUserPayload): Promise<DocumentDetailDto> {
     assertEditorOrAbove(user, dto.workspaceId);
+    await this.billing.assertDocumentQuota(dto.workspaceId);
 
     const created = await this.prisma.$transaction(async (tx) => {
       const doc = await tx.document.create({
@@ -200,6 +203,7 @@ export class DocumentsService {
     user: DevUserPayload,
   ): Promise<DocumentDetailDto> {
     assertEditorOrAbove(user, dto.workspaceId);
+    await this.billing.assertDocumentQuota(dto.workspaceId);
 
     const uploadStart = Date.now();
     const fileSizeMb = (file.size / 1024 / 1024).toFixed(2);

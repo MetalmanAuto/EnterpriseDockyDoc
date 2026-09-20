@@ -16,6 +16,7 @@ import {
   mergeTag,
 } from '@/lib/documents';
 import type { AiSettings } from '@/lib/documents';
+import { fetchBillingAccount, limitLabel, type AccountSummary } from '@/lib/billing';
 import { createApiKey, fetchApiKeys, revokeApiKey, type ApiKey, type CreatedApiKey } from '@/lib/api-keys';
 import { cn, fullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
@@ -52,6 +53,7 @@ export default function SettingsPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+  const [account, setAccount] = useState<AccountSummary | null>(null);
   const [aiSettingsLoading, setAiSettingsLoading] = useState(false);
 
   // General — rename workspace
@@ -86,6 +88,7 @@ export default function SettingsPage() {
       .finally(() => setTagsLoading(false));
 
     setAiSettingsLoading(true);
+    fetchBillingAccount().then(setAccount).catch(() => setAccount(null));
     fetchAiSettings(activeWorkspace.workspaceId)
       .then((s) => {
         setAiSettings(s);
@@ -204,6 +207,7 @@ export default function SettingsPage() {
             <AiSection
               loading={aiSettingsLoading}
               settings={aiSettings}
+              account={account}
               canManage={canManage}
               providerMode={aiProviderMode}
               byokKey={byokKey}
@@ -816,6 +820,7 @@ function MergeTagModal({
 // ------------------------------------------------------------------ //
 
 function AiSection({
+  account,
   loading,
   settings,
   canManage,
@@ -830,6 +835,7 @@ function AiSection({
 }: {
   loading: boolean;
   settings: AiSettings | null;
+  account: AccountSummary | null;
   canManage: boolean;
   providerMode: 'PLATFORM' | 'BYOK';
   byokKey: string;
@@ -853,16 +859,25 @@ function AiSection({
           <div className="flex items-center justify-between py-2 border-b border-stroke-soft">
             <div>
               <p className="text-sm font-medium text-ink">Plan</p>
-              <p className="text-xs text-ink-3 mt-0.5">Your current AI usage tier</p>
+              <p className="text-xs text-ink-3 mt-0.5">
+                {account?.planSource === 'complimentary' && account.planRenewsAt
+                  ? `Complimentary until ${new Date(account.planRenewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'The plan of the workspace owner covers everyone in it'}
+              </p>
             </div>
-            <span className={cn(
-              'text-xs font-semibold px-2.5 py-1 rounded-full',
-              settings.plan === 'FREE'       && 'bg-surface-high text-ink-2',
-              settings.plan === 'PRO'        && 'bg-blue-100 text-blue-700',
-              settings.plan === 'ENTERPRISE' && 'bg-purple-100 text-purple-700',
-            )}>
-              {settings.plan}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                'text-xs font-semibold px-2.5 py-1 rounded-full',
+                (account?.plan ?? settings.plan) === 'FREE' && 'bg-surface-high text-ink-2',
+                (account?.plan ?? settings.plan) === 'PERSONAL' && 'bg-blue-100 text-blue-700',
+                (account?.plan ?? settings.plan) === 'BUSINESS' && 'bg-brand-100 text-brand-700',
+                (account?.plan ?? settings.plan) === 'TEAM' && 'bg-purple-100 text-purple-700',
+                (account?.plan ?? settings.plan) === 'ENTERPRISE' && 'bg-purple-100 text-purple-700',
+              )}>
+                {account?.planName ?? settings.plan}
+              </span>
+              <Link href="/pricing" className="text-xs font-semibold text-brand-600 hover:underline">See plans</Link>
+            </div>
           </div>
 
           {/* Provider toggle */}
@@ -898,32 +913,41 @@ function AiSection({
             </div>
           </div>
 
-          {/* Platform usage meter */}
-          {providerMode === 'PLATFORM' && (
-            <div className="rounded-xl bg-surface-high border border-stroke p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs text-ink-2">
-                <span>Tokens used this period</span>
-                <span className="font-semibold tabular-nums">
-                  {settings.aiUsageTokens.toLocaleString()} / {settings.aiUsageLimit.toLocaleString()}
-                </span>
-              </div>
-              <div className="w-full h-2 bg-stroke rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    settings.aiUsagePercent >= 90 ? 'bg-red-500' :
-                    settings.aiUsagePercent >= 70 ? 'bg-yellow-500' : 'bg-brand-500',
-                  )}
-                  style={{ width: `${settings.aiUsagePercent}%` }}
-                />
-              </div>
-              {settings.aiUsagePercent >= 90 && (
-                <p className="text-xs text-red-600">
-                  Usage limit nearly reached. Upgrade your plan to continue using AI features.
+          {/* Platform usage meter: AI actions this period */}
+          {providerMode === 'PLATFORM' && account && (() => {
+            const included = account.usage.aiActionsIncluded;
+            const unlimited = included >= 1_000_000_000;
+            const pct = unlimited ? 0 : Math.min(100, Math.round((account.usage.aiActionsUsed / Math.max(1, included)) * 100));
+            return (
+              <div className="rounded-xl bg-surface-high border border-stroke p-4 space-y-2">
+                <div className="flex items-center justify-between text-xs text-ink-2">
+                  <span>AI actions used this period</span>
+                  <span className="font-semibold tabular-nums">
+                    {account.usage.aiActionsUsed.toLocaleString()} / {limitLabel(included)}
+                    {account.usage.aiCreditActions > 0 && <span className="text-ink-3 font-normal"> + {account.usage.aiCreditActions} extra</span>}
+                  </span>
+                </div>
+                {!unlimited && (
+                  <div className="w-full h-2 bg-stroke rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-brand-500')}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-ink-3">
+                  One action reads one document (up to 20 pages), answers one assistant question, or serves one API request.
+                  Resets {new Date(account.usage.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.
+                  {' '}{account.usage.documents} of {limitLabel(account.limits.documents)} documents used.
                 </p>
-              )}
-            </div>
-          )}
+                {pct >= 90 && (
+                  <p className="text-xs text-red-600">
+                    Nearly out of AI actions. <Link href="/pricing" className="underline">See plans</Link>.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* BYOK key input */}
           {providerMode === 'BYOK' && (
@@ -1086,6 +1110,8 @@ function RetentionSection() {
 
 function IntegrationsSection() {
   const toast = useToast();
+  const { user } = useUser();
+  const apiAllowed = user?.plan === 'BUSINESS' || user?.plan === 'TEAM' || user?.plan === 'ENTERPRISE';
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -1150,6 +1176,12 @@ function IntegrationsSection() {
 
   return (
     <div className="space-y-6">
+      {!apiAllowed && (
+        <div className="rounded-xl border border-brand-500/40 bg-brand-500/5 px-4 py-3 text-sm text-ink">
+          API keys, REST and MCP access are part of the <strong>Business</strong> plan and above. Keys already created stop working until the account is upgraded.{' '}
+          <Link href="/pricing" className="font-semibold text-brand-600 hover:underline">See plans</Link>
+        </div>
+      )}
       <SectionCard
         title="API keys"
         subtitle="Let other software act as you: a WhatsApp bot, an assistant, a script. Each key is you, with your workspaces."

@@ -33,6 +33,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status: number;
     let message: string | string[];
     let error: string;
+    // Plan-limit errors carry a code and the plan that would allow the action,
+    // so the web app can show an upgrade button instead of a generic message.
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -45,6 +48,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const res = exceptionResponse as Record<string, unknown>;
         message = (res.message as string | string[]) ?? exception.message;
         error = (res.error as string) ?? exception.name;
+        if (typeof res.code === 'string') extra = { code: res.code, plan: res.plan ?? null, upgradeTo: res.upgradeTo ?? null };
       }
     } else {
       // Unexpected errors — log full stack, return 500
@@ -58,6 +62,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       message,
       error,
+      ...extra,
       timestamp: new Date().toISOString(),
       path: request.url,
     });

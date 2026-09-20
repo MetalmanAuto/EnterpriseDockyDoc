@@ -66,6 +66,7 @@ export class AuthService {
       lastName: devUser.lastName,
       isActive: devUser.isActive,
       isPlatformAdmin: isPlatformAdmin(devUser.email),
+      plan: devUser.plan,
       workspaces,
       defaultWorkspace,
     };

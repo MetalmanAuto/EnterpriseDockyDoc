@@ -1,8 +1,9 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DevAuthGuard } from '../../common/guards/dev-auth.guard';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { AdminService, type AdminOverview } from './admin.service';
+import { SetPlanDto } from './dto/set-plan.dto';
 
 /**
  * Platform-level view for the people who run DockyDoc: who has signed up,
@@ -21,5 +22,11 @@ export class AdminController {
   @ApiResponse({ status: 403, description: 'Not a platform administrator' })
   overview(): Promise<AdminOverview> {
     return this.admin.overview();
+  }
+
+  @Patch('users/:id/plan')
+  @ApiOperation({ summary: 'Give a person a plan without payment (complimentary), optionally for a number of months' })
+  setPlan(@Param('id') id: string, @Body() dto: SetPlanDto) {
+    return this.admin.setPlan(id, dto.plan, dto.months);
   }
 }

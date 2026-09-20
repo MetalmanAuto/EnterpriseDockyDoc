@@ -25,10 +25,13 @@ export class UpdateAiSettingsDto {
   apiKey?: string;
 }
 
+/** Informational only since actions replaced tokens as the metered unit; kept for the usage graph. */
 export const PLAN_TOKEN_LIMITS: Record<string, number> = {
-  FREE: 50_000,
-  PRO: 500_000,
-  ENTERPRISE: 10_000_000,
+  FREE: 100_000,
+  PERSONAL: 500_000,
+  BUSINESS: 3_000_000,
+  TEAM: 10_000_000,
+  ENTERPRISE: 100_000_000,
 };
 
 export interface AiSettingsResponseDto {

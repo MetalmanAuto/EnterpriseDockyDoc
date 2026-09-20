@@ -62,6 +62,9 @@ export class MeResponseDto {
   @ApiProperty()
   isActive!: boolean;
 
+  @ApiProperty({ description: 'FREE, PERSONAL, BUSINESS, TEAM or ENTERPRISE' })
+  plan!: string;
+
   @ApiProperty({ type: [WorkspaceMembershipDto] })
   workspaces!: WorkspaceMembershipDto[];
 

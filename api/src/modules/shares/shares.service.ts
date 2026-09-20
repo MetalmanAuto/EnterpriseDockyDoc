@@ -16,6 +16,7 @@ import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
+import { BillingService } from '../billing/billing.service';
 import { buildExternalShareEmail } from './share-emails';
 import {
   assertWorkspaceMembership,
@@ -76,6 +77,7 @@ export class SharesService {
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly billing: BillingService,
   ) {
     // Validate required secrets at startup — fail fast rather than silently using an insecure default
     if (!process.env.SHARE_GRANT_SECRET) {
@@ -134,7 +136,10 @@ export class SharesService {
 
     const token = generateShareToken();
     const passwordHash = dto.password ? hashPassword(dto.password) : null;
-    const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    const expiresAt = await this.billing.shareLinkExpiry(doc.workspaceId, {
+      password: dto.password,
+      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+    });
     const recipients = [...new Set((dto.recipients ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean))];
 
     const share = await this.prisma.documentShare.create({
