@@ -38,8 +38,11 @@ export class PaddleService {
   readonly env: 'sandbox' | 'production' = process.env.PADDLE_ENV === 'production' ? 'production' : 'sandbox';
   readonly clientToken = process.env.PADDLE_CLIENT_TOKEN ?? '';
 
+  /** Sandbox Paddle on a production server stays off unless PADDLE_ALLOW_SANDBOX=true is set on purpose. */
   get enabled(): boolean {
-    return !!(this.apiKey && this.clientToken);
+    if (!this.apiKey || !this.clientToken) return false;
+    if (process.env.NODE_ENV === 'production' && this.env === 'sandbox' && process.env.PADDLE_ALLOW_SANDBOX !== 'true') return false;
+    return true;
   }
 
   private get base(): string {

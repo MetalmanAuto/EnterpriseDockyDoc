@@ -36,9 +36,23 @@ export class RazorpayService {
   private readonly keySecret = process.env.RAZORPAY_KEY_SECRET ?? '';
   private readonly webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET ?? '';
 
+  /**
+   * A test key on a production server would let anyone "pay" with a test
+   * card and get a real plan, so it counts as not configured there unless
+   * RAZORPAY_ALLOW_TEST=true is set on purpose.
+   */
   get enabled(): boolean {
-    return !!(this.keyId && this.keySecret);
+    if (!this.keyId || !this.keySecret) return false;
+    if (process.env.NODE_ENV === 'production' && this.keyId.startsWith('rzp_test_') && process.env.RAZORPAY_ALLOW_TEST !== 'true') {
+      if (!this.warnedTestKey) {
+        this.warnedTestKey = true;
+        this.logger.warn('RAZORPAY_KEY_ID is a test key on a production server; rupee payments stay off until live keys are set (or RAZORPAY_ALLOW_TEST=true).');
+      }
+      return false;
+    }
+    return true;
   }
+  private warnedTestKey = false;
 
   private async call<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown): Promise<T> {
     if (!this.enabled) throw new Error('Razorpay is not configured on this server.');
