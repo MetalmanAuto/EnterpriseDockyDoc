@@ -165,6 +165,8 @@ model User {
   invitationsCreated     WorkspaceInvitation[]   @relation("InvitationsCreated")
   invitationsAccepted    WorkspaceInvitation[]   @relation("InvitationsAccepted")
   apiKeys                ApiKey[]
+  subscriptions          Subscription[]
+  payments               Payment[]
 
   @@map("users")
 }
@@ -511,4 +513,89 @@ model WorkspaceInvitation {
   @@index([workspaceId])
   @@index([email])
   @@map("workspace_invitations")
+}
+
+// ---------------------------------------------------------------------------
+// Billing: Razorpay (India, INR) and Paddle (rest of world, USD)
+// ---------------------------------------------------------------------------
+
+enum BillingProvider {
+  RAZORPAY
+  PADDLE
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+/// A plan or top-up as it exists at the provider, created lazily on first use.
+model ProviderPrice {
+  id              String          @id @default(cuid())
+  provider        BillingProvider
+  /// e.g. "BUSINESS:monthly:INR" or "topup:100:USD"
+  key             String
+  providerPriceId String
+  amount          Int             // minor units: paise or cents
+  currency        String
+  createdAt       DateTime        @default(now())
+
+  @@unique([provider, key])
+  @@map("provider_prices")
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String
+  provider               BillingProvider
+  providerSubscriptionId String             @unique
+  plan                   WorkspacePlan
+  interval               String             // monthly | yearly
+  currency               String
+  amount                 Int                // minor units per interval
+  status                 SubscriptionStatus @default(PENDING)
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  userId            String
+  provider          BillingProvider
+  providerPaymentId String          @unique
+  kind              String          // subscription | topup
+  amount            Int
+  currency          String
+  status            String          // captured | failed | refunded
+  plan              WorkspacePlan?
+  topUpActions      Int?
+  receiptUrl        String?
+  createdAt         DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("payments")
+}
+
+/// Every webhook delivery once, so a retried delivery is not applied twice.
+model WebhookEvent {
+  id         String          @id @default(cuid())
+  provider   BillingProvider
+  eventId    String
+  type       String
+  receivedAt DateTime        @default(now())
+
+  @@unique([provider, eventId])
+  @@map("webhook_events")
 }

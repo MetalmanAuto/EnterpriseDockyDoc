@@ -39,6 +39,7 @@ const isPublicRoute = createRouteMatcher([
   '/refunds(.*)',
   '/acceptable-use(.*)',
   '/contact(.*)',
+  '/help(.*)',
   '/login(.*)',
   '/register(.*)',
   '/forgot-password(.*)',
@@ -55,11 +56,24 @@ const withClerk = clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
+  return withCountry(request, NextResponse.next());
 });
 
+/**
+ * Vercel tells us the visitor's country; the pricing pages use it to show
+ * rupees to India and dollars elsewhere, and the checkout picks the processor.
+ */
+function withCountry(request: NextRequest, response: NextResponse): NextResponse {
+  const country = request.headers.get('x-vercel-ip-country');
+  if (country && !request.cookies.get('dd_country')) {
+    response.cookies.set('dd_country', country, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' });
+  }
+  return response;
+}
+
 /** Transparent pass-through for local runs with no Clerk instance. */
-function withoutClerk(_request: NextRequest) {
-  return NextResponse.next();
+function withoutClerk(request: NextRequest) {
+  return withCountry(request, NextResponse.next());
 }
 
 export default clerkEnabled ? withClerk : withoutClerk;

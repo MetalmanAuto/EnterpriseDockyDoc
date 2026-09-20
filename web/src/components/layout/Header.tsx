@@ -44,6 +44,7 @@ const TITLE_MAP: [string, string][] = [
   ['/settings',   'Settings'],
   ['/admin',      'Platform admin'],
   ['/plans',      'Plans'],
+  ['/billing',    'Billing'],
   ['/account',    'Sign-in and security'],
 ];
 

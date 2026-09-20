@@ -24,6 +24,17 @@ export interface AccountSummary {
     workspaces: number;
   };
   topUps: typeof TOP_UPS;
+  subscription: {
+    provider: 'RAZORPAY' | 'PADDLE';
+    status: string;
+    plan: WorkspacePlan;
+    interval: string;
+    currency: string;
+    amount: number;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  payments: { id: string; date: string; provider: string; kind: string; amount: number; currency: string; plan: WorkspacePlan | null; topUpActions: number | null; reference: string }[];
 }
 
 type PlanUser = {
@@ -78,7 +89,12 @@ export class BillingService {
   async getAccount(userId: string): Promise<AccountSummary> {
     const user = await this.loadUser(userId);
     const limits = PLANS[user.plan];
-    const [workspaces, documents] = await Promise.all([this.ownedWorkspaceIds(userId), this.ownedDocumentCount(userId)]);
+    const [workspaces, documents, subscription, payments] = await Promise.all([
+      this.ownedWorkspaceIds(userId),
+      this.ownedDocumentCount(userId),
+      this.prisma.subscription.findFirst({ where: { userId, status: { in: ['ACTIVE', 'PAST_DUE', 'CANCELLED'] } }, orderBy: { updatedAt: 'desc' } }),
+      this.prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 24 }),
+    ]);
     const included = limits.aiActionsPerMonth;
     const remaining = isUnlimited(included) ? included : Math.max(0, included - user.aiActionsUsed) + user.aiCreditActions;
     return {
@@ -98,6 +114,17 @@ export class BillingService {
         workspaces: workspaces.length,
       },
       topUps: TOP_UPS,
+      subscription: subscription && (subscription.status !== 'CANCELLED' || (subscription.currentPeriodEnd && subscription.currentPeriodEnd.getTime() > Date.now()))
+        ? {
+            provider: subscription.provider, status: subscription.status, plan: subscription.plan, interval: subscription.interval,
+            currency: subscription.currency, amount: subscription.amount, currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          }
+        : null,
+      payments: payments.map((p) => ({
+        id: p.id, date: p.createdAt.toISOString(), provider: p.provider, kind: p.kind, amount: p.amount, currency: p.currency,
+        plan: p.plan, topUpActions: p.topUpActions, reference: p.providerPaymentId,
+      })),
     };
   }
 
@@ -305,6 +332,18 @@ export class BillingService {
     if (user.planSource === 'complimentary' && user.planRenewsAt && user.planRenewsAt < now && user.plan !== 'FREE') {
       await this.setPlan(user.id, 'FREE', { source: 'expired', renewsAt: null });
       user = { ...user, plan: 'FREE', planSource: 'expired', planRenewsAt: null };
+    }
+    // A paid plan whose renewal never arrived (cancelled, card failed, webhook
+    // lost) lapses three days after the period it was paid for.
+    if ((user.planSource === 'razorpay' || user.planSource === 'paddle') && user.planRenewsAt && user.planRenewsAt.getTime() + 3 * DAY < now.getTime() && user.plan !== 'FREE') {
+      const live = await this.prisma.subscription.findFirst({
+        where: { userId: user.id, status: 'ACTIVE', cancelAtPeriodEnd: false, currentPeriodEnd: { gt: now } },
+        select: { id: true },
+      });
+      if (!live) {
+        await this.setPlan(user.id, 'FREE', { source: 'lapsed', renewsAt: null });
+        user = { ...user, plan: 'FREE', planSource: 'lapsed', planRenewsAt: null };
+      }
     }
     let periodStart = user.aiActionsPeriodStart;
     while (addMonths(periodStart, 1) <= now) {
