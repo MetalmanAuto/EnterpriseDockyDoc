@@ -42,6 +42,7 @@ const TITLE_MAP: [string, string][] = [
   ['/reports',    'Reports'],
   ['/activity',   'Activity'],
   ['/settings',   'Settings'],
+  ['/admin',      'Platform admin'],
 ];
 
 function resolveTitle(pathname: string): string {

@@ -24,6 +24,7 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { McpModule } from './modules/mcp/mcp.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 /**
  * Root application module.
@@ -68,6 +69,7 @@ import { McpModule } from './modules/mcp/mcp.module';
     ApiKeysModule,
     IntegrationsModule,
     McpModule,
+    AdminModule,
   ],
   providers: [
     // Apply ThrottlerGuard to every route in the application.

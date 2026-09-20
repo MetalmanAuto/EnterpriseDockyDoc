@@ -31,6 +31,9 @@ const NAV: NavItem[] = [
   { label: 'Settings',   href: '/settings',   Icon: GearIcon },
 ];
 
+/** Only shown to platform admins (PLATFORM_ADMIN_EMAILS on the API). */
+const ADMIN_ITEM: NavItem = { label: 'Platform admin', href: '/admin', Icon: ShieldIcon };
+
 // ------------------------------------------------------------------ //
 // Sidebar
 // ------------------------------------------------------------------ //
@@ -47,6 +50,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   const initials = initialsOf(user);
+  const navItems = user?.isPlatformAdmin ? [...NAV, ADMIN_ITEM] : NAV;
 
   return (
     <>
@@ -83,7 +87,7 @@ export default function Sidebar() {
 
         {/* ── Navigation ───────────────────────────────────────────── */}
         <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ label, href, Icon }) => {
+          {navItems.map(({ label, href, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             return (
               <Link
@@ -212,6 +216,15 @@ function ActivityIcon({ active }: { active: boolean }) {
   return (
     <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+      <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
+      <path d="M9 12l2 2 4-4" />
     </svg>
   );
 }

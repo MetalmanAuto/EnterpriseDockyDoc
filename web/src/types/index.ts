@@ -124,6 +124,8 @@ export interface CurrentUser {
   firstName: string;
   lastName: string;
   isActive: boolean;
+  /** Named in PLATFORM_ADMIN_EMAILS on the server; unlocks the /admin page. */
+  isPlatformAdmin?: boolean;
   workspaces: WorkspaceMembership[];
   defaultWorkspace: WorkspaceMembership | null;
 }
