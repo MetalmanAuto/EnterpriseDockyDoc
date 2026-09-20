@@ -1,3 +1,4 @@
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -83,6 +84,10 @@ async function bootstrap() {
       return new RegExp(`^${pattern}$`).test(origin);
     });
   }
+
+  // Standard security headers. CSP is left to the web app, which knows its own sources;
+  // files are fetched cross-origin by the web app, so the resource policy allows it.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
   app.enableCors({
     origin: (origin, callback) => {

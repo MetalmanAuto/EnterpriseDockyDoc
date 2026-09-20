@@ -495,6 +495,12 @@ export class DocumentsController {
   // Soft delete
   // ------------------------------------------------------------------ //
 
+  @Post(':id/legal-hold')
+  @ApiOperation({ summary: 'Put a document on legal hold, or lift it (Admin and Owner)' })
+  setLegalHold(@Param('id') id: string, @Body() body: { hold: boolean }, @CurrentUser() user: DevUserPayload) {
+    return this.documentsService.setLegalHold(id, !!body?.hold, user);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft delete a document (status → DELETED)' })

@@ -151,6 +151,7 @@ export interface WorkspaceListItem {
   type: WorkspaceType;
   status: WorkspaceStatus;
   memberCount: number;
+  trashRetentionDays: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -227,6 +228,7 @@ export interface FolderListItem {
   parentFolderId: string | null;
   createdBy: FolderCreatedBy;
   documentCount: number;
+  retentionDays: number | null;
   childCount: number;
   deletedAt: string | null;
   createdAt: string;
@@ -265,6 +267,7 @@ export interface DocumentListItem {
   expiryDate: string | null;
   renewalDueDate: string | null;
   isReminderEnabled: boolean;
+  legalHold: boolean;
   remindersSnoozedUntil: string | null;
   createdAt: string;
   updatedAt: string;

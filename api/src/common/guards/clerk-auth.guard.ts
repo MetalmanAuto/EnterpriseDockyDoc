@@ -1,4 +1,6 @@
 import {
+  HttpException,
+  HttpStatus,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -17,6 +19,51 @@ export type DevUserPayload = User & {
     workspace: Workspace;
   })[];
 };
+
+/**
+ * Requests per minute an API key may make, by plan. In memory, per
+ * instance; enough to stop a runaway script, not a substitute for the
+ * per-IP throttle that already covers everything.
+ */
+const API_RATE_PER_MINUTE: Record<string, number> = { BUSINESS: 120, TEAM: 600, ENTERPRISE: 1200 };
+const apiRateWindows = new Map<string, { start: number; count: number }>();
+
+/** Wrong or revoked keys: after this many failures a minute the IP is refused. */
+const KEY_FAILURES_PER_MINUTE = 20;
+const keyFailureWindows = new Map<string, { start: number; count: number }>();
+
+/**
+ * Called before each key check (record=false: refuse an IP that is over the
+ * failure limit) and after a failed one (record=true: count it). Keeps a
+ * guessing script from turning API-key auth into an unthrottled door, since
+ * API-key requests skip the per-IP throttle.
+ */
+function enforceKeyFailureRate(ip: string, record: boolean): void {
+  const now = Date.now();
+  let w = keyFailureWindows.get(ip);
+  if (!w || now - w.start >= 60_000) {
+    w = { start: now, count: 0 };
+    keyFailureWindows.set(ip, w);
+  }
+  if (record) w.count++;
+  if (w.count >= KEY_FAILURES_PER_MINUTE) {
+    throw new HttpException('Too many failed API key attempts from this address. Try again in a minute.', HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+
+function enforceApiRate(userId: string, plan: string): void {
+  const limit = API_RATE_PER_MINUTE[plan] ?? 60;
+  const now = Date.now();
+  const w = apiRateWindows.get(userId);
+  if (!w || now - w.start >= 60_000) {
+    apiRateWindows.set(userId, { start: now, count: 1 });
+    return;
+  }
+  w.count++;
+  if (w.count > limit) {
+    throw new HttpException(`API rate limit of ${limit} requests per minute reached for this plan. Try again in a minute.`, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
 
 const WORKSPACE_INCLUDE = {
   workspaces: {
@@ -59,7 +106,10 @@ export class ClerkAuthGuard implements CanActivate {
   // ------------------------------------------------------------------ //
 
   private async verifyApiKey(request: Request, raw: string): Promise<boolean> {
+    const ip = request.ip ?? request.socket?.remoteAddress ?? 'unknown';
+    enforceKeyFailureRate(ip, false);
     const result = await this.apiKeys.authenticate(raw);
+    if (!result) enforceKeyFailureRate(ip, true);
     if (!result) {
       throw new UnauthorizedException('Invalid or revoked API key');
     }
@@ -77,6 +127,7 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     this.apiKeys.assertPlanAllowsApi(result.user);
+    enforceApiRate(result.user.id, result.user.plan);
     (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).devUser = result.user;
     (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).apiKey = result.key;
     return true;

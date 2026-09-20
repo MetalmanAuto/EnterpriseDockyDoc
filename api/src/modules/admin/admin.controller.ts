@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DevAuthGuard } from '../../common/guards/dev-auth.guard';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { AdminService, type AdminOverview } from './admin.service';
 import { SetPlanDto } from './dto/set-plan.dto';
+import { RetentionService } from '../retention/retention.service';
 
 /**
  * Platform-level view for the people who run DockyDoc: who has signed up,
@@ -14,7 +15,13 @@ import { SetPlanDto } from './dto/set-plan.dto';
 @Controller('admin')
 @UseGuards(DevAuthGuard, PlatformAdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(private readonly admin: AdminService, private readonly retention: RetentionService) {}
+
+  @Post('retention/run')
+  @ApiOperation({ summary: 'Run the nightly retention job now (bin purge and folder policies)' })
+  runRetention() {
+    return this.retention.run();
+  }
 
   @Get('overview')
   @ApiOperation({ summary: 'Sign-ups, workspaces, storage, AI usage and recent activity across the platform' })

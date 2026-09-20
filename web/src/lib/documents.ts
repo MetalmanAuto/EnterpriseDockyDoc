@@ -62,7 +62,7 @@ export function renameFolder(id: string, name: string): Promise<FolderListItem> 
  */
 export function updateFolder(
   id: string,
-  params: { name?: string; parentFolderId?: string | null },
+  params: { name?: string; parentFolderId?: string | null; retentionDays?: number | null },
 ): Promise<FolderListItem> {
   return apiFetch<FolderListItem>(`/api/v1/folders/${id}`, {
     method: 'PATCH',
@@ -415,6 +415,21 @@ export function updateWorkspaceMember(
       body: JSON.stringify(params),
     },
   );
+}
+
+export function setLegalHold(id: string, hold: boolean): Promise<DocumentDetail> {
+  return apiFetch<DocumentDetail>(`/api/v1/documents/${id}/legal-hold`, {
+    method: 'POST',
+    body: JSON.stringify({ hold }),
+  });
+}
+
+/** Days deleted documents wait in the bin before they are shredded. */
+export function updateWorkspaceRetention(workspaceId: string, trashRetentionDays: number): Promise<WorkspaceListItem> {
+  return apiFetch<WorkspaceListItem>(`/api/v1/workspaces/${workspaceId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ trashRetentionDays }),
+  });
 }
 
 export function renameWorkspace(workspaceId: string, name: string): Promise<WorkspaceListItem> {

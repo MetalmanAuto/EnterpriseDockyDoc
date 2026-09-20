@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, unsnoozeDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata } from '@/lib/documents';
+import { fetchDocument, downloadDocument, downloadDocumentVersion, deleteDocumentVersion, uploadDocumentVersion, fetchDocumentReminders, setDocumentReminders, unsnoozeDocumentReminders, updateDocument, deleteDocument, shredDocument, fetchFolders, createFolder, fetchTags, createTag, setDocumentTags, setDocumentMetadata,
+  setLegalHold,
+} from '@/lib/documents';
 import { apiFetch } from '@/lib/api';
 import { fetchDocumentActivity, describeAuditLog, auditActionCategory, formatAuditAction } from '@/lib/audit';
 import { cn, fullName } from '@/lib/utils';
@@ -141,6 +143,7 @@ function DocumentDetailPageInner() {
   const [deletingDoc, setDeletingDoc] = useState(false);
   const [restoringDoc, setRestoringDoc] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [togglingHold, setTogglingHold] = useState(false);
   const [shredding, setShredding] = useState(false);
   const [showShredConfirm, setShowShredConfirm] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<number | null>(null);
@@ -295,6 +298,20 @@ function DocumentDetailPageInner() {
     }
   }
 
+  async function handleToggleHold() {
+    if (!doc) return;
+    setTogglingHold(true);
+    try {
+      const updated = await setLegalHold(doc.id, !doc.legalHold);
+      setDoc(updated);
+      toast.success(updated.legalHold ? 'Legal hold on. This document cannot be deleted or aged out until the hold is lifted.' : 'Legal hold lifted.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change legal hold.');
+    } finally {
+      setTogglingHold(false);
+    }
+  }
+
   async function handleShred() {
     if (!doc) return;
     setShowShredConfirm(false);
@@ -444,6 +461,24 @@ function DocumentDetailPageInner() {
               Edit
             </button>
           )}
+          {canAdminOrOwner && (
+            <button
+              type="button"
+              onClick={handleToggleHold}
+              disabled={togglingHold}
+              title={doc.legalHold ? 'Lift the legal hold so this document can be deleted again' : 'Freeze this document: no one can delete or shred it, and retention rules skip it'}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50',
+                doc.legalHold ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100' : 'border-stroke text-ink-2 hover:bg-surface-high',
+              )}
+            >
+              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" strokeLinecap="round" />
+              </svg>
+              {togglingHold ? 'Saving…' : doc.legalHold ? 'On legal hold' : 'Legal hold'}
+            </button>
+          )}
           {/* Delete / Restore / Shred */}
           {doc.status === 'DELETED' ? (
             <>
@@ -469,7 +504,7 @@ function DocumentDetailPageInner() {
                 <button
                   type="button"
                   onClick={() => setShowShredConfirm(true)}
-                  disabled={shredding || restoringDoc}
+                  disabled={shredding || restoringDoc || doc.legalHold}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 bg-red-50 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
                   title="Permanently delete all files and records (Admin/Owner only)"
                 >
@@ -487,7 +522,8 @@ function DocumentDetailPageInner() {
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                disabled={deletingDoc}
+                disabled={deletingDoc || doc.legalHold}
+                title={doc.legalHold ? 'On legal hold. Lift the hold to delete.' : undefined}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
               >
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

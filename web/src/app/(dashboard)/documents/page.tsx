@@ -1151,12 +1151,18 @@ function FolderModal({
   const [parentFolderId, setParentFolderId] = useState(
     isEditing ? (folder!.parentFolderId ?? '') : (defaultParentId ?? ''),
   );
+  const [retentionDays, setRetentionDays] = useState<string>(folder?.retentionDays ? String(folder.retentionDays) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setError('Name is required.'); return; }
+    const retention = retentionDays.trim() === '' ? null : Number(retentionDays);
+    if (retention !== null && (!Number.isInteger(retention) || retention < 30 || retention > 3650)) {
+      setError('Retention must be a whole number of days between 30 and 3650, or left blank.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -1164,6 +1170,7 @@ function FolderModal({
         await updateFolder(folder!.id, {
           name: name.trim(),
           parentFolderId: parentFolderId || null,
+          retentionDays: retention,
         });
       } else {
         await createFolder({
@@ -1232,6 +1239,29 @@ function FolderModal({
               </p>
             )}
           </div>
+
+          {isEditing && (
+            <div>
+              <label className="block text-xs font-medium text-ink-2 mb-1">
+                Auto-delete after <span className="text-ink-3 font-normal">(optional)</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={30}
+                  max={3650}
+                  value={retentionDays}
+                  onChange={(e) => setRetentionDays(e.target.value)}
+                  placeholder="Off"
+                  className="w-28 text-sm border border-stroke bg-surface text-ink rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <span className="text-sm text-ink-2">days after expiry</span>
+              </div>
+              <p className="mt-1 text-[11px] text-ink-3">
+                Documents in this folder move to the bin this many days after their expiry date (or after upload, if they have none). Documents on legal hold are skipped. Leave blank to turn off.
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>

@@ -11,6 +11,7 @@ import {
   updateTag,
   deleteTag,
   renameWorkspace,
+  updateWorkspaceRetention,
   fetchAiSettings,
   updateAiSettings,
   mergeTag,
@@ -221,7 +222,9 @@ export default function SettingsPage() {
             />
           )}
 
-          {activeSection === 'retention' && <RetentionSection />}
+          {activeSection === 'retention' && (
+            <RetentionSection workspaceId={activeWorkspace?.workspaceId ?? ''} canAdmin={canManage} workspace={detail} account={account} />
+          )}
           {activeSection === 'integrations' && <IntegrationsSection />}
           {activeSection === 'security' && <SecuritySection />}
         </div>
@@ -1091,19 +1094,73 @@ function StatusPill({
 // Placeholder sections
 // ------------------------------------------------------------------ //
 
-function RetentionSection() {
+function RetentionSection({ workspaceId, canAdmin, workspace, account }: { workspaceId: string; canAdmin: boolean; workspace: WorkspaceDetail | null; account: AccountSummary | null }) {
+  const toast = useToast();
+  const planMax = account?.limits.binRetentionDays ?? 30;
+  const [days, setDays] = useState<number>(Math.min(workspace?.trashRetentionDays ?? 30, planMax));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDays(Math.min(workspace?.trashRetentionDays ?? 30, planMax));
+  }, [workspace?.trashRetentionDays, planMax]);
+
+  async function save() {
+    if (!workspaceId) return;
+    setSaving(true);
+    try {
+      await updateWorkspaceRetention(workspaceId, days);
+      toast.success(`Deleted documents will be shredded after ${days} days in the bin.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <SectionCard title="Retention & Storage" subtitle="Configure document lifecycle and storage policies">
-      <div className="space-y-0 divide-y divide-stroke-soft">
-        <PlaceholderRow
-          label="Auto-empty Trash"
-          description="Automatically shred deleted documents after a set period"
-        />
-        <PlaceholderRow
-          label="Document retention policy"
-          description="Set default expiry rules for document types"
-          last
-        />
+    <SectionCard title="Retention & Storage" subtitle="How long deleted documents stay in the bin, and rules that age documents out">
+      <div className="divide-y divide-stroke-soft">
+        <div className="py-4">
+          <p className="text-sm font-medium text-ink">Empty the bin automatically</p>
+          <p className="text-xs text-ink-3 mt-0.5">
+            A deleted document sits in the bin, where it can be restored, then is shredded for good. Your plan allows up to {planMax} days.
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              max={planMax}
+              value={days}
+              disabled={!canAdmin}
+              onChange={(e) => setDays(Math.max(1, Math.min(planMax, Number(e.target.value) || 1)))}
+              className="h-9 w-24 rounded-lg border border-stroke bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-60"
+            />
+            <span className="text-sm text-ink-2">days</span>
+            {canAdmin && (
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="h-9 px-4 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            )}
+          </div>
+          {!canAdmin && <p className="text-xs text-ink-3 mt-2">Only workspace admins and owners can change this.</p>}
+        </div>
+        <div className="py-4">
+          <p className="text-sm font-medium text-ink">Folder retention rules</p>
+          <p className="text-xs text-ink-3 mt-0.5">
+            Open a folder, choose Edit, and set how many days after expiry (or after upload, when there is no expiry) its documents move to the bin. The rule runs every night.
+          </p>
+        </div>
+        <div className="py-4">
+          <p className="text-sm font-medium text-ink">Legal hold</p>
+          <p className="text-xs text-ink-3 mt-0.5">
+            An admin can put any document on legal hold from its page. A held document cannot be deleted, shredded, or aged out by a retention rule until the hold is lifted. Every hold and release is written to the activity log.
+          </p>
+        </div>
       </div>
     </SectionCard>
   );

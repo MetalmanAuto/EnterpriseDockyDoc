@@ -9,6 +9,8 @@ import {
   formatAuditAction,
 } from '@/lib/audit';
 import { cn, fullName } from '@/lib/utils';
+import { apiDownload, ApiError } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 import type { AuditAction, AuditEntityType, AuditLog } from '@/types';
 
 // ------------------------------------------------------------------ //
@@ -108,6 +110,21 @@ function groupByDate(logs: AuditLog[]): { label: string; items: AuditLog[] }[] {
 
 export default function ActivityPage() {
   const { activeWorkspace } = useUser();
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    if (!activeWorkspace) return;
+    setExporting(true);
+    try {
+      await apiDownload(`/api/v1/audit/export?workspaceId=${activeWorkspace.workspaceId}`, 'dockydoc-activity.csv');
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      toast.error(status === 402 ? 'Activity export is part of the Business plan and above. See Plans to upgrade.' : err instanceof Error ? err.message : 'Export failed.');
+    } finally {
+      setExporting(false);
+    }
+  }
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loadedCount, setLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -201,11 +218,27 @@ export default function ActivityPage() {
   return (
     <div className="max-w-3xl">
       {/* Header */}
-      <div className="mb-7">
-        <h1 className="page-title">Activity</h1>
-        <p className="page-subtitle">
-          A full audit trail of who did what, and when — across all documents and members.
-        </p>
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Activity</h1>
+          <p className="page-subtitle">
+            A full audit trail of who did what, and when, across all documents and members.
+          </p>
+        </div>
+        {(activeWorkspace?.role === 'ADMIN' || activeWorkspace?.role === 'OWNER') && (
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-stroke bg-surface text-sm font-medium text-ink-2 hover:bg-surface-high disabled:opacity-50 flex-shrink-0"
+            title="Download the whole log as a CSV file (Business plan and above)"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {exporting ? 'Preparing…' : 'Export CSV'}
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}
