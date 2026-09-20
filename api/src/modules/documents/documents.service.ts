@@ -1,8 +1,9 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DocumentStatus } from '@prisma/client';
 import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BillingService } from '../billing/billing.service';
+import { assertSafeUpload } from '../../common/upload/sniff';
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { SearchIndexerService } from '../search/search-indexer.service';
@@ -204,6 +205,7 @@ export class DocumentsService {
   ): Promise<DocumentDetailDto> {
     assertEditorOrAbove(user, dto.workspaceId);
     await this.billing.assertDocumentQuota(dto.workspaceId);
+    await assertSafeUpload(file.buffer, file.mimetype, file.originalname);
 
     const uploadStart = Date.now();
     const fileSizeMb = (file.size / 1024 / 1024).toFixed(2);
@@ -493,6 +495,7 @@ export class DocumentsService {
     const existing = await this.prisma.document.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Document "${id}" not found`);
     assertEditorOrAbove(user, existing.workspaceId);
+    if (existing.legalHold) throw new ForbiddenException(`"${existing.name}" is on legal hold and cannot be deleted until the hold is lifted.`);
 
     const deleted = await this.prisma.document.update({
       where: { id },
@@ -515,6 +518,26 @@ export class DocumentsService {
   }
 
   // ------------------------------------------------------------------ //
+  // Legal hold: freezes a document against deletion and retention
+  // ------------------------------------------------------------------ //
+
+  async setLegalHold(id: string, hold: boolean, user: DevUserPayload): Promise<DocumentDetailDto> {
+    const existing = await this.prisma.document.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Document "${id}" not found`);
+    assertAdminOrAbove(user, existing.workspaceId);
+    await this.prisma.document.update({ where: { id }, data: { legalHold: hold } });
+    this.audit.log({
+      workspaceId: existing.workspaceId,
+      userId: user.id,
+      action: AuditAction.DOCUMENT_UPDATED,
+      entityType: AuditEntityType.DOCUMENT,
+      entityId: id,
+      metadata: { documentName: existing.name, legalHold: hold },
+    });
+    return this.findById(id, user);
+  }
+
+  // ------------------------------------------------------------------ //
   // Shred (permanent delete)
   // ------------------------------------------------------------------ //
 
@@ -532,6 +555,7 @@ export class DocumentsService {
         'Only soft-deleted documents can be shredded. Delete the document first.',
       );
     }
+    if (doc.legalHold) throw new ForbiddenException(`"${doc.name}" is on legal hold and cannot be shredded until the hold is lifted.`);
 
     // Delete all physical files before removing DB records
     for (const version of doc.versions) {
@@ -983,6 +1007,7 @@ export class DocumentsService {
       expiryDate: doc!.expiryDate,
       renewalDueDate: doc!.renewalDueDate,
       isReminderEnabled: doc!.isReminderEnabled,
+      legalHold: doc!.legalHold,
       remindersSnoozedUntil: doc!.remindersSnoozedUntil,
       versions: doc!.versions.map((v) => ({
         id: v.id,
@@ -1034,6 +1059,7 @@ export class DocumentsService {
       expiryDate: d.expiryDate,
       renewalDueDate: d.renewalDueDate,
       isReminderEnabled: d.isReminderEnabled,
+      legalHold: d.legalHold,
       remindersSnoozedUntil: d.remindersSnoozedUntil,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,

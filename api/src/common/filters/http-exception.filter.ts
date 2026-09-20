@@ -1,3 +1,4 @@
+import { AlertsService } from '../../modules/alerts/alerts.service';
 import {
   ArgumentsHost,
   Catch,
@@ -56,6 +57,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message = 'Internal server error';
       error = 'InternalServerError';
       this.logger.error('Unhandled exception', exception);
+      AlertsService.current?.notify('server_errors', 'Unhandled server errors', `${request.method} ${request.url}\n${exception instanceof Error ? exception.stack ?? exception.message : String(exception)}`, 5);
     }
 
     response.status(status).json({

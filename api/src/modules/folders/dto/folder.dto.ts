@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, ValidateIf , IsInt , Min , Max } from 'class-validator';
 
 // ------------------------------------------------------------------ //
 // Request DTOs
@@ -30,6 +30,13 @@ export class CreateFolderDto {
 }
 
 export class UpdateFolderDto {
+  @ApiPropertyOptional({ nullable: true, description: 'Bin documents this many days after they expire (or after upload without an expiry). null removes the policy. 30 to 3650.' })
+  @IsOptional()
+  @IsInt()
+  @Min(30)
+  @Max(3650)
+  retentionDays?: number | null;
+
   @ApiPropertyOptional({ description: 'New folder name' })
   @IsOptional()
   @IsString()
@@ -69,6 +76,7 @@ export class FolderResponseDto {
   @ApiPropertyOptional() parentFolderId!: string | null;
   @ApiProperty({ type: FolderCreatedByDto }) createdBy!: FolderCreatedByDto;
   @ApiProperty() documentCount!: number;
+  @ApiProperty({ nullable: true }) retentionDays!: number | null;
   @ApiProperty() childCount!: number;
   @ApiPropertyOptional() deletedAt!: Date | null;
   @ApiProperty() createdAt!: Date;

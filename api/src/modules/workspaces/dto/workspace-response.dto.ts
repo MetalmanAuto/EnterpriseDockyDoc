@@ -46,6 +46,9 @@ export class WorkspaceResponseDto {
   @ApiProperty()
   memberCount!: number;
 
+  @ApiProperty({ description: 'Days deleted documents wait in the bin before shredding' })
+  trashRetentionDays!: number;
+
   @ApiProperty()
   createdAt!: Date;
 

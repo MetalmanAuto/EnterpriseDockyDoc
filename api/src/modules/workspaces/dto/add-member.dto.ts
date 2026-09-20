@@ -6,6 +6,9 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { WorkspaceUserRole, WorkspaceUserStatus } from '@prisma/client';
 
@@ -18,6 +21,13 @@ export class CreateWorkspaceDto {
 }
 
 export class UpdateWorkspaceDto {
+  @ApiPropertyOptional({ description: 'Days deleted documents stay in the bin before shredding, 1 to 365, capped by the plan' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  trashRetentionDays?: number;
+
   @ApiPropertyOptional({ description: 'New workspace name', maxLength: 100 })
   @IsOptional()
   @IsString()

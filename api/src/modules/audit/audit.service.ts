@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditAction, AuditEntityType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { assertWorkspaceMembership } from '../../common/helpers/workspace-access.helper';
+import { BillingService } from '../billing/billing.service';
+import { assertWorkspaceMembership, assertAdminOrAbove } from '../../common/helpers/workspace-access.helper';
 import type { DevUserPayload } from '../../common/guards/dev-auth.guard';
 import type { AuditLogDto, AuditQueryDto } from './dto/audit.dto';
 
@@ -27,7 +28,7 @@ interface LogParams {
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly billing: BillingService) {}
 
   /**
    * Fire-and-forget audit log write.
@@ -79,6 +80,28 @@ export class AuditService {
     });
 
     return logs.map(this.toDto);
+  }
+
+  /** The whole workspace log as CSV, newest first, for Business and above. */
+  async exportCsv(workspaceId: string, user: DevUserPayload): Promise<string> {
+    assertAdminOrAbove(user, workspaceId);
+    await this.billing.assertActivityExport(workspaceId);
+    const logs = await this.prisma.auditLog.findMany({
+      where: { workspaceId },
+      include: { user: { select: USER_SELECT } },
+      orderBy: { createdAt: 'desc' },
+      take: 50_000,
+    });
+    const cell = (v: unknown) => {
+      const s = v === null || v === undefined ? '' : typeof v === 'string' ? v : JSON.stringify(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = [['time (UTC)', 'who', 'email', 'action', 'entity type', 'entity id', 'details'].join(',')];
+    for (const l of logs) {
+      const who = l.user ? `${l.user.firstName} ${l.user.lastName}`.trim() : 'System';
+      rows.push([l.createdAt.toISOString(), who, l.user?.email ?? '', l.action, l.entityType, l.entityId, l.metadata ? JSON.stringify(l.metadata) : ''].map(cell).join(','));
+    }
+    return rows.join('\n') + '\n';
   }
 
   // ------------------------------------------------------------------ //

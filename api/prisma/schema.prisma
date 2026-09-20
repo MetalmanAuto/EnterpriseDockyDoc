@@ -221,6 +221,8 @@ model Folder {
   parentFolderId String?
   createdById    String
   deletedAt      DateTime?
+  // Documents in this folder are binned this many days after they expire (or after upload, with no expiry).
+  retentionDays  Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -250,6 +252,8 @@ model Document {
   renewalDueDate       DateTime?
   isReminderEnabled    Boolean        @default(false)
   remindersSnoozedUntil DateTime?
+  // On hold: cannot be binned, shredded or aged out by a retention policy.
+  legalHold            Boolean        @default(false)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 

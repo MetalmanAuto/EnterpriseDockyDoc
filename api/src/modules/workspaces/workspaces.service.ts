@@ -104,6 +104,7 @@ export class WorkspacesService {
       type: workspace!.type,
       status: workspace!.status,
       memberCount: 1,
+      trashRetentionDays: workspace!.trashRetentionDays,
       createdAt: workspace!.createdAt,
       updatedAt: workspace!.updatedAt,
     };
@@ -139,6 +140,7 @@ export class WorkspacesService {
       type: ws.type,
       status: ws.status,
       memberCount: ws._count.members,
+      trashRetentionDays: ws.trashRetentionDays,
       createdAt: ws.createdAt,
       updatedAt: ws.updatedAt,
     }));
@@ -184,6 +186,7 @@ export class WorkspacesService {
       memberCount: members.length,
       documentCount: workspace._count.documents,
       members,
+      trashRetentionDays: workspace.trashRetentionDays,
       createdAt: workspace.createdAt,
       updatedAt: workspace.updatedAt,
     };
@@ -269,6 +272,7 @@ export class WorkspacesService {
       where: { id: workspaceId },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.trashRetentionDays !== undefined && { trashRetentionDays: dto.trashRetentionDays }),
       },
       include: { _count: { select: { members: { where: { status: 'ACTIVE' as const } } } } },
     });
@@ -280,6 +284,7 @@ export class WorkspacesService {
       type: updated.type,
       status: updated.status,
       memberCount: updated._count.members,
+      trashRetentionDays: updated.trashRetentionDays,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };

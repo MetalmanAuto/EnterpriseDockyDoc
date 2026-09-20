@@ -98,6 +98,9 @@ export class UpdateDocumentDto {
   @IsOptional()
   @IsBoolean()
   isReminderEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'On legal hold: cannot be binned, shredded or aged out' })
+  legalHold?: boolean;
 }
 
 // ------------------------------------------------------------------ //
@@ -271,6 +274,7 @@ export class DocumentListItemDto {
   @ApiPropertyOptional({ nullable: true }) expiryDate!: Date | null;
   @ApiPropertyOptional({ nullable: true }) renewalDueDate!: Date | null;
   @ApiProperty() isReminderEnabled!: boolean;
+  @ApiProperty({ description: 'On legal hold: cannot be binned, shredded or aged out' }) legalHold!: boolean;
   @ApiPropertyOptional({ nullable: true, description: 'Reminders are held until this time' })
   remindersSnoozedUntil!: Date | null;
   @ApiProperty() createdAt!: Date;

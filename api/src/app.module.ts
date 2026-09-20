@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ApiAwareThrottlerGuard } from './common/guards/api-aware-throttler.guard';
 import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
 import { MailModule } from './modules/mail/mail.module';
@@ -27,6 +28,8 @@ import { McpModule } from './modules/mcp/mcp.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { AccountModule } from './modules/account/account.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
+import { RetentionModule } from './modules/retention/retention.module';
 
 /**
  * Root application module.
@@ -40,7 +43,8 @@ import { AccountModule } from './modules/account/account.module';
       envFilePath: '.env',
     }),
     // ------------------------------------------------------------------ //
-    // Rate limiting — 100 req / 60 s per IP (global default).
+    // Rate limiting — 100 req / 60 s per IP (global default). API-key requests
+    // are limited per account and plan in ClerkAuthGuard instead.
     // Override per-route with @Throttle({ default: { limit, ttl } }).
     // ------------------------------------------------------------------ //
     ThrottlerModule.forRoot([
@@ -74,11 +78,13 @@ import { AccountModule } from './modules/account/account.module';
     AdminModule,
     BillingModule,
     AccountModule,
+    AlertsModule,
+    RetentionModule,
   ],
   providers: [
     // Apply ThrottlerGuard to every route in the application.
     // Uses the client IP from the incoming request as the throttle key.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: ApiAwareThrottlerGuard },
   ],
 })
 export class AppModule {}

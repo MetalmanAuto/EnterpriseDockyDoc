@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { WorkspacePlan, DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanLimitException } from '../../common/exceptions/plan-limit.exception';
+import { AlertsService } from '../alerts/alerts.service';
 import { FREE_SHARE_LINK_DAYS, PLAN_RANK, PLANS, TOP_UPS, PUBLIC_PLANS, isUnlimited, nextPlanWith, type PlanLimits } from './plans';
 
 const DAY = 86_400_000;
@@ -49,7 +50,20 @@ const PLAN_USER_SELECT = {
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  private dailyActions = { day: '', count: 0 };
+
+  constructor(private readonly prisma: PrismaService, private readonly alerts: AlertsService) {}
+
+  /** Platform-wide guard: a day with far more AI actions than usual gets a person's eyes on it. */
+  private countPlatformActions(count: number): void {
+    const day = new Date().toISOString().slice(0, 10);
+    if (this.dailyActions.day !== day) this.dailyActions = { day, count: 0 };
+    this.dailyActions.count += count;
+    const guard = Number(process.env.AI_DAILY_ACTION_ALERT ?? 2000);
+    if (this.dailyActions.count >= guard) {
+      this.alerts.notify('ai_daily_spend', `AI actions today passed ${guard}`, `${this.dailyActions.count} AI actions have been charged so far on ${day}, above the AI_DAILY_ACTION_ALERT guard of ${guard}. At about 2 cents each that is roughly $${(this.dailyActions.count * 0.02).toFixed(0)} of model spend today. Check the admin page for who is driving it.`);
+    }
+  }
 
   // ---- reading ------------------------------------------------------ //
 
@@ -219,6 +233,7 @@ export class BillingService {
     const included = PLANS[user.plan].aiActionsPerMonth;
     if (isUnlimited(included)) {
       await this.prisma.user.update({ where: { id: userId }, data: { aiActionsUsed: { increment: count } } });
+      this.countPlatformActions(count);
       return;
     }
     const fromAllowance = Math.max(0, Math.min(count, included - user.aiActionsUsed));
@@ -241,6 +256,7 @@ export class BillingService {
         aiCreditActions: fromCredits ? { decrement: fromCredits } : undefined,
       },
     });
+    this.countPlatformActions(count);
     this.logger.log(`AI actions: ${count} for ${reason} on ${userId} (${fromAllowance} from allowance, ${fromCredits} from credits)`);
   }
 
