@@ -36,7 +36,8 @@ async function bootstrap() {
 
   console.log(`Auth mode: ${isClerkConfigured ? 'Clerk JWT (CLERK_SECRET_KEY set)' : 'dev x-dev-user-email fallback (no CLERK_SECRET_KEY)'}`);
 
-  const app = await NestFactory.create(AppModule);
+  // rawBody keeps the exact bytes so payment webhooks can verify their signatures.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const port = process.env.PORT ?? 8081;
   // CORS_ORIGINS is a comma-separated list of exact origins OR wildcard patterns.

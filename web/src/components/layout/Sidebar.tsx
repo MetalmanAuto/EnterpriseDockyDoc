@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
   { label: 'Reminders',  href: '/reminders',  Icon: BellIcon },
   { label: 'Reports',    href: '/reports',    Icon: BarChartIcon },
   { label: 'Activity',   href: '/activity',   Icon: ActivityIcon },
+  { label: 'Billing',    href: '/billing',    Icon: CardIcon },
   { label: 'Settings',   href: '/settings',   Icon: GearIcon },
 ];
 
@@ -225,6 +226,15 @@ function ShieldIcon({ active }: { active: boolean }) {
     <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
       <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
       <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+function CardIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
     </svg>
   );
 }
