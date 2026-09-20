@@ -423,13 +423,18 @@ export class ExtractionService {
     client: Anthropic,
   ): Promise<ExtractionResult | null> {
     const userContent = buildUserContent(documentName, text, keyValuePairs, dateCandidates);
-    const prompt = `${buildSystemPrompt()}\n\n${userContent}\n\n${buildJsonTemplate()}`;
 
+    // The instructions and JSON template are the same for every document,
+    // so they sit in a cached system block; only the document text is new.
     const message = await client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
+      system: [
+        { type: 'text', text: `${buildSystemPrompt()}\n\n${buildJsonTemplate()}`, cache_control: { type: 'ephemeral' } },
+      ],
+      messages: [{ role: 'user', content: `${userContent}\n\nReply with the JSON object only.` }],
     });
+    this.logger.log(`[Extraction] Claude usage for "${documentName}": in=${message.usage.input_tokens} out=${message.usage.output_tokens} cacheWrite=${message.usage.cache_creation_input_tokens ?? 0} cacheRead=${message.usage.cache_read_input_tokens ?? 0}`);
 
     const content = message.content[0];
     if (content.type !== 'text') return null;

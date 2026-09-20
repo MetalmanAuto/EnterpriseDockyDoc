@@ -203,6 +203,15 @@ const AssistantReply = z.object({
   relevantDocumentIds: z.array(z.string()).describe('ids of the documents the answer is based on, most relevant first, up to 5; empty if none'),
 });
 
+/** All billable tokens on a call, cached reads and writes included. */
+function usageTokens(u: { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null }): number {
+  return u.input_tokens + u.output_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+}
+
+function describeUsage(u: { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null }): string {
+  return `in=${u.input_tokens} out=${u.output_tokens} cacheWrite=${u.cache_creation_input_tokens ?? 0} cacheRead=${u.cache_read_input_tokens ?? 0}`;
+}
+
 const ASSISTANT_SYSTEM = `You are the assistant inside DockyDoc, an app where people store documents such as passports, visas, insurance policies, contracts, licences and certificates and track when they expire.
 
 You are given what the app knows about every document in the person's workspace, then their question. Answer from that material only.
@@ -928,8 +937,7 @@ No markdown. No code blocks. JSON only.`;
       });
 
       if (routing.isplatform) {
-        const totalTokens = message.usage.input_tokens + message.usage.output_tokens;
-        await this.trackUsage(workspaceId, totalTokens);
+        await this.trackUsage(workspaceId, usageTokens(message.usage));
       }
 
       const content = message.content[0];
@@ -1098,26 +1106,34 @@ Respond with this exact JSON structure:
     const focusIds = new Set(focus.map((c) => c.id));
     const rest = ranked.map((r) => r.card).filter((c) => !focusIds.has(c.id));
 
-    const context = [
+    // The catalogue lists every document once, in a fixed order, and is
+    // marked for prompt caching: the second question in five minutes reads
+    // it from cache at a tenth of the price. Only the focus documents and
+    // the question itself change from one call to the next.
+    const catalogue = [
       `Workspace: ${workspace.name}`,
-      `Today: ${todayIso}`,
       `Documents in the workspace: ${cards.length}${docs.length === ASSISTANT_MAX_DOCUMENTS ? ' (showing the most recently updated)' : ''}`,
       '',
-      focus.length ? '## Documents that look relevant\n' : '',
-      ...focus.map((c) => fullCard(c, todayIso, ASSISTANT_TEXT_CHARS)),
-      '',
-      rest.length ? `## All other documents\n${rest.map((c) => shortLine(c, todayIso)).join('\n')}` : '',
-    ].filter((line, i, arr) => line !== '' || arr[i - 1] !== '').join('\n\n');
+      `## All documents (one line each)\n${cards.map((c) => shortLine(c, todayIso)).join('\n')}`,
+    ].join('\n\n');
+    const context = [
+      `Today: ${todayIso}`,
+      focus.length ? `## Documents that look relevant to this question\n\n${focus.map((c) => fullCard(c, todayIso, ASSISTANT_TEXT_CHARS)).join('\n\n')}` : '',
+    ].filter(Boolean).join('\n\n');
 
     try {
       const message = await client.messages.parse({
         model: assistantModel,
         max_tokens: 2048,
         output_config: { effort: 'medium', format: zodOutputFormat(AssistantReply) },
-        system: ASSISTANT_SYSTEM,
+        system: [
+          { type: 'text', text: ASSISTANT_SYSTEM },
+          { type: 'text', text: catalogue, cache_control: { type: 'ephemeral' } },
+        ],
         messages: [{ role: 'user', content: `${context}\n\n## Question\n${question}` }],
       });
-      await this.trackUsage(workspaceId, message.usage.input_tokens + message.usage.output_tokens);
+      await this.trackUsage(workspaceId, usageTokens(message.usage));
+      this.logger.log(`Assistant usage: ${describeUsage(message.usage)}`);
 
       if (message.stop_reason === 'refusal' || !message.parsed_output) {
         this.logger.warn(`Assistant gave no structured answer (stop_reason=${message.stop_reason})`);

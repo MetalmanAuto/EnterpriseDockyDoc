@@ -165,7 +165,7 @@ export class ClaudeNativeProvider implements OcrProvider {
 Output format: Just the extracted text, no commentary.${parsedText ? `\n\nSupplementary text-layer (use to verify your extraction):\n${parsedText.slice(0, 3000)}` : ''}`;
 
     const message = await this.client!.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 4096,
       messages: [
         {
@@ -217,7 +217,7 @@ Output format: Just the extracted text, no commentary.${parsedText ? `\n\nSupple
       : 'image/jpeg';
 
     const message = await this.client!.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 4096,
       messages: [
         {
