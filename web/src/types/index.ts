@@ -126,6 +126,8 @@ export interface CurrentUser {
   isActive: boolean;
   /** Named in PLATFORM_ADMIN_EMAILS on the server; unlocks the /admin page. */
   isPlatformAdmin?: boolean;
+  /** FREE, PERSONAL, BUSINESS, TEAM or ENTERPRISE. */
+  plan?: 'FREE' | 'PERSONAL' | 'BUSINESS' | 'TEAM' | 'ENTERPRISE';
   workspaces: WorkspaceMembership[];
   defaultWorkspace: WorkspaceMembership | null;
 }

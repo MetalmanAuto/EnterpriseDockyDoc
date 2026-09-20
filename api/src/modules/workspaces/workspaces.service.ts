@@ -31,6 +31,8 @@ import type {
 import { EncryptionService } from '../../common/services/encryption.service';
 import type { UpdateAiSettingsDto, AiSettingsResponseDto } from './dto/ai-settings.dto';
 import { PLAN_TOKEN_LIMITS } from './dto/ai-settings.dto';
+import { BillingService } from '../billing/billing.service';
+import { PlanLimitException } from '../../common/exceptions/plan-limit.exception';
 
 // Roles that can manage members
 const MANAGER_ROLES = new Set<WorkspaceUserRole>([
@@ -47,6 +49,7 @@ export class WorkspacesService {
     private readonly audit: AuditService,
     private readonly encryption: EncryptionService,
     private readonly mail: MailService,
+    private readonly billing: BillingService,
   ) {}
 
   // ------------------------------------------------------------------ //
@@ -54,6 +57,7 @@ export class WorkspacesService {
   // ------------------------------------------------------------------ //
 
   async create(name: string, user: DevUserPayload): Promise<WorkspaceResponseDto> {
+    await this.billing.assertWorkspaceQuota(user.id);
     const makeSlug = () =>
       name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) +
       '-' + Math.random().toString(36).slice(2, 7);
@@ -291,6 +295,7 @@ export class WorkspacesService {
     currentUser: DevUserPayload,
   ): Promise<WorkspaceMemberDto> {
     this.assertManagerRole(currentUser, workspaceId);
+    await this.billing.assertMemberQuota(workspaceId);
 
     // Ensure workspace exists
     const workspace = await this.prisma.workspace.findUnique({
@@ -331,6 +336,7 @@ export class WorkspacesService {
     currentUser: DevUserPayload,
   ): Promise<GrantWorkspaceAccessResultDto[]> {
     this.assertManagerRole(currentUser, sourceWorkspaceId);
+    await this.billing.assertCrossWorkspaceGrants(sourceWorkspaceId);
 
     const membership = await this.prisma.workspaceUser.findUnique({
       where: { id: memberId },
@@ -363,6 +369,15 @@ export class WorkspacesService {
         continue;
       }
 
+      try {
+        await this.billing.assertMemberQuota(workspaceId);
+      } catch (err) {
+        if (err instanceof PlanLimitException) {
+          results.push({ workspaceId, workspaceName: workspace.name, outcome: 'forbidden' });
+          continue;
+        }
+        throw err;
+      }
       await this.addUserToWorkspace(workspace, membership.user, role, currentUser, false);
       results.push({ workspaceId, workspaceName: workspace.name, outcome: existing ? 'reactivated' : 'added', role });
     }

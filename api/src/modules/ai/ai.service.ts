@@ -8,7 +8,9 @@ import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/services/encryption.service';
-import { PLAN_TOKEN_LIMITS } from '../workspaces/dto/ai-settings.dto';
+import { BillingService } from '../billing/billing.service';
+import { actionsForPages } from '../billing/plans';
+import { PlanLimitException } from '../../common/exceptions/plan-limit.exception';
 import { OcrService } from '../document-intelligence/ocr.service';
 import { ExtractionService } from '../document-intelligence/extraction.service';
 import type { ConfidenceByField } from '../document-intelligence/extraction.service';
@@ -228,6 +230,7 @@ export class AiService {
     private readonly extractionService: ExtractionService,
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
     private readonly reminderPlanner: ReminderPlannerService,
+    private readonly billing: BillingService,
   ) {
     const apiKey = this.config.get<string>('ANTHROPIC_API_KEY');
     this.client = apiKey ? new Anthropic({ apiKey }) : null;
@@ -285,12 +288,8 @@ export class AiService {
     const isPlatform = workspace.aiProvider !== 'BYOK';
 
     if (isPlatform) {
-      const limit = PLAN_TOKEN_LIMITS[workspace.plan] ?? PLAN_TOKEN_LIMITS['FREE'];
-      if (workspace.aiUsageTokens >= limit) {
-        throw new Error(
-          `AI usage limit reached for this workspace (${workspace.aiUsageTokens}/${limit} tokens used on ${workspace.plan} plan). Upgrade to Pro or Enterprise for higher limits.`,
-        );
-      }
+      // Allowances are checked where the work happens (chargeAiActions), in
+      // actions rather than tokens, so a person sees "3 of 50 used" not a token count.
       // Allow pipeline to proceed when OpenAI is configured even without Anthropic key.
       // ExtractionService will use GPT-4o in that case; client override stays null.
       if (!this.client && !this.openaiApiKey) {
@@ -422,6 +421,10 @@ export class AiService {
       if (!ocrOutput) {
         throw new Error('Could not extract text from document — no OCR provider succeeded and no cached text available.');
       }
+
+      // One AI action per document, more for long scans. Fails with a clear
+      // message when the allowance is used up; the document stays unread.
+      await this.billing.chargeAiActions(doc.workspaceId, actionsForPages(ocrOutput.pageCount), 'document_read');
 
       this.logger.log(
         `extractDocument ${documentId}: OCR via ${ocrOutput.provider}, ${ocrOutput.fullText.length} chars`,
@@ -863,6 +866,14 @@ export class AiService {
         urgentItems: [],
       };
     }
+    try {
+      await this.billing.chargeAiActions(workspaceId, 1, 'report_insights');
+    } catch (err) {
+      if (err instanceof PlanLimitException) {
+        return { summary: err.message, insights: [], recommendations: [], urgentItems: [] };
+      }
+      throw err;
+    }
 
     const dataJson = JSON.stringify(data, null, 2).slice(0, 5000);
 
@@ -911,7 +922,7 @@ No markdown. No code blocks. JSON only.`;
     if (routing.client) {
       // Anthropic Claude
       const message = await routing.client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -1069,6 +1080,15 @@ Respond with this exact JSON structure:
       const plain = plainAnswer(question, cards, todayIso);
       return { answer: plain.answer, relevantDocuments: pick(plain.relevantIds) };
     }
+    let assistantModel = 'claude-sonnet-5';
+    try {
+      const owner = await this.billing.ownerOfWorkspace(workspaceId);
+      assistantModel = this.billing.assistantModelFor(owner.plan);
+      await this.billing.chargeAiActions(workspaceId, 1, 'assistant_question');
+    } catch (err) {
+      if (err instanceof PlanLimitException) return { answer: err.message, relevantDocuments: [] };
+      throw err;
+    }
 
     // The documents the question seems to be about get their scanned text;
     // everything else is one line each, so the model can still spot a match
@@ -1091,7 +1111,7 @@ Respond with this exact JSON structure:
 
     try {
       const message = await client.messages.parse({
-        model: 'claude-opus-5',
+        model: assistantModel,
         max_tokens: 2048,
         output_config: { effort: 'medium', format: zodOutputFormat(AssistantReply) },
         system: ASSISTANT_SYSTEM,

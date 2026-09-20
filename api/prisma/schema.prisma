@@ -104,7 +104,9 @@ enum AuditEntityType {
 
 enum WorkspacePlan {
   FREE
-  PRO
+  PERSONAL
+  BUSINESS
+  TEAM
   ENTERPRISE
 }
 
@@ -141,6 +143,14 @@ model User {
   lastName     String
   passwordHash String?
   isActive     Boolean  @default(true)
+  // Billing lives on the person, not the workspace: a plan covers every
+  // workspace they own, and AI actions are pooled across them.
+  plan                 WorkspacePlan @default(FREE)
+  planSource           String?       // razorpay | paddle | complimentary
+  planRenewsAt         DateTime?     // complimentary plans expire; paid ones renew
+  aiActionsUsed        Int           @default(0)
+  aiActionsPeriodStart DateTime      @default(now())
+  aiCreditActions      Int           @default(0) // bought top-ups, never reset
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -78,7 +78,7 @@ export class ResolverService {
 
     try {
       const response = await this.client.messages.parse({
-        model: 'claude-opus-5',
+        model: 'claude-sonnet-5',
         max_tokens: 4096,
         // Ranking a few dozen names is not deep reasoning; low effort keeps it quick.
         output_config: { effort: 'low', format: zodOutputFormat(Resolved) },

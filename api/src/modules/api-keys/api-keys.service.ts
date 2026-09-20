@@ -1,4 +1,7 @@
 import * as crypto from 'crypto';
+import type { WorkspacePlan } from '@prisma/client';
+import { PLANS } from '../billing/plans';
+import { PlanLimitException } from '../../common/exceptions/plan-limit.exception';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ApiKeyScope } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -38,11 +41,19 @@ function hashKey(raw: string): string {
 export class ApiKeysService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** API access is part of Business and above. */
+  assertPlanAllowsApi(user: { plan: WorkspacePlan }): void {
+    if (!PLANS[user.plan].apiAccess) {
+      throw new PlanLimitException('api_requires_business', 'API keys, REST and MCP access are part of the Business plan and above.', user.plan, 'BUSINESS');
+    }
+  }
+
   /**
    * Mint a key. The full key is returned exactly once, here; from then on the
    * database holds its hash and the first few characters.
    */
   async create(user: DevUserPayload, dto: CreateApiKeyDto): Promise<CreatedApiKeyDto> {
+    this.assertPlanAllowsApi(user);
     const raw = API_KEY_PREFIX + crypto.randomBytes(KEY_BYTES).toString('hex');
     const scopes = dto.canWrite
       ? [ApiKeyScope.DOCUMENTS_READ, ApiKeyScope.DOCUMENTS_WRITE]

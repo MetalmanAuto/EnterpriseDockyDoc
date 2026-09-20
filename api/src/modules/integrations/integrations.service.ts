@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BillingService } from '../billing/billing.service';
 import { ApiKeyScope, DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { assertWorkspaceMembership } from '../../common/helpers/workspace-access.helper';
@@ -63,6 +64,7 @@ export class IntegrationsService {
     private readonly tags: TagsService,
     private readonly mail: MailService,
     private readonly resolver: ResolverService,
+    private readonly billing: BillingService,
   ) {}
 
   me(user: DevUserPayload, key: ApiKeyContext | undefined): IntegrationMeDto {
@@ -85,6 +87,7 @@ export class IntegrationsService {
   async find(user: DevUserPayload, dto: FindDocumentsDto): Promise<FindResultDto> {
     const rows = await this.candidates(user, dto.workspaceId);
     const byId = new Map(rows.map((r) => [r.id, r]));
+    await this.billing.chargeUserAiActions(user.id, 1, 'api_find');
     const resolution = await this.resolver.resolve(dto.query, rows.map(toCandidate));
 
     return {

@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 import {
   fetchAdminOverview,
+  setUserPlan,
   type AdminActivityRow,
   type AdminOverview,
   type AdminUserRow,
@@ -209,9 +211,30 @@ function SignupsChart({ days }: { days: { day: string; count: number }[] }) {
 
 type UserSort = 'joined' | 'active' | 'documents' | 'storage' | 'ai';
 
-function PeopleTable({ users }: { users: AdminUserRow[] }) {
+const PLAN_OPTIONS = ['FREE', 'PERSONAL', 'BUSINESS', 'TEAM', 'ENTERPRISE'] as const;
+
+function PeopleTable({ users: initialUsers }: { users: AdminUserRow[] }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<UserSort>('joined');
+  const [users, setUsers] = useState(initialUsers);
+  const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
+  useEffect(() => setUsers(initialUsers), [initialUsers]);
+
+  async function changePlan(u: AdminUserRow, plan: string) {
+    if (plan === u.plan) return;
+    const months = plan === 'FREE' || plan === 'ENTERPRISE' ? undefined : 6;
+    setBusy(u.id);
+    try {
+      const r = await setUserPlan(u.id, plan, months);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, plan: r.plan, planSource: 'complimentary', planRenewsAt: r.renewsAt } : x)));
+      toast.success(`${u.name} is now on ${plan}${months ? ` for ${months} months` : ''}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the plan');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -258,6 +281,7 @@ function PeopleTable({ users }: { users: AdminUserRow[] }) {
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-3">
               <Th>Person</Th>
+              <Th>Plan</Th>
               <Th>Joined</Th>
               <Th>Last active</Th>
               <Th>Workspaces</Th>
@@ -268,13 +292,28 @@ function PeopleTable({ users }: { users: AdminUserRow[] }) {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-ink-3">No one matches that search.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-ink-3">No one matches that search.</td></tr>
             )}
             {rows.map((u) => (
               <tr key={u.id} className="border-t border-stroke-soft align-top">
                 <td className="px-4 py-2.5">
                   <div className="font-semibold text-ink">{u.name}{!u.isActive && <span className="ml-2 text-[10px] uppercase text-ink-3">inactive</span>}</div>
                   <div className="text-xs text-ink-3">{u.email}</div>
+                </td>
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  <select
+                    value={u.plan}
+                    disabled={busy === u.id}
+                    onChange={(e) => void changePlan(u, e.target.value)}
+                    className="h-7 rounded-md border border-stroke bg-surface px-1.5 text-xs text-ink"
+                    aria-label={`Plan for ${u.name}`}
+                  >
+                    {PLAN_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <div className="text-[10px] text-ink-3 mt-0.5">
+                    {u.aiActionsUsed}/{u.aiActionsIncluded >= 1_000_000_000 ? '\u221e' : u.aiActionsIncluded} actions
+                    {u.planSource === 'complimentary' && u.planRenewsAt ? ` \u00b7 free until ${shortDate(u.planRenewsAt)}` : u.planSource ? ` \u00b7 ${u.planSource}` : ''}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap" title={u.joinedAt}>{shortDate(u.joinedAt)}</td>
                 <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap" title={u.lastActiveAt ?? undefined}>{u.lastActiveAt ? timeAgo(u.lastActiveAt) : <span className="text-ink-3">never</span>}</td>
@@ -391,8 +430,8 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
 
 function PlanBadge({ plan }: { plan: string }) {
   const tone =
-    plan === 'ENTERPRISE' ? 'border-teal-600/40 text-teal-700 dark:text-teal-300'
-    : plan === 'PRO' ? 'border-blue-600/40 text-blue-700 dark:text-blue-300'
+    plan === 'ENTERPRISE' || plan === 'TEAM' ? 'border-teal-600/40 text-teal-700 dark:text-teal-300'
+    : plan === 'BUSINESS' || plan === 'PERSONAL' ? 'border-blue-600/40 text-blue-700 dark:text-blue-300'
     : 'border-stroke text-ink-2';
   return <span className={cn('inline-block rounded-md border px-1.5 py-0.5 text-[11px] font-semibold', tone)}>{plan}</span>;
 }

@@ -76,6 +76,7 @@ export class ClerkAuthGuard implements CanActivate {
       }
     }
 
+    this.apiKeys.assertPlanAllowsApi(result.user);
     (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).devUser = result.user;
     (request as Request & { devUser: DevUserPayload; apiKey: ApiKeyContext }).apiKey = result.key;
     return true;

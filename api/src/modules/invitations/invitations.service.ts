@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import { BillingService } from '../billing/billing.service';
 import {
   BadRequestException,
   ConflictException,
@@ -31,6 +32,7 @@ export class InvitationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly billing: BillingService,
   ) {}
 
   // ------------------------------------------------------------------ //
@@ -47,6 +49,7 @@ export class InvitationsService {
     actor: DevUserPayload,
   ): Promise<InvitationResponseDto> {
     assertAdminOrAbove(actor, workspaceId);
+    await this.billing.assertMemberQuota(workspaceId);
 
     const ws = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!ws) throw new NotFoundException('Workspace not found');

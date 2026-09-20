@@ -21,6 +21,11 @@ export interface AdminUserRow {
   name: string;
   email: string;
   isActive: boolean;
+  plan: string;
+  planSource: string | null;
+  planRenewsAt: string | null;
+  aiActionsUsed: number;
+  aiActionsIncluded: number;
   joinedAt: string;
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
@@ -64,4 +69,12 @@ export interface AdminOverview {
 
 export function fetchAdminOverview(): Promise<AdminOverview> {
   return apiFetch<AdminOverview>('/api/v1/admin/overview');
+}
+
+/** Give a person a plan without payment, optionally for a number of months. */
+export function setUserPlan(userId: string, plan: string, months?: number): Promise<{ plan: string; renewsAt: string | null }> {
+  return apiFetch(`/api/v1/admin/users/${encodeURIComponent(userId)}/plan`, {
+    method: 'PATCH',
+    body: JSON.stringify(months ? { plan, months } : { plan }),
+  });
 }
