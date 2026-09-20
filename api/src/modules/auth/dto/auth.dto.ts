@@ -47,6 +47,9 @@ export class MeResponseDto {
   @ApiProperty()
   id!: string;
 
+  @ApiProperty({ description: 'True for the people named in PLATFORM_ADMIN_EMAILS, who can open the platform admin page' })
+  isPlatformAdmin!: boolean;
+
   @ApiProperty()
   email!: string;
 

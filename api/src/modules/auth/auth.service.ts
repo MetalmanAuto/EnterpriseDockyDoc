@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { isPlatformAdmin } from '../../common/helpers/platform-admin';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -64,6 +65,7 @@ export class AuthService {
       firstName: devUser.firstName,
       lastName: devUser.lastName,
       isActive: devUser.isActive,
+      isPlatformAdmin: isPlatformAdmin(devUser.email),
       workspaces,
       defaultWorkspace,
     };
