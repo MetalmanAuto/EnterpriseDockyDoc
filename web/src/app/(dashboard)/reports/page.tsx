@@ -409,6 +409,8 @@ function ActivityView({ data }: { data: ActivityReport }) {
     SHARE_REVOKED: 'Share revoked',
     REMINDER_CREATED: 'Reminder created',
     REMINDER_UPDATED: 'Reminder updated',
+    FOLDER_DELETED: 'Folder binned',
+    FOLDER_RESTORED: 'Folder restored',
     MEMBER_ADDED: 'Member added',
     MEMBER_ROLE_UPDATED: 'Role updated',
   };

@@ -91,6 +91,8 @@ enum AuditAction {
   REMINDER_SENT
   MEMBER_ADDED
   MEMBER_ROLE_UPDATED
+  FOLDER_DELETED
+  FOLDER_RESTORED
 }
 
 enum AuditEntityType {
@@ -100,6 +102,7 @@ enum AuditEntityType {
   REMINDER
   USER
   WORKSPACE
+  FOLDER
 }
 
 enum WorkspacePlan {

@@ -115,7 +115,7 @@ function KpiRow({ data }: { data: AdminOverview }) {
   const tiles: { label: string; value: string; note?: string }[] = [
     { label: 'People signed up', value: String(t.users), note: t.usersLast7Days ? `+${t.usersLast7Days} in the last 7 days` : 'none in the last 7 days' },
     { label: 'Workspaces', value: String(t.workspaces) },
-    { label: 'Documents stored', value: String(t.documents), note: t.documentsLast7Days ? `+${t.documentsLast7Days} in the last 7 days` : 'none in the last 7 days' },
+    { label: 'Documents stored', value: String(t.documents), note: [t.documentsLast7Days ? `+${t.documentsLast7Days} in the last 7 days` : 'none in the last 7 days', t.documentsInBin ? `${t.documentsInBin} in the bin` : null].filter(Boolean).join(' · ') },
     { label: 'Storage used', value: formatBytes(t.storageBytes) },
     { label: 'AI tokens used', value: formatNumber(t.aiTokens), note: 'across all workspaces' },
     { label: 'Share links', value: String(t.externalShares) },
@@ -333,7 +333,7 @@ function PeopleTable({ users: initialUsers }: { users: AdminUserRow[] }) {
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-ink">{u.documents}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-ink">{u.documents}<BinNote count={u.documentsInBin} /></td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink">{formatBytes(u.storageBytes)}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink">{formatNumber(u.aiTokens)}</td>
               </tr>
@@ -383,7 +383,7 @@ function WorkspacesTable({ workspaces }: { workspaces: AdminWorkspaceRow[] }) {
                 <td className="px-4 py-2.5 text-ink-2">{w.ownerEmail ?? <span className="text-ink-3">no owner</span>}</td>
                 <td className="px-4 py-2.5"><PlanBadge plan={w.plan} /></td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink">{w.members}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-ink">{w.documents}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-ink">{w.documents}<BinNote count={w.documentsInBin} /></td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink">{formatBytes(w.storageBytes)}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink">{formatNumber(w.aiTokens)}</td>
                 <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap">{w.lastActivityAt ? timeAgo(w.lastActivityAt) : <span className="text-ink-3">none yet</span>}</td>
@@ -453,6 +453,12 @@ function Skeleton() {
   );
 }
 
+/** Small grey "+N in bin" under a document count, so binned uploads are not mistaken for missing ones. */
+function BinNote({ count }: { count: number }) {
+  if (!count) return null;
+  return <div className="text-[11px] font-normal text-ink-3 whitespace-nowrap">{count} in bin</div>;
+}
+
 const ACTION_LABELS: Record<string, string> = {
   DOCUMENT_CREATED: 'uploaded',
   DOCUMENT_UPDATED: 'updated',
@@ -468,6 +474,8 @@ const ACTION_LABELS: Record<string, string> = {
   REMINDER_SENT: 'was sent a reminder for',
   MEMBER_ADDED: 'added a member',
   MEMBER_ROLE_UPDATED: 'changed a member role',
+  FOLDER_DELETED: 'moved a folder to the bin',
+  FOLDER_RESTORED: 'restored a folder',
 };
 
 function actionLabel(action: string): string {
