@@ -14,7 +14,8 @@ const SECTIONS: { id: string; title: string; items: { q: string; a: React.ReactN
       { q: 'What is DockyDoc for?', a: 'Keeping documents that expire or renew in one place, with the dates read out automatically and reminders before they lapse. Passports, visas, insurance, licences, leases, contracts, certificates.' },
       { q: 'What should I do first?', a: <>Upload one real document from the <Link href="/documents" className="underline">Documents</Link> page. DockyDoc reads it, suggests the type, issuer and expiry date, and you confirm. Then ask the assistant something like &ldquo;what expires this quarter&rdquo;.</> },
       { q: 'Which file types work?', a: 'PDF, JPG, PNG, WebP, GIF, Word, Excel and PowerPoint. Scans and phone photos are fine; the text is read by OCR. Programs and web pages dressed up as documents are refused.' },
-      { q: 'Is there a size limit?', a: 'Each file can be up to 25 MB. Very long documents count as more than one AI action to read (two above 20 pages, three above 50).' },
+      { q: 'Is there a size limit?', a: 'Each file can be up to 50 MB. Very long documents count as more than one AI action to read (two above 20 pages, three above 50).' },
+      { q: 'Can I upload many at once?', a: 'Yes. On the Documents page choose Upload many, or drop several files or a whole folder onto the page. Each file becomes one document with the same folder and labels; a dropped folder can keep its sub-folders. Three upload at a time and the AI reads them in turn, so a hundred files take a few minutes. If a file is refused, the line says why and you can retry the failures.' },
     ],
   },
   {

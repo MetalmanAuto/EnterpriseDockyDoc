@@ -7,6 +7,7 @@ import { fullCard, plainAnswer, rank, shortLine, toCard } from './assistant-cont
 import { STORAGE_SERVICE } from '../storage/storage.module';
 import type { IStorageService } from '../storage/storage.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Limiter } from '../../common/helpers/limiter';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { BillingService } from '../billing/billing.service';
 import { actionsForPages } from '../billing/plans';
@@ -336,7 +337,22 @@ export class AiService {
   // ---------------------------------------------------------------- //
   // extractDocument  — main pipeline
   // ---------------------------------------------------------------- //
-  async extractDocument(documentId: string): Promise<AiExtractionResult> {
+
+  /**
+   * At most AI_EXTRACTION_CONCURRENCY (default 3) documents are read at
+   * once; a bulk upload of fifty files queues the rest in upload order
+   * instead of opening fifty model calls together.
+   */
+  private readonly extractionLimiter = new Limiter(Math.max(1, Number(process.env.AI_EXTRACTION_CONCURRENCY ?? 3)));
+
+  extractDocument(documentId: string): Promise<AiExtractionResult> {
+    if (this.extractionLimiter.queued > 0) {
+      this.logger.log(`Extraction for ${documentId} queued behind ${this.extractionLimiter.queued} other document(s)`);
+    }
+    return this.extractionLimiter.run(() => this.runExtraction(documentId));
+  }
+
+  private async runExtraction(documentId: string): Promise<AiExtractionResult> {
     await this.upsertMeta(documentId, AI_KEYS.STATUS, 'running');
     await this.upsertMeta(documentId, AI_KEYS.STARTED_AT, new Date().toISOString());
 

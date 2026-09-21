@@ -8,6 +8,7 @@ import { fetchFolders, fetchDocuments, fetchDeletedFolders, restoreFolder, uploa
 import { cn, initialsOf } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import BulkUploadModal, { collectDroppedFiles } from '@/components/documents/BulkUploadModal';
 import type { AiDocumentStatus, DocumentListItem, DocumentStatus, FolderListItem, SearchResult, Tag } from '@/types';
 
 interface PendingConfirm {
@@ -178,6 +179,7 @@ function DocumentsPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState<{ file: File; relativeDir: string }[] | null>(null);
   const [dropFile, setDropFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -334,10 +336,16 @@ function DocumentsPageInner() {
     e.preventDefault();
     setDragOver(false);
     if (!canEdit) return;
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      setDropFile(file);
-      setShowUpload(true);
+    if (e.dataTransfer.types.includes('Files')) {
+      // One file opens the single upload; more than one, or a folder, opens the bulk upload.
+      void collectDroppedFiles(e.dataTransfer).then((list) => {
+        if (list.length === 1 && !list[0].relativeDir) {
+          setDropFile(list[0].file);
+          setShowUpload(true);
+        } else if (list.length > 0) {
+          setBulkFiles(list);
+        }
+      });
     }
     // Clean up internal doc drag state if dropped on table area (not a folder)
     setDragDocId(null);
@@ -671,6 +679,19 @@ function DocumentsPageInner() {
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
             Upload Document
+          </button>
+        )}
+        {!showTrash && canEdit && (
+          <button
+            type="button"
+            onClick={() => setBulkFiles([])}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-stroke text-sm font-semibold text-ink-2 hover:bg-surface-high active:scale-[0.97] transition-all duration-150"
+            title="Upload many files or a whole folder at once"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1M16 8l-4-4-4 4M12 4v12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Upload many
           </button>
         )}
       </div>
@@ -1060,6 +1081,24 @@ function DocumentsPageInner() {
         />
       )}
 
+      {/* Bulk upload modal */}
+      {bulkFiles !== null && activeWorkspace && (
+        <BulkUploadModal
+          workspaceId={activeWorkspace.workspaceId}
+          folders={folders}
+          tags={tags}
+          defaultFolderId={selectedFolderId ?? undefined}
+          initialFiles={bulkFiles}
+          onClose={() => setBulkFiles(null)}
+          onDone={(n) => {
+            refreshDocuments();
+            refreshFolders();
+            refreshTags();
+            toast.success(`${n} document${n === 1 ? '' : 's'} uploaded. The AI is reading them in turn.`);
+          }}
+        />
+      )}
+
       {/* Upload modal */}
       {showUpload && activeWorkspace && (
         <UploadModal
@@ -1068,6 +1107,7 @@ function DocumentsPageInner() {
           tags={tags}
           defaultFolderId={selectedFolderId ?? undefined}
           initialFile={dropFile ?? undefined}
+          onManyFiles={(files) => { setShowUpload(false); setDropFile(null); setBulkFiles(files.map((file) => ({ file, relativeDir: '' }))); }}
           onClose={() => { setShowUpload(false); setDropFile(null); }}
           onSuccess={() => {
             setShowUpload(false);
@@ -1299,6 +1339,7 @@ function UploadModal({
   tags,
   defaultFolderId,
   initialFile,
+  onManyFiles,
   onClose,
   onSuccess,
 }: {
@@ -1307,6 +1348,8 @@ function UploadModal({
   tags: Tag[];
   defaultFolderId?: string;
   initialFile?: File;
+  /** When more than one file is picked, hand them to the bulk upload instead. */
+  onManyFiles?: (files: File[]) => void;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -1366,7 +1409,12 @@ function UploadModal({
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length > 1 && onManyFiles) {
+      onManyFiles(picked);
+      return;
+    }
+    const f = picked[0] ?? null;
     setFile(f);
     if (f && !name) {
       // Auto-fill name from filename (strip extension)
@@ -1463,13 +1511,14 @@ function UploadModal({
                   <svg className="mx-auto mb-2 text-gray-300" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path d="M4 16.004V17a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1M16 8l-4-4-4 4M12 4v12" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p className="text-sm text-ink-3">Click to choose a file</p>
+                  <p className="text-sm text-ink-3">Click to choose a file{onManyFiles ? ', or several' : ''}</p>
                   <p className="text-xs text-ink-3 mt-1">PDF, Word, Excel, images, text — up to 50 MB</p>
                 </div>
               )}
               <input
                 ref={fileRef}
                 type="file"
+                multiple={!!onManyFiles}
                 className="sr-only"
                 onChange={handleFileChange}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.csv,.zip,.json"
