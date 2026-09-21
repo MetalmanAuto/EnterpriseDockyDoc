@@ -1,4 +1,9 @@
 
+## Bulk upload (added 21 Sept 2026)
+
+- Documents page → Upload many, or drop several files or a folder anywhere on the page (one file still opens the single upload). `web/src/components/documents/BulkUploadModal.tsx`: shared folder and labels, editable name per file, dropped folder structure recreated as sub-folders (tick box), three uploads in flight, per-file result line, retry for failures. A 402 (plan out of room) stops the run and marks the rest skipped.
+- The API is unchanged; each file goes through the normal `POST /documents/upload` with the same checks. `AiService.extractDocument` now runs through a limiter (`AI_EXTRACTION_CONCURRENCY`, default 3) so a bulk upload queues AI reads instead of opening them all at once.
+
 ## Running it alone: onboarding mails, weekly report, sign-up sources, help centre (added 21 Sept 2026)
 
 - **Sign-up source**: the marketing pages store utm tags or the referrer in a `dd_source` cookie. After the first sign-in the web posts it once to `POST /auth/attribution`; the API keeps only the first value in `users.signupSource`. The admin page shows sign-ups by source and the source under each person's join date.
