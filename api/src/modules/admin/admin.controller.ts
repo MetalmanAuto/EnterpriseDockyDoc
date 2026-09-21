@@ -6,6 +6,7 @@ import { AdminService, type AdminOverview } from './admin.service';
 import { SetPlanDto } from './dto/set-plan.dto';
 import { RetentionService } from '../retention/retention.service';
 import { OperationsService } from '../operations/operations.service';
+import { PaymentsService } from '../billing/payments.service';
 
 /**
  * Platform-level view for the people who run DockyDoc: who has signed up,
@@ -16,7 +17,12 @@ import { OperationsService } from '../operations/operations.service';
 @Controller('admin')
 @UseGuards(DevAuthGuard, PlatformAdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService, private readonly retention: RetentionService, private readonly operations: OperationsService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly retention: RetentionService,
+    private readonly operations: OperationsService,
+    private readonly payments: PaymentsService,
+  ) {}
 
   @Get('weekly')
   @ApiOperation({ summary: 'The numbers the Monday report emails, as JSON' })
@@ -34,6 +40,12 @@ export class AdminController {
   @ApiOperation({ summary: 'Run the onboarding mail pass now' })
   runOnboarding() {
     return this.operations.runOnboarding();
+  }
+
+  @Post('billing/prices/sync')
+  @ApiOperation({ summary: 'Create every plan, top-up and storage price at the enabled payment providers (idempotent)' })
+  syncPrices() {
+    return this.payments.syncPrices();
   }
 
   @Post('retention/run')
