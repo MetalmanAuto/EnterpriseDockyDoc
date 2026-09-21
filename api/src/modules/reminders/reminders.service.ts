@@ -81,7 +81,7 @@ export class RemindersService {
     const docs = await this.prisma.document.findMany({
       where: {
         workspaceId,
-        status: { not: 'DELETED' },
+        status: 'ACTIVE', // archived one-time documents no longer count as expiring
         expiryDate: { not: null, lte: window },
       },
       include: {

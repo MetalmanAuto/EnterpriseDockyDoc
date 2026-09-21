@@ -455,9 +455,14 @@ export class DocumentsService {
           renewalDueDate: dto.renewalDueDate ? new Date(dto.renewalDueDate) : null,
         }),
         ...(dto.isReminderEnabled !== undefined && { isReminderEnabled: dto.isReminderEnabled }),
+        ...(dto.status === DocumentStatus.ARCHIVED && { isReminderEnabled: false }),
       },
       include: DOC_LIST_INCLUDE,
     });
+    if (dto.status === DocumentStatus.ARCHIVED && existing.status !== DocumentStatus.ARCHIVED) {
+      // A one-time document that has run its course: no more reminder emails.
+      await this.reminderPlanner.setEnabled(id, false);
+    }
 
     this.audit.log({
       workspaceId: existing.workspaceId,

@@ -136,7 +136,7 @@ export default function MembersPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <div className="mb-8">
         <h1 className="page-title">Members</h1>
         <p className="page-subtitle">
@@ -178,14 +178,14 @@ export default function MembersPage() {
             const isOwner = member.role === 'OWNER';
 
             return (
-              <div key={member.id} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-high transition-all duration-100 group">
+              <div key={member.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-surface-high transition-all duration-100 group">
                 {/* Avatar */}
                 <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-xs font-semibold text-brand-700 flex-shrink-0">
                   {initials(member.firstName, member.lastName)}
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-[10rem]">
                   <p className="text-sm font-medium text-ink">
                     {member.firstName} {member.lastName}
                     {isYou && (
@@ -207,12 +207,12 @@ export default function MembersPage() {
 
                 {/* Actions — fixed width so role badge + joined date stay aligned across all rows */}
                 {canManage && !isYou && (activeWorkspace?.role === 'OWNER' || !isOwner) ? (
-                  <div className="flex items-center justify-end gap-1.5 flex-shrink-0 w-[248px]">
+                  <div className="flex items-center justify-end gap-1.5 flex-shrink-0 w-full sm:w-auto sm:min-w-[248px] whitespace-nowrap">
                     {manageableElsewhere.length > 0 && (
                       <button
                         onClick={() => setGrantingFor(member)}
                         title="Add this person to other workspaces you manage"
-                        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+                        className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium px-2.5 py-1.5 rounded-lg border border-stroke text-ink-2 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition-colors"
                       >
                         + Workspaces
                       </button>
@@ -244,7 +244,7 @@ export default function MembersPage() {
                   </div>
                 ) : (
                   /* No actions — same fixed width keeps preceding columns aligned */
-                  <div className="w-[248px] flex-shrink-0" />
+                  <div className="hidden sm:block min-w-[248px] flex-shrink-0" />
                 )}
               </div>
             );
@@ -302,7 +302,7 @@ export default function MembersPage() {
                   const expiry = expiryBadge(inv.expiresAt);
 
                   return (
-                    <div key={inv.id} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-high transition-colors">
+                    <div key={inv.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-surface-high transition-colors">
                       {/* Avatar */}
                       <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 flex-shrink-0">
                         {inv.email[0]?.toUpperCase() ?? '?'}
@@ -834,7 +834,7 @@ function AddMemberModal({
 
 function PageSkeleton() {
   return (
-    <div className="max-w-3xl animate-pulse">
+    <div className="max-w-5xl animate-pulse">
       <div className="h-7 w-32 bg-stroke rounded mb-2" />
       <div className="h-4 w-48 bg-surface-high rounded mb-6" />
       <div className="bg-surface rounded-xl border border-stroke overflow-hidden divide-y divide-stroke-soft">

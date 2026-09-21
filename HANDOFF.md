@@ -1,4 +1,10 @@
 
+## Archive for one-time documents, UI fixes (added 21 Sept 2026)
+
+- **Archive**: `PATCH /documents/:id {status: "ARCHIVED"}` now also switches reminders off and cancels pending reminder rows; the expiring list and the reminder scheduler only consider ACTIVE documents. The web offers Archive on expired rows (Reminders page, Dashboard radar, via `ExpiryActions`) and an Archive / Unarchive button on the document page once it is past its expiry.
+- **UI fixes**: Members, Workspaces and Activity pages widened to `max-w-5xl`; Members row actions no longer wrap and stack under the name on phones; the upload dialog stays inside the screen (scrolling body) and shows chosen labels plus a search box instead of every label; Documents header buttons grouped, folders stack above the list on phones; report card emoji replaced with line icons; the workspace switcher name wraps to two lines instead of truncating.
+- **Checking the UI**: `scripts/claude-sandbox.sh up` builds the web app, so a code change needs a rebuild before a screenshot shows it. The sweep script pattern used here: Playwright, 1440 and 390 widths, light and dark (`localStorage dd-theme`), wait until no `.animate-pulse` remains.
+
 ## Bulk upload (added 21 Sept 2026)
 
 - Documents page → Upload many, or drop several files or a folder anywhere on the page (one file still opens the single upload). `web/src/components/documents/BulkUploadModal.tsx`: shared folder and labels, editable name per file, dropped folder structure recreated as sub-folders (tick box), three uploads in flight, per-file result line, retry for failures. A 402 (plan out of room) stops the run and marks the rest skipped.

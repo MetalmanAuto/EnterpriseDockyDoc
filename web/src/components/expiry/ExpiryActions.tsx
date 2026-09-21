@@ -17,6 +17,8 @@ interface Props {
   doc: Target;
   /** Called with the new expiry / snooze values after a successful action. */
   onChanged: (patch: Partial<Target>) => void;
+  /** Called after the document is archived; the caller removes it from its list. */
+  onArchived?: () => void;
   size?: 'sm' | 'md';
 }
 
@@ -24,9 +26,10 @@ interface Props {
  * Quick actions for an expiring document: mark it renewed (new expiry date),
  * snooze its reminder emails, or resume them.
  */
-export default function ExpiryActions({ doc, onChanged, size = 'sm' }: Props) {
+export default function ExpiryActions({ doc, onChanged, onArchived, size = 'sm' }: Props) {
   const toast = useToast();
-  const [mode, setMode] = useState<'idle' | 'renew' | 'snooze'>('idle');
+  const [mode, setMode] = useState<'idle' | 'renew' | 'snooze' | 'archive'>('idle');
+  const expired = !!doc.expiryDate && new Date(doc.expiryDate).getTime() < Date.now();
   const [newExpiry, setNewExpiry] = useState(dateInputValue(365));
   const [busy, setBusy] = useState(false);
   const snoozed = isSnoozed(doc);
@@ -72,6 +75,14 @@ export default function ExpiryActions({ doc, onChanged, size = 'sm' }: Props) {
     );
   }
 
+  function archive() {
+    void run(
+      `"${doc.name}" archived. It stays in Documents under Archived.`,
+      () => updateDocument(doc.id, { status: 'ARCHIVED' }),
+      () => ({ remindersSnoozedUntil: null }),
+    ).then(() => onArchived?.());
+  }
+
   function resume() {
     void run(
       `Reminders for "${doc.name}" resumed`,
@@ -99,6 +110,16 @@ export default function ExpiryActions({ doc, onChanged, size = 'sm' }: Props) {
     );
   }
 
+  if (mode === 'archive') {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+        <span className="text-[11px] text-gray-500">One-time document, no renewal? Archiving stops reminders and takes it off this list.</span>
+        <button type="button" disabled={busy} onClick={archive} className={cn(btn, primary)}>{busy ? '…' : 'Archive'}</button>
+        <button type="button" disabled={busy} onClick={() => setMode('idle')} className={cn(btn, neutral)}>Cancel</button>
+      </div>
+    );
+  }
+
   if (mode === 'snooze') {
     return (
       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -116,6 +137,11 @@ export default function ExpiryActions({ doc, onChanged, size = 'sm' }: Props) {
       <button type="button" disabled={busy} onClick={() => setMode('renew')} className={cn(btn, neutral)} title="Set the new expiry date after renewal">
         Renewed
       </button>
+      {expired && onArchived && (
+        <button type="button" disabled={busy} onClick={() => setMode('archive')} className={cn(btn, neutral)} title="For a one-time document that will not be renewed: stop reminders and file it away">
+          Archive
+        </button>
+      )}
       {snoozed ? (
         <button type="button" disabled={busy} onClick={resume} className={cn(btn, 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100')} title={`Paused until ${formatDate(doc.remindersSnoozedUntil)}`}>
           Paused · resume

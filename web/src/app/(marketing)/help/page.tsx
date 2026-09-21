@@ -36,6 +36,7 @@ const SECTIONS: { id: string; title: string; items: { q: string; a: React.ReactN
       { q: 'When do reminders go out?', a: '90, 30, 7 and 1 day before the expiry or renewal date, by email, to the people you choose on the document. You can snooze a document or turn its reminders off.' },
       { q: 'Can I set my own dates?', a: 'Yes. Edit the document and set the expiry and renewal due dates by hand. Reminders follow whatever dates are saved.' },
       { q: 'Where do I see everything expiring?', a: 'The Reminders page lists upcoming and overdue items; the Dashboard shows the next 30 days; Reports gives the per-month picture.' },
+      { q: 'An expired document will never be renewed. What do I do with it?', a: 'Archive it. On the Reminders page under Expired, or on the document itself, choose Archive. Reminders stop, it leaves the expiring lists, and it stays in Documents under the Archived filter. Unarchive from the document page if you change your mind.' },
     ],
   },
   {

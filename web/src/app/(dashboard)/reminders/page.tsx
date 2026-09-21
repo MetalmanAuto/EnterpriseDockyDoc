@@ -267,7 +267,7 @@ function RemindersPageInner() {
               </div>
             ) : (
               <div className="divide-y divide-stroke-soft">
-                {expired.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} />)}
+                {expired.map((doc) => <ExpiringDocRow key={doc.id} doc={doc} onChanged={(patch) => patchExpiring(doc.id, patch)} onArchived={() => setExpiring((prev) => prev.filter((d) => d.id !== doc.id))} />)}
               </div>
             )}
           </>
@@ -290,11 +290,13 @@ export default function RemindersPage() {
 // ------------------------------------------------------------------ //
 
 function ExpiringDocRow({
+  onArchived,
   doc,
   onChanged,
 }: {
   doc: ExpiringDocument;
   onChanged: (patch: Partial<ExpiringDocument>) => void;
+  onArchived?: () => void;
 }) {
   const days = daysLabel(doc.daysUntilExpiry);
   const snoozed = isSnoozed(doc);
@@ -340,7 +342,7 @@ function ExpiringDocRow({
         </div>
       )}
 
-      <ExpiryActions doc={doc} onChanged={onChanged} />
+      <ExpiryActions doc={doc} onChanged={onChanged} onArchived={onArchived} />
     </div>
   );
 }

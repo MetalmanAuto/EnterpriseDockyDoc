@@ -82,7 +82,7 @@ export class ReminderSchedulerService {
     for (const reminder of due) {
       const doc = reminder.document;
 
-      if (doc.status === 'DELETED' || !doc.isReminderEnabled || !doc.expiryDate) {
+      if (doc.status !== 'ACTIVE' || !doc.isReminderEnabled || !doc.expiryDate) {
         await this.prisma.documentReminder.updateMany({
           where: { id: reminder.id, status: 'PENDING' },
           data: { status: 'CANCELLED' },

@@ -82,7 +82,7 @@ export default function WorkspacesPage() {
   });
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
@@ -302,7 +302,7 @@ function Spinner() {
 
 function PageSkeleton() {
   return (
-    <div className="max-w-3xl animate-pulse">
+    <div className="max-w-5xl animate-pulse">
       <div className="h-7 w-40 bg-stroke rounded mb-2" />
       <div className="h-4 w-56 bg-surface-high rounded mb-3" />
       <div className="h-7 w-44 bg-brand-100 rounded mb-6" />

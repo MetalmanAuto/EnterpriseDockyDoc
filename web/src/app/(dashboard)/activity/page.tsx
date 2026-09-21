@@ -216,7 +216,7 @@ export default function ActivityPage() {
   const [olderExpanded, setOlderExpanded] = useState(false);
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
         <div>
