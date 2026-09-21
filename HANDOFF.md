@@ -1,4 +1,10 @@
 
+## API documentation for developers (added 21 Sept 2026)
+
+- **Guide** at https://dockydoc.app/developers (`web/src/app/(marketing)/developers/page.tsx`): keys, base URL, the fetch call and how to read its answer, all calls, curl/Python/JavaScript examples, MCP, the WhatsApp bot recipe, errors and limits. Keep it in step with `docs/integrations.md`.
+- **Interactive reference** at https://dockydoc.app/api/docs (Swagger UI) and the OpenAPI 3 document at /api/docs-json. The API publishes only the `Integrations` module in production (`main.ts`, `include: [IntegrationsModule, McpModule]`); the full internal document is at /api/docs/internal in development only. The web proxies both paths to the API host (`web/src/app/api/docs/[[...path]]/route.ts`, `api/docs-json/route.ts`).
+- Uploads through dockydoc.app go through a Vercel function with a 4.5 MB body limit; the guide tells developers to send bigger files to the API host directly. A cleaner name (api.dockydoc.app) needs a DNS record.
+
 ## Archive for one-time documents, UI fixes (added 21 Sept 2026)
 
 - **Archive**: `PATCH /documents/:id {status: "ARCHIVED"}` now also switches reminders off and cancels pending reminder rows; the expiring list and the reminder scheduler only consider ACTIVE documents. The web offers Archive on expired rows (Reminders page, Dashboard radar, via `ExpiryActions`) and an Archive / Unarchive button on the document page once it is past its expiry.

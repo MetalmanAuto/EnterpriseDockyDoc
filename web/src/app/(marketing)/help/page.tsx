@@ -80,7 +80,7 @@ const SECTIONS: { id: string; title: string; items: { q: string; a: React.ReactN
     title: 'API, MCP and assistants',
     items: [
       { q: 'How do I get an API key?', a: 'Settings → Integrations, on Business and above. Keys start with dd_live_ and can be read-only or read-write. Each request counts against your plan\'s rate limit (120 a minute on Business, 600 on Team).' },
-      { q: 'What can the API do?', a: 'Find documents in plain language, read a document\'s details and files, upload, and list what expires soon. The OpenAPI reference is at /api/docs on the API host.' },
+      { q: 'What can the API do?', a: <>Find documents from a plain sentence, get short-lived download links, and upload files. The <Link href="/developers" className="underline">developer guide</Link> has examples in curl, Python and JavaScript, and the interactive reference is at <Link href="/api/docs" className="underline">dockydoc.app/api/docs</Link>.</> },
       { q: 'MCP and WhatsApp?', a: 'The same key works with the MCP server for Claude and other assistants, and with the WhatsApp assistant on Team. Setup steps are in Settings → Integrations.' },
     ],
   },
