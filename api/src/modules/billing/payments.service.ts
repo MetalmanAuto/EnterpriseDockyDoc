@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException, type OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { BillingProvider, SubscriptionStatus, WorkspacePlan, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -7,7 +7,7 @@ import { BillingService } from './billing.service';
 import { PLANS, PLAN_RANK, STORAGE_PACKS, TOP_UPS } from './plans';
 import { RazorpayService, type RazorpayPayment, type RazorpaySubscription } from './razorpay.service';
 import { PaddleService, type PaddleSubscription, type PaddleTransaction } from './paddle.service';
-import type { Currency, Interval, PaidPlan, RazorpayConfirmDto } from './dto/payments.dto';
+import { PAID_PLANS, type Currency, type Interval, type PaidPlan, type RazorpayConfirmDto } from './dto/payments.dto';
 
 const DAY = 86_400_000;
 
@@ -30,8 +30,16 @@ interface Buyer {
  * confirmation is a fast path so the person sees their plan flip at once.
  */
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   private readonly logger = new Logger(PaymentsService.name);
+
+  /** Make sure the plans exist at the providers as soon as the keys are in. Never blocks boot. */
+  onModuleInit() {
+    if (!this.razorpay.enabled && !this.paddle.enabled) return;
+    void this.syncPrices()
+      .then((prices) => this.logger.log(`Provider prices ready: ${prices.length} (${prices.filter((p) => p.created).length} created)`))
+      .catch((err: Error) => this.logger.warn(`Provider price sync failed: ${err.message}`));
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -420,6 +428,35 @@ export class PaymentsService {
   }
 
   // ---- prices at the provider --------------------------------------- //
+
+  /**
+   * Create every price the checkout can ask for, at each provider that is
+   * switched on, so the first real customer does not wait on it and the
+   * plans are visible in the provider dashboards up front. Safe to call
+   * again: prices that already exist are reused, never duplicated.
+   */
+  async syncPrices(): Promise<{ provider: BillingProvider; key: string; providerPriceId: string; amount: number; currency: string; created: boolean }[]> {
+    const out: { provider: BillingProvider; key: string; providerPriceId: string; amount: number; currency: string; created: boolean }[] = [];
+    const record = async (provider: BillingProvider, key: string, make: () => Promise<{ providerPriceId: string; amount: number; currency: string }>) => {
+      const before = await this.prisma.providerPrice.findUnique({ where: { provider_key: { provider, key } } });
+      const price = await make();
+      out.push({ provider, key, providerPriceId: price.providerPriceId, amount: price.amount, currency: price.currency, created: !before });
+    };
+    const intervals: Interval[] = ['monthly', 'yearly'];
+    if (this.razorpay.enabled) {
+      for (const plan of PAID_PLANS) for (const interval of intervals) {
+        await record('RAZORPAY', `${plan}:${interval}:INR`, () => this.ensurePlanPrice('RAZORPAY', plan, interval, 'INR'));
+      }
+    }
+    if (this.paddle.enabled) {
+      for (const plan of PAID_PLANS) for (const interval of intervals) {
+        await record('PADDLE', `${plan}:${interval}:USD`, () => this.ensurePlanPrice('PADDLE', plan, interval, 'USD'));
+      }
+      for (const t of TOP_UPS) await record('PADDLE', `topup:${t.actions}:USD`, () => this.ensureTopUpPrice(t.actions, t.priceUsd * 100));
+      for (const p of STORAGE_PACKS) await record('PADDLE', `storage:${p.gb}:USD`, () => this.ensureStoragePrice(p.gb, p.priceUsd * 100));
+    }
+    return out;
+  }
 
   private async ensurePlanPrice(provider: BillingProvider, plan: PaidPlan, interval: Interval, currency: Currency) {
     const key = `${plan}:${interval}:${currency}`;
