@@ -73,6 +73,7 @@ const SECTIONS: { id: string; title: string; items: { q: string; a: React.ReactN
       { q: 'Can I cancel?', a: 'Any time, from the Billing page. Your plan runs until the end of the period you paid for, then moves to Free. Nothing is deleted.' },
       { q: 'Refunds?', a: <>Yearly plans have a 14-day money-back window. Monthly plans and top-ups are not refunded. The <Link href="/refunds" className="underline">refund policy</Link> has the details.</> },
       { q: 'Where is my invoice?', a: 'Razorpay or Paddle emails a tax invoice for every payment. The Billing page lists every payment with its reference.' },
+      { q: 'How much file storage do I get?', a: 'Free 1 GB, Personal 5 GB, Business 25 GB, Team 100 GB, across every workspace you own. Files in the bin count until they are shredded. When you are near the limit, buy 10 GB or 50 GB packs on the Billing page; a pack lasts 12 months and buying again adds the space and restarts the 12 months. The Billing page shows how much you are using.' },
     ],
   },
   {

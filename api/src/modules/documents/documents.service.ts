@@ -205,6 +205,7 @@ export class DocumentsService {
   ): Promise<DocumentDetailDto> {
     assertEditorOrAbove(user, dto.workspaceId);
     await this.billing.assertDocumentQuota(dto.workspaceId);
+    await this.billing.assertStorageQuota(dto.workspaceId, file.size);
     await assertSafeUpload(file.buffer, file.mimetype, file.originalname);
 
     const uploadStart = Date.now();
@@ -318,6 +319,8 @@ export class DocumentsService {
     const existing = await this.prisma.document.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Document "${id}" not found`);
     assertEditorOrAbove(user, existing.workspaceId);
+    await this.billing.assertStorageQuota(existing.workspaceId, file.size);
+    await assertSafeUpload(file.buffer, file.mimetype, file.originalname);
 
     const nextVersion = existing.currentVersionNumber + 1;
 

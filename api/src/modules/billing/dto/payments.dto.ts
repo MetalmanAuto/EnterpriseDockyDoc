@@ -31,6 +31,17 @@ export class TopUpDto {
   currency!: Currency;
 }
 
+export class StoragePackDto {
+  @ApiProperty({ enum: [10, 50], description: 'Gigabytes, valid 12 months' })
+  @IsInt()
+  @IsIn([10, 50])
+  gb!: 10 | 50;
+
+  @ApiProperty({ enum: ['INR', 'USD'] })
+  @IsIn(['INR', 'USD'])
+  currency!: Currency;
+}
+
 export class RazorpayConfirmDto {
   @ApiProperty() @IsString() razorpay_payment_id!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() razorpay_subscription_id?: string;

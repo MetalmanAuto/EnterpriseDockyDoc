@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { fetchPlans, limitLabel, type PlanId, type PlansResponse } from '@/lib/billing';
+import { fetchPlans, limitLabel, storageLabel, type PlanId, type PlansResponse } from '@/lib/billing';
 
 export type BillingCycle = 'monthly' | 'yearly';
 
@@ -85,7 +85,7 @@ export default function PricingTable({ currentPlan, onChoose, signupHref = '/reg
               <p className="text-[11px] text-ink-3 mt-1">{monthlyEquivalent}</p>
 
               <ul className="mt-5 space-y-1.5 text-sm text-ink-2 flex-1">
-                <Li>{limitLabel(p.documents)} documents</Li>
+                <Li>{limitLabel(p.documents)} documents, {storageLabel(p.storageBytes)} of storage</Li>
                 <Li>{p.workspaces === 1 ? '1 workspace' : `${limitLabel(p.workspaces)} workspaces`}</Li>
                 <Li>{p.membersPerWorkspace === 1 ? 'Just you' : `Up to ${limitLabel(p.membersPerWorkspace)} members per workspace`}</Li>
                 <Li>{limitLabel(p.aiActionsPerMonth)} AI actions a month</Li>
@@ -128,7 +128,7 @@ export default function PricingTable({ currentPlan, onChoose, signupHref = '/reg
 
       <p className="text-center text-xs text-ink-3">
         One AI action reads one document of up to 20 pages, answers one assistant question, or serves one API request.
-        Extra actions: {data.topUps.map((t) => `${t.actions} for ${money(t.priceUsd, t.priceInr)}`).join(', or ')}, valid 12 months.
+        Extra actions: {data.topUps.map((t) => `${t.actions} for ${money(t.priceUsd, t.priceInr)}`).join(', or ')}, valid 12 months. Extra storage: {data.storagePacks.map((s) => `${s.gb} GB for ${money(s.priceUsd, s.priceInr)}`).join(', or ')} a year.
         {currency === 'INR' ? ' Prices for companies exclude GST.' : ' Local taxes are added at checkout.'}
       </p>
     </div>

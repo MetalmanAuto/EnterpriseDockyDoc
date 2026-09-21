@@ -1,4 +1,10 @@
 
+## Storage limits and packs (added 21 Sept 2026)
+
+- Each plan carries `storageBytes` in `plans.ts` (Free 1 GB, Personal 5 GB, Business 25 GB, Team 100 GB, Enterprise unlimited), counted across every workspace the account owns; deleted-but-not-shredded files count. `BillingService.assertStorageQuota` runs on document upload and on new versions and throws a 402 `storage_limit`.
+- **Packs**: 10 GB for $10 / ₹799 and 50 GB for $40 / ₹3,199, valid 12 months (`STORAGE_PACKS`). Bought through the same one-off flow as AI top-ups: `POST /billing/storage {gb, currency}` makes a Razorpay order (notes kind=storage) or returns a Paddle price; `payment.captured` / `transaction.completed` with kind=storage call `addStoragePack`, which adds to `users.storagePackBytes` and sets `storagePackExpiresAt` to 12 months from now. An expired pack simply stops counting; no job needed. Payments carry `storageGb`.
+- The Billing page shows a storage meter and the packs; the pricing table shows storage per plan; the admin page already lists storage per person.
+
 ## API documentation for developers (added 21 Sept 2026)
 
 - **Guide** at https://dockydoc.app/developers (`web/src/app/(marketing)/developers/page.tsx`): keys, base URL, the fetch call and how to read its answer, all calls, curl/Python/JavaScript examples, MCP, the WhatsApp bot recipe, errors and limits. Keep it in step with `docs/integrations.md`.

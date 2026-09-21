@@ -151,6 +151,8 @@ model User {
   aiActionsUsed        Int           @default(0)
   aiActionsPeriodStart DateTime      @default(now())
   aiCreditActions      Int           @default(0) // bought top-ups, never reset
+  storagePackBytes     BigInt        @default(0) // bought extra storage, valid until storagePackExpiresAt
+  storagePackExpiresAt DateTime?
   // Where the sign-up came from (utm tags or referrer, from the dd_source cookie) and onboarding mail state.
   signupSource         String?
   welcomeSentAt        DateTime?
@@ -583,6 +585,7 @@ model Payment {
   status            String          // captured | failed | refunded
   plan              WorkspacePlan?
   topUpActions      Int?
+  storageGb         Int?
   receiptUrl        String?
   createdAt         DateTime        @default(now())
 

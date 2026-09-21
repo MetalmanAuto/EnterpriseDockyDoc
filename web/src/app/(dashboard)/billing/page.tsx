@@ -7,7 +7,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api';
 import { runCheckout } from '@/lib/checkout';
-import { cancelSubscription, defaultCurrency, fetchBillingAccount, formatMoney, limitLabel, startTopUp, type AccountSummary, type Currency } from '@/lib/billing';
+import { cancelSubscription, defaultCurrency, fetchBillingAccount, formatMoney, limitLabel, startStoragePack, startTopUp, storageLabel, type AccountSummary, type Currency } from '@/lib/billing';
 import { cn } from '@/lib/utils';
 
 /** Plan, renewal, cancel, top-ups and the payment history. */
@@ -42,6 +42,33 @@ export default function BillingPage() {
         if (a && a.usage.aiCreditActions > before) return;
       }
       toast.error('Payment went through but the actions have not landed yet. They will within a few minutes.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Could not start the purchase.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function buyStorage(gb: 10 | 50) {
+    setBusy(`storage-${gb}`);
+    try {
+      const before = account?.usage.storageAllowedBytes ?? 0;
+      const session = await startStoragePack(gb, currency);
+      const result = await runCheckout(session);
+      if (result === 'closed') return;
+      if (result === 'applied') {
+        toast.success(`${gb} GB added for 12 months.`);
+        await reload();
+        return;
+      }
+      toast.success('Payment received. Adding your storage…');
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const a = await fetchBillingAccount().catch(() => null);
+        if (a) setAccount(a);
+        if (a && a.usage.storageAllowedBytes > before) return;
+      }
+      toast.error('Payment went through but the storage has not landed yet. It will within a few minutes.');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Could not start the purchase.');
     } finally {
@@ -98,6 +125,19 @@ export default function BillingPage() {
               {account.usage.aiActionsUsed} of {limitLabel(account.usage.aiActionsIncluded)} included AI actions used this period
               {account.usage.aiCreditActions > 0 && `, plus ${account.usage.aiCreditActions} bought actions in reserve`}.
             </p>
+            <div className="mt-3 w-full max-w-md">
+              <div className="flex w-full items-center justify-between gap-3 text-xs text-ink-2">
+                <span>Storage: {storageLabel(account.usage.storageBytes)} of {storageLabel(account.usage.storageAllowedBytes)}</span>
+                {account.usage.storagePackBytes > 0 && account.usage.storagePackExpiresAt && (
+                  <span className="text-ink-3">{storageLabel(account.usage.storagePackBytes)} extra until {new Date(account.usage.storagePackExpiresAt).toLocaleDateString()}</span>
+                )}
+              </div>
+              {account.usage.storageAllowedBytes < Number.MAX_SAFE_INTEGER / 2 && (
+                <div className="mt-1 h-1.5 w-full rounded-full bg-surface-high overflow-hidden">
+                  <div className={cn('h-full rounded-full', account.usage.storageBytes / account.usage.storageAllowedBytes > 0.9 ? 'bg-red-500' : 'bg-brand-500')} style={{ width: `${Math.min(100, (100 * account.usage.storageBytes) / account.usage.storageAllowedBytes).toFixed(1)}%` }} />
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-2">
             <Link href="/plans" className="h-9 px-4 inline-flex items-center rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">
@@ -145,6 +185,27 @@ export default function BillingPage() {
       </section>
 
       <section className="rounded-2xl border border-stroke bg-surface p-5">
+        <h2 className="text-base font-semibold text-ink">Extra storage</h2>
+        <p className="text-xs text-ink-3 mt-0.5">Your plan includes {storageLabel(account.limits.storageBytes)}. A pack adds space for 12 months; buying again adds the space and restarts the 12 months.</p>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {account.storagePacks.map((s) => (
+            <button
+              key={s.gb}
+              type="button"
+              disabled={!account.limits.topUps || busy !== null}
+              onClick={() => buyStorage(s.gb as 10 | 50)}
+              className="rounded-xl border border-stroke p-4 text-left hover:border-brand-500 hover:bg-surface-high disabled:opacity-50"
+            >
+              <p className="text-lg font-bold text-ink">{s.gb} GB</p>
+              <p className="text-sm text-ink-2">{currency === 'INR' ? `₹${s.priceInr.toLocaleString('en-IN')}` : `$${s.priceUsd}`} for 12 months</p>
+              {busy === `storage-${s.gb}` && <p className="text-xs text-ink-3 mt-1">Opening checkout…</p>}
+            </button>
+          ))}
+        </div>
+        {!account.limits.topUps && <p className="mt-2 text-xs text-ink-3">Extra storage is for paid plans. <Link href="/plans" className="underline">Choose a plan</Link> first.</p>}
+      </section>
+
+      <section className="rounded-2xl border border-stroke bg-surface p-5">
         <h2 className="text-base font-semibold text-ink">Payments</h2>
         {account.payments.length === 0 ? (
           <p className="text-sm text-ink-3 mt-2">No payments yet.</p>
@@ -162,7 +223,7 @@ export default function BillingPage() {
               {account.payments.map((p) => (
                 <tr key={p.id}>
                   <td className="py-2 text-ink-2">{new Date(p.date).toLocaleDateString()}</td>
-                  <td className="py-2 text-ink">{p.kind === 'topup' ? `${p.topUpActions} AI actions` : `${p.plan ? p.plan.charAt(0) + p.plan.slice(1).toLowerCase() : ''} plan`}</td>
+                  <td className="py-2 text-ink">{p.kind === 'topup' ? `${p.topUpActions} AI actions` : p.kind === 'storage' ? `${p.storageGb ?? ''} GB storage` : `${p.plan ? p.plan.charAt(0) + p.plan.slice(1).toLowerCase() : ''} plan`}</td>
                   <td className="py-2 text-ink tabular-nums">{formatMoney(p.amount, p.currency)}</td>
                   <td className="py-2 text-xs text-ink-3 font-mono">{p.reference}</td>
                 </tr>
