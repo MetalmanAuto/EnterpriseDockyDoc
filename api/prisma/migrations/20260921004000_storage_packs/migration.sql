@@ -1,0 +1,3 @@
+ALTER TABLE "users" ADD COLUMN "storagePackBytes" BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE "users" ADD COLUMN "storagePackExpiresAt" TIMESTAMP(3);
+ALTER TABLE "payments" ADD COLUMN "storageGb" INTEGER;

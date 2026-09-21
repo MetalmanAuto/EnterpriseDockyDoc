@@ -3,7 +3,7 @@ import { WorkspacePlan, DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanLimitException } from '../../common/exceptions/plan-limit.exception';
 import { AlertsService } from '../alerts/alerts.service';
-import { FREE_SHARE_LINK_DAYS, PLAN_RANK, PLANS, TOP_UPS, PUBLIC_PLANS, isUnlimited, nextPlanWith, type PlanLimits } from './plans';
+import { FREE_SHARE_LINK_DAYS, GB, PLAN_RANK, PLANS, STORAGE_PACKS, STORAGE_PACK_MONTHS, TOP_UPS, PUBLIC_PLANS, isUnlimited, nextPlanWith, type PlanLimits } from './plans';
 
 const DAY = 86_400_000;
 
@@ -22,8 +22,13 @@ export interface AccountSummary {
     periodEnd: string;
     documents: number;
     workspaces: number;
+    storageBytes: number;
+    storageAllowedBytes: number;
+    storagePackBytes: number;
+    storagePackExpiresAt: string | null;
   };
   topUps: typeof TOP_UPS;
+  storagePacks: typeof STORAGE_PACKS;
   subscription: {
     provider: 'RAZORPAY' | 'PADDLE';
     status: string;
@@ -34,7 +39,7 @@ export interface AccountSummary {
     currentPeriodEnd: string | null;
     cancelAtPeriodEnd: boolean;
   } | null;
-  payments: { id: string; date: string; provider: string; kind: string; amount: number; currency: string; plan: WorkspacePlan | null; topUpActions: number | null; reference: string }[];
+  payments: { id: string; date: string; provider: string; kind: string; amount: number; currency: string; plan: WorkspacePlan | null; topUpActions: number | null; storageGb: number | null; reference: string }[];
 }
 
 type PlanUser = {
@@ -45,11 +50,13 @@ type PlanUser = {
   aiActionsUsed: number;
   aiActionsPeriodStart: Date;
   aiCreditActions: number;
+  storagePackBytes: bigint;
+  storagePackExpiresAt: Date | null;
 };
 
 const PLAN_USER_SELECT = {
   id: true, plan: true, planSource: true, planRenewsAt: true,
-  aiActionsUsed: true, aiActionsPeriodStart: true, aiCreditActions: true,
+  aiActionsUsed: true, aiActionsPeriodStart: true, aiCreditActions: true, storagePackBytes: true, storagePackExpiresAt: true,
 } as const;
 
 /**
@@ -82,6 +89,7 @@ export class BillingService {
     return {
       plans: PUBLIC_PLANS.map((plan) => ({ plan, ...PLANS[plan] })),
       topUps: TOP_UPS,
+      storagePacks: STORAGE_PACKS,
       freeShareLinkDays: FREE_SHARE_LINK_DAYS,
     };
   }
@@ -89,9 +97,10 @@ export class BillingService {
   async getAccount(userId: string): Promise<AccountSummary> {
     const user = await this.loadUser(userId);
     const limits = PLANS[user.plan];
-    const [workspaces, documents, subscription, payments] = await Promise.all([
+    const [workspaces, documents, storageBytes, subscription, payments] = await Promise.all([
       this.ownedWorkspaceIds(userId),
       this.ownedDocumentCount(userId),
+      this.ownedStorageBytes(userId),
       this.prisma.subscription.findFirst({ where: { userId, status: { in: ['ACTIVE', 'PAST_DUE', 'CANCELLED'] } }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 24 }),
     ]);
@@ -112,8 +121,13 @@ export class BillingService {
         periodEnd: addMonths(user.aiActionsPeriodStart, 1).toISOString(),
         documents,
         workspaces: workspaces.length,
+        storageBytes,
+        storageAllowedBytes: this.storageAllowance(user),
+        storagePackBytes: this.livePackBytes(user),
+        storagePackExpiresAt: this.livePackBytes(user) > 0 ? user.storagePackExpiresAt!.toISOString() : null,
       },
       topUps: TOP_UPS,
+      storagePacks: STORAGE_PACKS,
       subscription: subscription && (subscription.status !== 'CANCELLED' || (subscription.currentPeriodEnd && subscription.currentPeriodEnd.getTime() > Date.now()))
         ? {
             provider: subscription.provider, status: subscription.status, plan: subscription.plan, interval: subscription.interval,
@@ -123,7 +137,7 @@ export class BillingService {
         : null,
       payments: payments.map((p) => ({
         id: p.id, date: p.createdAt.toISOString(), provider: p.provider, kind: p.kind, amount: p.amount, currency: p.currency,
-        plan: p.plan, topUpActions: p.topUpActions, reference: p.providerPaymentId,
+        plan: p.plan, topUpActions: p.topUpActions, storageGb: p.storageGb, reference: p.providerPaymentId,
       })),
     };
   }
@@ -154,6 +168,52 @@ export class BillingService {
         nextPlanWith((p) => p.documents > limit, owner.plan),
       );
     }
+  }
+
+  /** Refuses an upload that would take the owner's files past the plan's storage plus any bought pack. */
+  async assertStorageQuota(workspaceId: string, incomingBytes: number): Promise<void> {
+    const owner = await this.ownerOfWorkspace(workspaceId);
+    const allowed = this.storageAllowance(owner);
+    if (isUnlimited(allowed)) return;
+    const used = await this.ownedStorageBytes(owner.id);
+    if (used + incomingBytes > allowed) {
+      const fmt = (b: number) => (b >= GB ? `${(b / GB).toFixed(b >= 10 * GB ? 0 : 1)} GB` : `${Math.max(1, Math.round(b / (1024 * 1024)))} MB`);
+      throw new PlanLimitException(
+        'storage_limit',
+        `This upload needs ${fmt(incomingBytes)} and the account has ${fmt(used)} of its ${fmt(allowed)} storage in use. Buy extra storage on the Billing page, upgrade, or shred files from the bin.`,
+        owner.plan,
+        PLANS[owner.plan].topUps ? null : nextPlanWith((p) => p.storageBytes > allowed, owner.plan),
+      );
+    }
+  }
+
+  /** Plan storage plus a bought pack that has not expired. */
+  storageAllowance(user: { plan: WorkspacePlan; storagePackBytes: bigint; storagePackExpiresAt: Date | null }): number {
+    const base = PLANS[user.plan].storageBytes;
+    return isUnlimited(base) ? base : base + this.livePackBytes(user);
+  }
+
+  private livePackBytes(user: { storagePackBytes: bigint; storagePackExpiresAt: Date | null }): number {
+    if (!user.storagePackExpiresAt || user.storagePackExpiresAt.getTime() < Date.now()) return 0;
+    return Number(user.storagePackBytes);
+  }
+
+  /** Bytes of every version in every workspace the account owns; the bin counts until shredded. */
+  async ownedStorageBytes(userId: string): Promise<number> {
+    const ids = await this.ownedWorkspaceIds(userId);
+    if (ids.length === 0) return 0;
+    const agg = await this.prisma.documentVersion.aggregate({ _sum: { fileSizeBytes: true }, where: { document: { workspaceId: { in: ids } } } });
+    return Number(agg._sum.fileSizeBytes ?? 0);
+  }
+
+  /** A bought storage pack: adds to the pack and sets it to run 12 months from today. */
+  async addStoragePack(userId: string, gb: number): Promise<void> {
+    const user = await this.loadUser(userId);
+    const keep = this.livePackBytes(user);
+    const expires = new Date();
+    expires.setMonth(expires.getMonth() + STORAGE_PACK_MONTHS);
+    await this.prisma.user.update({ where: { id: userId }, data: { storagePackBytes: BigInt(keep + gb * GB), storagePackExpiresAt: expires } });
+    this.logger.log(`Storage pack: +${gb} GB for ${userId}, now ${((keep + gb * GB) / GB).toFixed(0)} GB until ${expires.toISOString().slice(0, 10)}`);
   }
 
   async assertWorkspaceQuota(userId: string): Promise<void> {

@@ -5,7 +5,7 @@ import { DevAuthGuard, type DevUserPayload } from '../../common/guards/dev-auth.
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BillingService, type AccountSummary } from './billing.service';
 import { PaymentsService } from './payments.service';
-import { CheckoutDto, RazorpayConfirmDto, TopUpDto } from './dto/payments.dto';
+import { CheckoutDto, RazorpayConfirmDto, StoragePackDto, TopUpDto } from './dto/payments.dto';
 
 @ApiTags('Billing')
 @Controller('billing')
@@ -45,6 +45,13 @@ export class BillingController {
   @ApiOperation({ summary: 'Buy extra AI actions' })
   topUp(@CurrentUser() user: DevUserPayload, @Body() dto: TopUpDto) {
     return this.payments.startTopUp(user, dto.actions, dto.currency);
+  }
+
+  @Post('storage')
+  @UseGuards(DevAuthGuard)
+  @ApiOperation({ summary: 'Buy extra file storage for 12 months' })
+  storagePack(@CurrentUser() user: DevUserPayload, @Body() dto: StoragePackDto) {
+    return this.payments.startStoragePack(user, dto.gb, dto.currency);
   }
 
   @Post('razorpay/confirm')

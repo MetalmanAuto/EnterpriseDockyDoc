@@ -10,7 +10,8 @@ export type PlanLimitCode =
   | 'share_controls_require_paid'
   | 'cross_workspace_requires_business'
   | 'activity_export_requires_business'
-  | 'top_ups_require_paid';
+  | 'top_ups_require_paid'
+  | 'storage_limit';
 
 /**
  * 402 Payment Required: the account's plan does not allow this. The body

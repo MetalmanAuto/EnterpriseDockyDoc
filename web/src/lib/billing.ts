@@ -22,6 +22,7 @@ export interface PlanLimits {
   topUps: boolean;
   activityExport: boolean;
   binRetentionDays: number;
+  storageBytes: number;
   assistantModel: string;
   support: string;
 }
@@ -35,6 +36,7 @@ export interface TopUp {
 export interface PlansResponse {
   plans: (PlanLimits & { plan: PlanId })[];
   topUps: TopUp[];
+  storagePacks: { gb: number; priceUsd: number; priceInr: number }[];
   freeShareLinkDays: number;
 }
 
@@ -53,8 +55,13 @@ export interface AccountSummary {
     periodEnd: string;
     documents: number;
     workspaces: number;
+    storageBytes: number;
+    storageAllowedBytes: number;
+    storagePackBytes: number;
+    storagePackExpiresAt: string | null;
   };
   topUps: TopUp[];
+  storagePacks: { gb: number; priceUsd: number; priceInr: number }[];
   subscription: {
     provider: 'RAZORPAY' | 'PADDLE';
     status: string;
@@ -65,7 +72,7 @@ export interface AccountSummary {
     currentPeriodEnd: string | null;
     cancelAtPeriodEnd: boolean;
   } | null;
-  payments: { id: string; date: string; provider: string; kind: string; amount: number; currency: string; plan: PlanId | null; topUpActions: number | null; reference: string }[];
+  payments: { id: string; date: string; provider: string; kind: string; amount: number; currency: string; plan: PlanId | null; topUpActions: number | null; storageGb: number | null; reference: string }[];
 }
 
 export type Currency = 'INR' | 'USD';
@@ -86,6 +93,18 @@ export function fetchBillingConfig(): Promise<BillingConfig> {
 
 export function startCheckout(plan: PlanId, interval: 'monthly' | 'yearly', currency: Currency): Promise<CheckoutSession> {
   return apiFetch<CheckoutSession>('/api/v1/billing/checkout', { method: 'POST', body: JSON.stringify({ plan, interval, currency }) });
+}
+
+export function startStoragePack(gb: 10 | 50, currency: Currency): Promise<CheckoutSession> {
+  return apiFetch<CheckoutSession>('/api/v1/billing/storage', { method: 'POST', body: JSON.stringify({ gb, currency }) });
+}
+
+const GB = 1024 * 1024 * 1024;
+/** "1.2 GB", "250 MB", or "Unlimited". */
+export function storageLabel(bytes: number): string {
+  if (bytes >= Number.MAX_SAFE_INTEGER / 2) return 'Unlimited';
+  if (bytes >= GB) return `${bytes % GB === 0 || bytes >= 10 * GB ? Math.round(bytes / GB) : (bytes / GB).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`;
 }
 
 export function startTopUp(actions: 100 | 500, currency: Currency): Promise<CheckoutSession> {

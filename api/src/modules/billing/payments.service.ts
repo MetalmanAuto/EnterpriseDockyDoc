@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { BillingService } from './billing.service';
-import { PLANS, PLAN_RANK, TOP_UPS } from './plans';
+import { PLANS, PLAN_RANK, STORAGE_PACKS, TOP_UPS } from './plans';
 import { RazorpayService, type RazorpayPayment, type RazorpaySubscription } from './razorpay.service';
 import { PaddleService, type PaddleSubscription, type PaddleTransaction } from './paddle.service';
 import type { Currency, Interval, PaidPlan, RazorpayConfirmDto } from './dto/payments.dto';
@@ -105,11 +105,11 @@ export class PaymentsService {
 
   async startTopUp(buyer: Buyer, actions: 100 | 500, currency: Currency): Promise<CheckoutSession> {
     const provider = providerFor(currency);
-    this.assertProvider(provider);
     const user = await this.billing.getAccount(buyer.id);
     if (!user.limits.topUps) {
       throw new HttpException({ statusCode: 402, message: 'Top-ups are available on paid plans. Choose a plan first.', code: 'topups_require_paid', plan: user.plan, upgradeTo: 'PERSONAL' }, HttpStatus.PAYMENT_REQUIRED);
     }
+    this.assertProvider(provider);
     const pack = TOP_UPS.find((t) => t.actions === actions)!;
     const amount = currency === 'INR' ? pack.priceInr * 100 : pack.priceUsd * 100;
 
@@ -127,6 +127,33 @@ export class PaymentsService {
     return {
       mode: 'paddle', clientToken: this.paddle.clientToken, env: this.paddle.env, priceId: price.providerPriceId,
       email: buyer.email, customData: { userId: buyer.id, kind: 'topup', actions: String(actions) },
+    };
+  }
+
+  async startStoragePack(buyer: Buyer, gb: number, currency: Currency): Promise<CheckoutSession> {
+    const provider = providerFor(currency);
+    const account = await this.billing.getAccount(buyer.id);
+    if (!account.limits.topUps) {
+      throw new HttpException({ statusCode: 402, message: 'Extra storage is available on paid plans. Choose a plan first.', code: 'topups_require_paid', plan: account.plan, upgradeTo: 'PERSONAL' }, HttpStatus.PAYMENT_REQUIRED);
+    }
+    this.assertProvider(provider);
+    const pack = STORAGE_PACKS.find((p) => p.gb === gb);
+    if (!pack) throw new BadRequestException('Unknown storage pack.');
+    const amount = currency === 'INR' ? pack.priceInr * 100 : pack.priceUsd * 100;
+    if (provider === 'RAZORPAY') {
+      const order = await this.provider(() => this.razorpay.createOrder({
+        amount, currency, receipt: `storage-${buyer.id.slice(-8)}-${Date.now()}`,
+        notes: { userId: buyer.id, kind: 'storage', gb: String(gb) },
+      }));
+      return {
+        mode: 'razorpay', keyId: this.razorpay.keyId, orderId: order.id, amount, currency,
+        email: buyer.email, name: `${buyer.firstName} ${buyer.lastName}`.trim(), description: `${gb} GB extra storage for 12 months`,
+      };
+    }
+    const price = await this.ensureStoragePrice(gb, amount);
+    return {
+      mode: 'paddle', clientToken: this.paddle.clientToken, env: this.paddle.env, priceId: price.providerPriceId,
+      email: buyer.email, customData: { userId: buyer.id, kind: 'storage', gb: String(gb) },
     };
   }
 
@@ -151,7 +178,7 @@ export class PaymentsService {
       const payment = await this.razorpay.getPayment(dto.razorpay_payment_id);
       if (payment.status !== 'captured' && payment.status !== 'authorized') return { applied: 'pending' };
       if (payment.notes?.userId !== buyer.id) throw new NotFoundException('Payment not found for this account.');
-      await this.applyRazorpayTopUp(payment);
+      await this.applyRazorpayOneOff(payment);
       return { applied: 'topup' };
     }
     throw new BadRequestException('Send either a subscription id or an order id.');
@@ -199,7 +226,7 @@ export class PaymentsService {
           if (sub) await this.endSubscription(sub.id, body.event === 'subscription.cancelled' ? 'CANCELLED' : 'EXPIRED', sub.current_end ? new Date(sub.current_end * 1000) : null);
           break;
         case 'payment.captured':
-          if (payment && payment.notes?.kind === 'topup') await this.applyRazorpayTopUp(payment);
+          if (payment && (payment.notes?.kind === 'topup' || payment.notes?.kind === 'storage')) await this.applyRazorpayOneOff(payment);
           break;
         case 'payment.failed':
           this.logger.warn(`Razorpay payment failed: ${payment?.id} for ${payment?.notes?.userId ?? 'unknown'}`);
@@ -298,11 +325,25 @@ export class PaymentsService {
     }
   }
 
-  private async applyRazorpayTopUp(payment: RazorpayPayment): Promise<void> {
+  private async applyRazorpayOneOff(payment: RazorpayPayment): Promise<void> {
     const userId = payment.notes?.userId;
+    if (!userId) throw new Error(`Payment ${payment.id} is missing the userId note`);
+    if (payment.notes?.kind === 'storage') {
+      const gb = Number(payment.notes?.gb ?? 0);
+      if (!gb) throw new Error(`Storage payment ${payment.id} is missing gb`);
+      await this.applyStoragePack({ userId, provider: 'RAZORPAY', providerPaymentId: payment.id, gb, amount: payment.amount, currency: payment.currency });
+      return;
+    }
     const actions = Number(payment.notes?.actions ?? 0);
-    if (!userId || !actions) throw new Error(`Top-up payment ${payment.id} is missing userId or actions notes`);
+    if (!actions) throw new Error(`Top-up payment ${payment.id} is missing actions`);
     await this.applyTopUp({ userId, provider: 'RAZORPAY', providerPaymentId: payment.id, actions, amount: payment.amount, currency: payment.currency });
+  }
+
+  private async applyStoragePack(p: { userId: string; provider: BillingProvider; providerPaymentId: string; gb: number; amount: number; currency: string }): Promise<void> {
+    const { gb, ...rest } = p;
+    const recorded = await this.recordPayment({ ...rest, kind: 'storage', storageGb: gb });
+    if (!recorded) return;
+    await this.billing.addStoragePack(p.userId, gb);
   }
 
   private async applyPaddleSubscription(sub: PaddleSubscription): Promise<void> {
@@ -338,6 +379,12 @@ export class PaymentsService {
     if (!userId) return;
     const total = Number(tx.details?.totals?.grand_total ?? tx.details?.totals?.total ?? 0);
     const kind = tx.custom_data?.kind ?? tx.items[0]?.price.custom_data?.kind;
+    if (kind === 'storage') {
+      const gb = Number(tx.custom_data?.gb ?? tx.items[0]?.price.custom_data?.gb ?? 0);
+      if (!gb) throw new Error(`Paddle storage purchase ${tx.id} has no gb`);
+      await this.applyStoragePack({ userId, provider: 'PADDLE', providerPaymentId: tx.id, gb, amount: total, currency: tx.currency_code });
+      return;
+    }
     if (kind === 'topup') {
       const actions = Number(tx.custom_data?.actions ?? tx.items[0]?.price.custom_data?.actions ?? 0);
       if (!actions) throw new Error(`Paddle top-up ${tx.id} has no actions`);
@@ -359,7 +406,7 @@ export class PaymentsService {
   }
 
   /** Records a payment once; returns false when this payment was already recorded. */
-  private async recordPayment(p: { userId: string; provider: BillingProvider; providerPaymentId: string; kind: string; amount: number; currency: string; plan?: WorkspacePlan; topUpActions?: number }): Promise<boolean> {
+  private async recordPayment(p: { userId: string; provider: BillingProvider; providerPaymentId: string; kind: string; amount: number; currency: string; plan?: WorkspacePlan; topUpActions?: number; storageGb?: number }): Promise<boolean> {
     try {
       await this.prisma.payment.create({ data: { ...p, status: 'captured' } });
     } catch (err) {
@@ -367,7 +414,7 @@ export class PaymentsService {
       throw err;
     }
     const money = `${p.currency} ${(p.amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-    const what = p.kind === 'topup' ? `${p.topUpActions} extra AI actions` : `the ${p.plan ? PLANS[p.plan].name : ''} plan`;
+    const what = p.kind === 'topup' ? `${p.topUpActions} extra AI actions` : p.kind === 'storage' ? `${p.storageGb} GB extra storage for 12 months` : `the ${p.plan ? PLANS[p.plan].name : ''} plan`;
     await this.sendMail(p.userId, `Receipt: ${money} for ${what}`, `<p>Thanks. We received ${money} for ${what}.</p><p>Payment reference: ${p.providerPaymentId}. The invoice with tax details is in the email from ${p.provider === 'RAZORPAY' ? 'Razorpay' : 'Paddle'}, and your plan and payment history are on the Billing page in DockyDoc.</p><p>Excelleta Tech Private Limited, Flat 706E, Sector 19B Dwarka Front, New Delhi 110075. GSTIN 07AAHCE4776H1ZC.</p>`);
     return true;
   }
@@ -399,6 +446,15 @@ export class PaymentsService {
     if (existing) return existing;
     const productId = await this.ensurePaddleProduct();
     const price = await this.paddle.createPrice({ productId, name: `${actions} extra AI actions`, amount, currency: 'USD', interval: null, customData: { kind: 'topup', actions: String(actions) } });
+    return this.prisma.providerPrice.create({ data: { provider: 'PADDLE', key, providerPriceId: price.id, amount, currency: 'USD' } });
+  }
+
+  private async ensureStoragePrice(gb: number, amount: number) {
+    const key = `storage:${gb}:USD`;
+    const existing = await this.prisma.providerPrice.findUnique({ where: { provider_key: { provider: 'PADDLE', key } } });
+    if (existing) return existing;
+    const productId = await this.ensurePaddleProduct();
+    const price = await this.provider(() => this.paddle.createPrice({ productId, name: `${gb} GB extra storage, 12 months`, amount, currency: 'USD', interval: null, customData: { kind: 'storage', gb: String(gb) } }));
     return this.prisma.providerPrice.create({ data: { provider: 'PADDLE', key, providerPriceId: price.id, amount, currency: 'USD' } });
   }
 
