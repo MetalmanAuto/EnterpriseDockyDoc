@@ -2,6 +2,8 @@ import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { McpModule } from './modules/mcp/mcp.module';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -123,24 +125,35 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor());
 
   // ------------------------------------------------------------------ //
-  // Swagger — available at /api/docs (dev only; gated in production)
+  // API reference at /api/docs (Swagger UI) and /api/docs-json (OpenAPI 3).
+  // In production only the public integration surface is published; the
+  // full internal document is for local development.
   // ------------------------------------------------------------------ //
-  if (!isProduction) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('DockyDoc API')
-      .setDescription('DockyDoc document management platform API')
-      .setVersion('1.0')
-      .addBearerAuth(
-        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-        'access-token',
-      )
-      .build();
+  const publicConfig = new DocumentBuilder()
+    .setTitle('DockyDoc API')
+    .setDescription(
+      'Find, fetch and store documents from your own software. Make a key in DockyDoc under Settings → Integrations and send it as `Authorization: Bearer dd_live_…`. Every call acts as the key\'s owner. Read-only keys can find and download; write access is needed to upload. The guide with examples is at https://dockydoc.app/developers.',
+    )
+    .setVersion('1.0')
+    .setContact('DockyDoc support', 'https://dockydoc.app/developers', 'support@dockydoc.app')
+    .addServer('https://dockydoc.app', 'Production')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'dd_live_… API key', description: 'A personal API key from Settings → Integrations' }, 'api-key')
+    .build();
+  const publicDocument = SwaggerModule.createDocument(app, publicConfig, { include: [IntegrationsModule, McpModule] });
+  SwaggerModule.setup('api/docs', app, publicDocument, {
+    customSiteTitle: 'DockyDoc API reference',
+    swaggerOptions: { persistAuthorization: true, defaultModelsExpandDepth: 1 },
+  });
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api/docs', app, document, {
-      swaggerOptions: { persistAuthorization: true },
-    });
-    console.log(`Swagger docs  → http://localhost:${port}/api/docs`);
+  if (!isProduction) {
+    const fullConfig = new DocumentBuilder()
+      .setTitle('DockyDoc API (internal)')
+      .setDescription('Every endpoint, including the ones the web app uses. Local development only.')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
+      .build();
+    SwaggerModule.setup('api/docs/internal', app, SwaggerModule.createDocument(app, fullConfig), { swaggerOptions: { persistAuthorization: true } });
+    console.log(`Swagger docs  → http://localhost:${port}/api/docs (public) and /api/docs/internal (everything)`);
   }
 
   // ------------------------------------------------------------------ //

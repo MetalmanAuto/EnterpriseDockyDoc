@@ -40,6 +40,8 @@ const isPublicRoute = createRouteMatcher([
   '/acceptable-use(.*)',
   '/contact(.*)',
   '/help(.*)',
+  '/developers(.*)',
+  '/api/docs(.*)',
   '/login(.*)',
   '/register(.*)',
   '/forgot-password(.*)',

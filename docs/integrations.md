@@ -80,8 +80,9 @@ failed. Both return the same shape.
 | `POST /integrations/upload` (multipart: `file`, `name?`, `description?`, `labels?`, `workspaceId?`) | Store a file as a new document. `labels` is comma-separated names, created if missing. Needs a key with write access. |
 
 Every other endpoint in the API also accepts a key, with one rule: a
-read-only key can only make GET requests there. The Swagger reference is at
-`https://dockydoc-api-staging.onrender.com/api/docs` when running locally.
+read-only key can only make GET requests there. The interactive reference is
+at https://dockydoc.app/api/docs (OpenAPI JSON at /api/docs-json); the public
+guide with examples is https://dockydoc.app/developers.
 
 ### Example with curl
 
