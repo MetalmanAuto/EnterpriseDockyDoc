@@ -144,6 +144,7 @@ function DocumentDetailPageInner() {
   const [restoringDoc, setRestoringDoc] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [togglingHold, setTogglingHold] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [shredding, setShredding] = useState(false);
   const [showShredConfirm, setShowShredConfirm] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<number | null>(null);
@@ -295,6 +296,21 @@ function DocumentDetailPageInner() {
       toast.error(err instanceof Error ? err.message : 'Delete failed.');
     } finally {
       setDeletingDoc(false);
+    }
+  }
+
+  async function handleArchiveToggle() {
+    if (!doc) return;
+    setArchiving(true);
+    try {
+      const next = doc.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED';
+      await updateDocument(doc.id, { status: next });
+      await reload();
+      toast.success(next === 'ARCHIVED' ? 'Archived. Reminders are off and it no longer counts as expiring.' : 'Back to active.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the status.');
+    } finally {
+      setArchiving(false);
     }
   }
 
@@ -459,6 +475,20 @@ function DocumentDetailPageInner() {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
               Edit
+            </button>
+          )}
+          {canEdit && doc.status !== 'DELETED' && (doc.status === 'ARCHIVED' || (doc.expiryDate && new Date(doc.expiryDate).getTime() < Date.now())) && (
+            <button
+              type="button"
+              onClick={handleArchiveToggle}
+              disabled={archiving}
+              title={doc.status === 'ARCHIVED' ? 'Make it active again' : 'One-time document that will not be renewed: stop reminders and file it away'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stroke text-xs font-medium text-ink-2 hover:bg-surface-high transition-colors disabled:opacity-50"
+            >
+              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path d="M3 7h18M5 7v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7M10 12h4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {archiving ? 'Saving…' : doc.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
             </button>
           )}
           {canAdminOrOwner && (

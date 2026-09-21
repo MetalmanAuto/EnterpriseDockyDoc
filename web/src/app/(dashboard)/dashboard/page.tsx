@@ -174,6 +174,7 @@ export default function DashboardPage() {
       {/* ── Expiry radar ────────────────────────────────────────────── */}
       <ExpiryRadar
         docs={expiring}
+        onArchived={(id) => setExpiring((prev) => prev.filter((d) => d.id !== id))}
         onChanged={(id, patch) =>
           setExpiring((prev) => prev.map((d) => {
             if (d.id !== id) return d;
@@ -260,9 +261,11 @@ const RADAR_ROWS = 6;
 function ExpiryRadar({
   docs,
   onChanged,
+  onArchived,
 }: {
   docs: ExpiringDocument[];
   onChanged: (id: string, patch: Partial<ExpiringDocument>) => void;
+  onArchived: (id: string) => void;
 }) {
   const buckets = bucketize(docs);
   const nonEmpty = buckets.filter((b) => b.docs.length > 0);
@@ -352,7 +355,7 @@ function ExpiryRadar({
                 )}>
                   {isExpired ? `${Math.abs(doc.daysUntilExpiry)}d over` : isToday ? 'Today' : `${doc.daysUntilExpiry}d`}
                 </span>
-                <ExpiryActions doc={doc} onChanged={(patch) => onChanged(doc.id, patch)} />
+                <ExpiryActions doc={doc} onChanged={(patch) => onChanged(doc.id, patch)} onArchived={() => onArchived(doc.id)} />
               </div>
             );
           })}

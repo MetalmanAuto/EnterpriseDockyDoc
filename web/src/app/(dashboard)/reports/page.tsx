@@ -117,6 +117,19 @@ type ReportId =
   | 'tag-coverage'
   | 'compliance-audit';
 
+/** Line icons for the report cards; one colour, so they read as one set in both themes. */
+function ReportIcon({ kind }: { kind: string }) {
+  const common = { width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, viewBox: '0 0 24 24' };
+  switch (kind) {
+    case 'calendar': return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>;
+    case 'storage': return <svg {...common}><ellipse cx="12" cy="6" rx="8" ry="3" /><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></svg>;
+    case 'chart': return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
+    case 'people': return <svg {...common}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4.5-6.2" /></svg>;
+    case 'tag': return <svg {...common}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.2" /></svg>;
+    default: return <svg {...common}><path d="M12 3 4 6v6c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V6l-8-3z" /><path d="m9 12 2 2 4-4" /></svg>;
+  }
+}
+
 // ------------------------------------------------------------------ //
 // Report card definitions
 // ------------------------------------------------------------------ //
@@ -126,42 +139,42 @@ const REPORTS: { id: ReportId; title: string; description: string; icon: string;
     id: 'expiring-docs',
     title: 'Expiring Documents',
     description: 'Documents approaching their expiry date, grouped by urgency.',
-    icon: '📅',
+    icon: 'calendar',
     category: 'Compliance',
   },
   {
     id: 'storage-usage',
     title: 'Storage Usage',
     description: 'Breakdown of storage consumption by folder, owner, and file type.',
-    icon: '💾',
+    icon: 'storage',
     category: 'Operations',
   },
   {
     id: 'document-activity',
     title: 'Document Activity',
     description: 'Upload, edit, download, and delete events over a selected period.',
-    icon: '📊',
+    icon: 'chart',
     category: 'Activity',
   },
   {
     id: 'member-activity',
     title: 'Member Activity',
     description: 'Per-member contribution and access patterns across the workspace.',
-    icon: '👥',
+    icon: 'people',
     category: 'Activity',
   },
   {
     id: 'tag-coverage',
     title: 'Tag Coverage',
     description: 'Documents missing tags and tag usage across the workspace.',
-    icon: '🏷️',
+    icon: 'tag',
     category: 'Governance',
   },
   {
     id: 'compliance-audit',
     title: 'Compliance Exposure',
     description: 'Expired documents, expiring-soon, and share risks with a risk score.',
-    icon: '🛡️',
+    icon: 'shield',
     category: 'Compliance',
   },
 ];
@@ -729,7 +742,7 @@ function ReportCard({
   return (
     <div className="bg-surface rounded-xl border border-stroke p-5 flex flex-col gap-3 hover:border-ink-3 hover:shadow-card transition-all">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-2xl leading-none">{report.icon}</span>
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-400/15 dark:text-brand-300"><ReportIcon kind={report.icon} /></span>
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-high text-ink-3">
           {report.category}
         </span>

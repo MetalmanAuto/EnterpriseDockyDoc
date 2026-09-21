@@ -68,7 +68,7 @@ export default function WorkspaceSwitcher() {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-white truncate leading-tight">
+          <p className="text-xs font-bold text-white leading-tight line-clamp-2 break-words" title={activeWorkspace.workspaceName}>
             {activeWorkspace.workspaceName}
           </p>
           <p className="font-mono text-[10px] text-slate-400 truncate leading-tight mt-0.5 uppercase tracking-label">

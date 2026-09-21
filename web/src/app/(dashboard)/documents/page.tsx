@@ -657,7 +657,7 @@ function DocumentsPageInner() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="page-title">
             {showTrash ? 'Trash' : 'Documents'}
@@ -670,6 +670,7 @@ function DocumentsPageInner() {
           </p>
         </div>
         {!showTrash && canEdit && (
+          <div className="flex items-center gap-2 flex-shrink-0">
           <button
             type="button"
             onClick={() => setShowUpload(true)}
@@ -680,8 +681,6 @@ function DocumentsPageInner() {
             </svg>
             Upload Document
           </button>
-        )}
-        {!showTrash && canEdit && (
           <button
             type="button"
             onClick={() => setBulkFiles([])}
@@ -693,6 +692,7 @@ function DocumentsPageInner() {
             </svg>
             Upload many
           </button>
+          </div>
         )}
       </div>
 
@@ -737,11 +737,11 @@ function DocumentsPageInner() {
         </div>
       )}
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* --------------------------------------------------------- */}
         {/* Folder sidebar                                             */}
         {/* --------------------------------------------------------- */}
-        <aside className="w-56 flex-shrink-0">
+        <aside className="w-full lg:w-56 flex-shrink-0">
           <div className="bg-surface rounded-xl border border-stroke overflow-hidden">
             <div className="px-3.5 py-3 border-b border-stroke-soft flex items-center justify-between">
               <p className="font-mono text-[10px] uppercase tracking-label text-ink-3">
@@ -1469,7 +1469,7 @@ function UploadModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-backdrop"
       onClick={handleBackdrop}
     >
-      <div className="bg-surface border border-stroke rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in">
+      <div className="bg-surface border border-stroke rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stroke-soft">
           <h2 className="text-base font-semibold text-ink">Upload Document</h2>
@@ -1485,7 +1485,7 @@ function UploadModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 overflow-y-auto">
           {/* File picker */}
           <div>
             <label className="block text-xs font-medium text-ink-2 mb-1.5">
@@ -1600,55 +1600,25 @@ function UploadModal({
               Labels
             </label>
 
-            {tags.length > 0 && (
+            {/* Chosen labels only; the full list lives behind the search box so a workspace with sixty labels does not push the dialog off the screen. */}
+            {(pickedTagIds.length > 0 || newTagNames.length > 0) && (
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {tags.map((t) => {
-                  const on = pickedTagIds.includes(t.id);
+                {pickedTagIds.map((id) => {
+                  const t = tags.find((x) => x.id === id);
+                  if (!t) return null;
                   return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() =>
-                        setPickedTagIds((prev) =>
-                          prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id],
-                        )
-                      }
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
-                        on
-                          ? 'border-brand-400 bg-brand-50 text-brand-700 font-semibold'
-                          : 'border-stroke bg-surface text-ink-2 hover:border-brand-300',
-                      )}
-                    >
-                      <span
-                        aria-hidden
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: t.color ?? '#94a3b8' }}
-                      />
+                    <span key={id} className="inline-flex items-center gap-1.5 rounded-full border border-brand-400 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                      <span aria-hidden className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color ?? '#94a3b8' }} />
                       {t.name}
-                    </button>
+                      <button type="button" aria-label={`Remove ${t.name}`} onClick={() => setPickedTagIds((prev) => prev.filter((x) => x !== id))} className="text-ink-3 hover:text-red-600">&times;</button>
+                    </span>
                   );
                 })}
-              </div>
-            )}
-
-            {newTagNames.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
                 {newTagNames.map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brand-400 bg-brand-50 px-2.5 py-1 text-xs text-brand-700"
-                  >
+                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brand-400 bg-brand-50 px-2.5 py-1 text-xs text-brand-700">
                     {label}
                     <span className="text-[10px] text-ink-3">new</span>
-                    <button
-                      type="button"
-                      aria-label={`Remove ${label}`}
-                      onClick={() => setNewTagNames((prev) => prev.filter((n) => n !== label))}
-                      className="text-ink-3 hover:text-red-600"
-                    >
-                      &times;
-                    </button>
+                    <button type="button" aria-label={`Remove ${label}`} onClick={() => setNewTagNames((prev) => prev.filter((n) => n !== label))} className="text-ink-3 hover:text-red-600">&times;</button>
                   </span>
                 ))}
               </div>
@@ -1662,9 +1632,13 @@ function UploadModal({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagDraft(); }
                 }}
-                placeholder={tags.length > 0 ? 'Or type a new label…' : 'Type a label and press Enter…'}
+                placeholder={tags.length > 0 ? 'Type to find a label, or a new one, then Enter' : 'Type a label and press Enter…'}
+                list="upload-label-options"
                 className="flex-1 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-ink-3"
               />
+              <datalist id="upload-label-options">
+                {tags.filter((t) => !pickedTagIds.includes(t.id)).map((t) => <option key={t.id} value={t.name} />)}
+              </datalist>
               <button
                 type="button"
                 onClick={addTagDraft}
@@ -1674,6 +1648,27 @@ function UploadModal({
                 Add
               </button>
             </div>
+            {tags.length > 0 && (
+              <details className="mt-1.5">
+                <summary className="cursor-pointer text-[11px] text-ink-3 hover:text-ink-2 select-none">Browse all {tags.length} labels</summary>
+                <div className="mt-1.5 max-h-28 overflow-y-auto flex flex-wrap gap-1.5 rounded-lg border border-stroke-soft p-2">
+                  {tags.map((t) => {
+                    const on = pickedTagIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setPickedTagIds((prev) => (prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]))}
+                        className={cn('inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] transition-colors', on ? 'border-brand-400 bg-brand-50 text-brand-700 font-semibold' : 'border-stroke bg-surface text-ink-2 hover:border-brand-300')}
+                      >
+                        <span aria-hidden className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color ?? '#94a3b8' }} />
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
             <p className="mt-1.5 text-[11px] text-ink-3">
               AI reads the file after upload and suggests an expiry date, a folder and labels on the
               document&apos;s page.
