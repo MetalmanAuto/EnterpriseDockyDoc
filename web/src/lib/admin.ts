@@ -9,6 +9,7 @@ export interface AdminTotals {
   workspaces: number;
   documents: number;
   documentsLast7Days: number;
+  documentsInBin: number;
   storageBytes: number;
   aiTokens: number;
   externalShares: number;
@@ -31,6 +32,7 @@ export interface AdminUserRow {
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
   documents: number;
+  documentsInBin: number;
   storageBytes: number;
   aiTokens: number;
 }
@@ -43,6 +45,7 @@ export interface AdminWorkspaceRow {
   ownerEmail: string | null;
   members: number;
   documents: number;
+  documentsInBin: number;
   storageBytes: number;
   aiTokens: number;
   createdAt: string;

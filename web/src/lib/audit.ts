@@ -20,6 +20,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   REMINDER_SENT:           'Reminder email sent',
   MEMBER_ADDED:            'Member added',
   MEMBER_ROLE_UPDATED:     'Member role updated',
+  FOLDER_DELETED:          'Folder moved to bin',
+  FOLDER_RESTORED:         'Folder restored',
 };
 
 export function formatAuditAction(action: AuditAction): string {
@@ -54,6 +56,16 @@ export function describeAuditLog(log: AuditLog): string {
       return `Created external link${name ? ` for "${name}"` : ''}`;
     case 'SHARE_REVOKED':
       return 'Share revoked';
+    case 'FOLDER_DELETED': {
+      const n = (meta.documents as number | undefined) ?? 0;
+      const folder = (meta.folderName as string) ?? '';
+      return `Moved folder${folder ? ` "${folder}"` : ''} to bin${n ? ` with ${n} ${n === 1 ? 'document' : 'documents'}` : ''}`;
+    }
+    case 'FOLDER_RESTORED': {
+      const n = (meta.documents as number | undefined) ?? 0;
+      const folder = (meta.folderName as string) ?? '';
+      return `Restored folder${folder ? ` "${folder}"` : ''}${n ? ` with ${n} ${n === 1 ? 'document' : 'documents'}` : ''}`;
+    }
     case 'REMINDER_CREATED':
       return name ? `Set reminder for "${name}"` : 'Reminder set';
     case 'REMINDER_UPDATED':

@@ -30,7 +30,9 @@ export type AuditAction =
   | 'REMINDER_UPDATED'
   | 'REMINDER_SENT'
   | 'MEMBER_ADDED'
-  | 'MEMBER_ROLE_UPDATED';
+  | 'MEMBER_ROLE_UPDATED'
+  | 'FOLDER_DELETED'
+  | 'FOLDER_RESTORED';
 export type AuditEntityType =
   | 'DOCUMENT'
   | 'DOCUMENT_VERSION'

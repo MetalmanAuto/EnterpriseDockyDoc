@@ -14,6 +14,8 @@ export interface AdminTotals {
   workspaces: number;
   documents: number;
   documentsLast7Days: number;
+  /** Soft-deleted documents still sitting in the bin. */
+  documentsInBin: number;
   storageBytes: number;
   aiTokens: number;
   externalShares: number;
@@ -36,6 +38,7 @@ export interface AdminUserRow {
   lastActiveAt: string | null;
   workspaces: { id: string; name: string; role: string; plan: string }[];
   documents: number;
+  documentsInBin: number;
   storageBytes: number;
   /** Tokens used by the workspaces this person owns. */
   aiTokens: number;
@@ -49,6 +52,7 @@ export interface AdminWorkspaceRow {
   ownerEmail: string | null;
   members: number;
   documents: number;
+  documentsInBin: number;
   storageBytes: number;
   aiTokens: number;
   createdAt: string;
@@ -115,8 +119,7 @@ export class AdminService {
           orderBy: { createdAt: 'desc' },
         }),
         this.prisma.document.findMany({
-          where: { status: { not: 'DELETED' } },
-          select: { id: true, workspaceId: true, ownerUserId: true, createdAt: true },
+          select: { id: true, workspaceId: true, ownerUserId: true, createdAt: true, status: true },
         }),
         this.prisma.documentVersion.findMany({
           select: { fileSizeBytes: true, uploadedById: true, document: { select: { workspaceId: true, status: true } } },
@@ -138,12 +141,20 @@ export class AdminService {
       ]);
 
     // ---- per-user and per-workspace tallies ------------------------------ //
-    const docsByOwner = new Map<string, number>();
-    const docsByWorkspace = new Map<string, number>();
-    for (const d of documents) {
-      docsByOwner.set(d.ownerUserId, (docsByOwner.get(d.ownerUserId) ?? 0) + 1);
-      docsByWorkspace.set(d.workspaceId, (docsByWorkspace.get(d.workspaceId) ?? 0) + 1);
-    }
+    // Live documents and binned ones are counted apart: a deleted folder moves
+    // everything inside it to the bin at once, and the admin page should say
+    // so rather than show a person who uploaded 50 files as having none.
+    const live = documents.filter((d) => d.status !== 'DELETED');
+    const binned = documents.filter((d) => d.status === 'DELETED');
+    const tally = (rows: { ownerUserId: string; workspaceId: string }[], key: 'ownerUserId' | 'workspaceId') => {
+      const m = new Map<string, number>();
+      for (const d of rows) m.set(d[key], (m.get(d[key]) ?? 0) + 1);
+      return m;
+    };
+    const docsByOwner = tally(live, 'ownerUserId');
+    const docsByWorkspace = tally(live, 'workspaceId');
+    const binByOwner = tally(binned, 'ownerUserId');
+    const binByWorkspace = tally(binned, 'workspaceId');
 
     const bytesByUploader = new Map<string, number>();
     const bytesByWorkspace = new Map<string, number>();
@@ -175,8 +186,9 @@ export class AdminService {
         users: users.length,
         usersLast7Days: users.filter((u) => u.createdAt >= since7).length,
         workspaces: workspaces.length,
-        documents: documents.length,
-        documentsLast7Days: documents.filter((d) => d.createdAt >= since7).length,
+        documents: live.length,
+        documentsLast7Days: live.filter((d) => d.createdAt >= since7).length,
+        documentsInBin: binned.length,
         storageBytes,
         aiTokens: workspaces.reduce((sum, w) => sum + w.aiUsageTokens, 0),
         externalShares,
@@ -202,6 +214,7 @@ export class AdminService {
         lastActiveAt: lastActive.get(u.id)?.toISOString() ?? null,
         workspaces: u.workspaces.map((m) => ({ id: m.workspace.id, name: m.workspace.name, role: m.role, plan: m.workspace.plan })),
         documents: docsByOwner.get(u.id) ?? 0,
+        documentsInBin: binByOwner.get(u.id) ?? 0,
         storageBytes: bytesByUploader.get(u.id) ?? 0,
         aiTokens: u.workspaces.filter((m) => m.role === 'OWNER').reduce((sum, m) => sum + m.workspace.aiUsageTokens, 0),
       })),
@@ -213,6 +226,7 @@ export class AdminService {
         ownerEmail: w.members.find((m) => m.role === 'OWNER')?.user.email ?? null,
         members: w.members.length,
         documents: docsByWorkspace.get(w.id) ?? 0,
+        documentsInBin: binByWorkspace.get(w.id) ?? 0,
         storageBytes: bytesByWorkspace.get(w.id) ?? 0,
         aiTokens: w.aiUsageTokens,
         createdAt: w.createdAt.toISOString(),
@@ -239,7 +253,7 @@ function isoDay(d: Date): string {
 function detailOf(metadata: unknown): string | null {
   if (!metadata || typeof metadata !== 'object') return null;
   const m = metadata as Record<string, unknown>;
-  for (const key of ['documentName', 'name', 'fileName', 'memberEmail', 'email', 'workspaceName']) {
+  for (const key of ['documentName', 'folderName', 'name', 'fileName', 'memberEmail', 'email', 'workspaceName']) {
     const v = m[key];
     if (typeof v === 'string' && v.trim()) return v.trim();
   }

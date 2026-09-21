@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService, AuditAction, AuditEntityType } from '../audit/audit.service';
 import {
   assertWorkspaceMembership,
   assertEditorOrAbove,
@@ -18,7 +19,7 @@ const MAX_FOLDER_DEPTH = 5;
 
 @Injectable()
 export class FoldersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
 
   async findAll(workspaceId: string, user: DevUserPayload): Promise<FolderResponseDto[]> {
     assertWorkspaceMembership(user, workspaceId);
@@ -329,7 +330,7 @@ export class FoldersService {
     const allFolderIds = await this.collectDescendants(id);
     const now = new Date();
 
-    await this.prisma.$transaction([
+    const [, binned] = await this.prisma.$transaction([
       this.prisma.folder.updateMany({
         where: { id: { in: allFolderIds } },
         data: { deletedAt: now },
@@ -342,6 +343,17 @@ export class FoldersService {
         data: { status: DocumentStatus.DELETED },
       }),
     ]);
+
+    // One entry for the folder, with the count, so the activity log explains
+    // why a batch of documents left the live list at once.
+    this.audit.log({
+      workspaceId: folder.workspaceId,
+      userId: user.id,
+      action: AuditAction.FOLDER_DELETED,
+      entityType: AuditEntityType.FOLDER,
+      entityId: id,
+      metadata: { folderName: folder.name, folders: allFolderIds.length, documents: binned.count },
+    });
   }
 
   /**
@@ -358,7 +370,7 @@ export class FoldersService {
 
     const allFolderIds = await this.collectDeletedDescendants(id);
 
-    await this.prisma.$transaction([
+    const [, restored] = await this.prisma.$transaction([
       this.prisma.folder.updateMany({
         where: { id: { in: allFolderIds } },
         data: { deletedAt: null },
@@ -371,6 +383,15 @@ export class FoldersService {
         data: { status: DocumentStatus.ACTIVE },
       }),
     ]);
+
+    this.audit.log({
+      workspaceId: folder.workspaceId,
+      userId: user.id,
+      action: AuditAction.FOLDER_RESTORED,
+      entityType: AuditEntityType.FOLDER,
+      entityId: id,
+      metadata: { folderName: folder.name, folders: allFolderIds.length, documents: restored.count },
+    });
   }
 
   /** BFS to collect a folder and all its non-deleted descendants. */
