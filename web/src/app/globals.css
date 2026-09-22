@@ -318,3 +318,38 @@
    one-time-code box's border. Put the card back inside its box. */
 .cl-cardBox { overflow: visible !important; }
 .cl-card    { margin: 0 !important; }
+
+/* ------------------------------------------------------------------ */
+/* Marketing site: "the ledger". Always dark, charcoal ground, amber     */
+/* for actions, teal kept for the radar mark and "all clear" states.    */
+/* Scoped to the marketing layout so the app's own theme is untouched.  */
+/* ------------------------------------------------------------------ */
+.marketing {
+  color-scheme: dark;
+  --bg-canvas:         #15171b;
+  --bg-surface:        #1c1e23;
+  --bg-surface-raised: #23262c;
+  --border-default:    #2c3037;
+  --border-muted:      #23262c;
+  --text-primary:      #ece7de;
+  --text-secondary:    #b7b1a6;
+  --text-tertiary:     #8b857b;
+  --accent:            #f2b63a;
+  --accent-strong:     #ffd070;
+  --accent-soft:       rgba(242,182,58,0.12);
+  --accent-ring:       rgba(242,182,58,0.35);
+  --selection:         rgba(242,182,58,0.30);
+}
+.marketing .bg-brand-600, .marketing .bg-brand-700,
+.marketing .hover\:bg-brand-700:hover { background-color: #f2b63a !important; color: #15171b !important; }
+.marketing .text-brand-600, .marketing .text-brand-700 { color: #f2b63a !important; }
+.marketing .hover\:text-brand-600:hover, .marketing .hover\:text-brand-700:hover { color: #ffd070 !important; }
+.marketing .border-brand-500 { border-color: #f2b63a !important; }
+.marketing .bg-brand-500 { background-color: #f2b63a !important; }
+.marketing .text-red-600 { color: #ff7a59; }
+
+/* The big radar on the homepage: the same sweep as the logo, slower. */
+.radar-sweep { transform-origin: 200px 200px; transform-box: view-box; animation: dd-logo-sweep 7s linear infinite; }
+.radar-blip  { animation: dd-radar-blip 7s ease-in-out infinite; }
+@keyframes dd-radar-blip { 0%, 70%, 100% { opacity: 0.9; } 82% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .radar-sweep, .radar-blip { animation: none !important; } }
