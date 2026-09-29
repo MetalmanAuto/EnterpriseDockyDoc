@@ -5,12 +5,14 @@ import { DevAuthGuard, type DevUserPayload } from '../../common/guards/dev-auth.
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BillingService, type AccountSummary } from './billing.service';
 import { PaymentsService } from './payments.service';
+import { PromoService } from './promo.service';
+import { RedeemCodeDto } from './dto/promo.dto';
 import { CheckoutDto, RazorpayConfirmDto, StoragePackDto, TopUpDto } from './dto/payments.dto';
 
 @ApiTags('Billing')
 @Controller('billing')
 export class BillingController {
-  constructor(private readonly billing: BillingService, private readonly payments: PaymentsService) {}
+  constructor(private readonly billing: BillingService, private readonly payments: PaymentsService, private readonly promo: PromoService) {}
 
   /** Public: the tiers, limits and prices the pricing page shows. */
   @Get('plans')
@@ -59,6 +61,13 @@ export class BillingController {
   @ApiOperation({ summary: 'Razorpay checkout success: verify the signature and apply the plan or top-up now' })
   confirmRazorpay(@CurrentUser() user: DevUserPayload, @Body() dto: RazorpayConfirmDto) {
     return this.payments.confirmRazorpay(user, dto);
+  }
+
+  @Post('redeem')
+  @UseGuards(DevAuthGuard)
+  @ApiOperation({ summary: 'Redeem a code that gives a plan free for a number of months' })
+  redeem(@CurrentUser() user: DevUserPayload, @Body() dto: RedeemCodeDto) {
+    return this.promo.redeem(user.id, dto.code);
   }
 
   @Post('cancel')

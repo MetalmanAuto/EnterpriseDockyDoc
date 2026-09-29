@@ -7,7 +7,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api';
 import { runCheckout } from '@/lib/checkout';
-import { cancelSubscription, defaultCurrency, fetchBillingAccount, formatMoney, limitLabel, startStoragePack, startTopUp, storageLabel, type AccountSummary, type Currency } from '@/lib/billing';
+import { cancelSubscription, defaultCurrency, fetchBillingAccount, formatMoney, limitLabel, redeemCode, startStoragePack, startTopUp, storageLabel, type AccountSummary, type Currency } from '@/lib/billing';
 import { cn } from '@/lib/utils';
 
 /** Plan, renewal, cancel, top-ups and the payment history. */
@@ -18,6 +18,24 @@ export default function BillingPage() {
   const [currency, setCurrency] = useState<Currency>('USD');
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [code, setCode] = useState('');
+
+  async function applyCode() {
+    const value = code.trim();
+    if (!value) return;
+    setBusy('code');
+    try {
+      const r = await redeemCode(value);
+      toast.success(`${r.planName} is on until ${new Date(r.until).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`);
+      setCode('');
+      await reload();
+      await refreshUser();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'That code could not be applied.');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const reload = useCallback(() => fetchBillingAccount().then(setAccount).catch(() => setAccount(null)), []);
   useEffect(() => { setCurrency(defaultCurrency()); reload(); }, [reload]);
@@ -150,6 +168,29 @@ export default function BillingPage() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-stroke bg-surface p-5">
+        <h2 className="text-base font-semibold text-ink">Have a code?</h2>
+        <p className="text-xs text-ink-3 mt-0.5">A code from DockyDoc puts a plan on your account free for the months it covers. One use per person.</p>
+        <form
+          className="mt-3 flex flex-col sm:flex-row gap-2 max-w-md"
+          onSubmit={(e) => { e.preventDefault(); void applyCode(); }}
+        >
+          <label htmlFor="promo-code" className="sr-only">Code</label>
+          <input
+            id="promo-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="DD-XXXX-XXXX"
+            autoComplete="off"
+            spellCheck={false}
+            className="h-10 flex-1 rounded-lg border border-stroke bg-canvas px-3 font-mono text-sm uppercase text-ink placeholder:normal-case placeholder:text-ink-3"
+          />
+          <button type="submit" disabled={busy === 'code' || !code.trim()} className="h-10 px-4 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50">
+            {busy === 'code' ? 'Applying…' : 'Apply code'}
+          </button>
+        </form>
       </section>
 
       <section className="rounded-2xl border border-stroke bg-surface p-5">

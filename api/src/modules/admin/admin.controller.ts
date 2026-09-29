@@ -7,6 +7,10 @@ import { SetPlanDto } from './dto/set-plan.dto';
 import { RetentionService } from '../retention/retention.service';
 import { OperationsService } from '../operations/operations.service';
 import { PaymentsService } from '../billing/payments.service';
+import { PromoService } from '../billing/promo.service';
+import { CreatePromoCodesDto } from '../billing/dto/promo.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { DevUserPayload } from '../../common/guards/dev-auth.guard';
 
 /**
  * Platform-level view for the people who run DockyDoc: who has signed up,
@@ -22,6 +26,7 @@ export class AdminController {
     private readonly retention: RetentionService,
     private readonly operations: OperationsService,
     private readonly payments: PaymentsService,
+    private readonly promo: PromoService,
   ) {}
 
   @Get('weekly')
@@ -60,6 +65,24 @@ export class AdminController {
   @ApiResponse({ status: 403, description: 'Not a platform administrator' })
   overview(): Promise<AdminOverview> {
     return this.admin.overview();
+  }
+
+  @Get('promo-codes')
+  @ApiOperation({ summary: 'Every code, newest first, with who redeemed it' })
+  listPromoCodes() {
+    return this.promo.list();
+  }
+
+  @Post('promo-codes')
+  @ApiOperation({ summary: 'Make codes that give a plan free for a number of months' })
+  createPromoCodes(@CurrentUser() user: DevUserPayload, @Body() dto: CreatePromoCodesDto) {
+    return this.promo.create(dto, user.id);
+  }
+
+  @Post('promo-codes/:id/disable')
+  @ApiOperation({ summary: 'Withdraw a code so nobody else can redeem it' })
+  disablePromoCode(@Param('id') id: string) {
+    return this.promo.disable(id);
   }
 
   @Patch('users/:id/plan')

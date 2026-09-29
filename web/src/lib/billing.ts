@@ -115,6 +115,11 @@ export function confirmRazorpay(body: { razorpay_payment_id: string; razorpay_su
   return apiFetch('/api/v1/billing/razorpay/confirm', { method: 'POST', body: JSON.stringify(body) });
 }
 
+/** Apply a code that gives a plan free for a number of months. */
+export function redeemCode(code: string): Promise<{ plan: PlanId; planName: string; until: string }> {
+  return apiFetch('/api/v1/billing/redeem', { method: 'POST', body: JSON.stringify({ code }) });
+}
+
 export function cancelSubscription(): Promise<{ endsAt: string | null }> {
   return apiFetch('/api/v1/billing/cancel', { method: 'POST', body: '{}' });
 }
