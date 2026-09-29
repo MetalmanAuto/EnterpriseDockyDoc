@@ -40,7 +40,7 @@ export default function SecurityPage() {
       </ul>
 
       <h2 className="mt-12 text-2xl font-bold">Who processes your data</h2>
-      <p className="mt-2 text-sm text-ink-2">DockyDoc is run by Excelleta Tech Private Limited, New Delhi, India. These providers process data on its behalf under written data processing terms.</p>
+      <p className="mt-2 text-sm text-ink-2">DockyDoc is run by Excelleta Tech Private Limited, New Delhi, India. These providers process data on its behalf under written data processing terms. Customers on Business and Team are covered by our own <a href="/dpa" className="underline">data processing agreement</a>, and this table is the sub-processor list it refers to; changes are announced by email 30 days ahead.</p>
       <div className="mt-4 overflow-x-auto rounded-xl border border-stroke">
         <table className="w-full text-sm">
           <thead className="bg-surface-high text-left text-xs uppercase tracking-wide text-ink-3">
@@ -65,7 +65,7 @@ export default function SecurityPage() {
 
       <h2 className="mt-12 text-2xl font-bold">Reporting a security problem</h2>
       <p className="mt-2 text-sm text-ink-2 leading-relaxed">
-        Email <a href="mailto:security@dockydoc.app" className="underline">security@dockydoc.app</a>. Reports are acknowledged within two working days and fixed before they are discussed publicly.
+        Email <a href="mailto:nj@excelleta.tech" className="underline">nj@excelleta.tech</a> with &ldquo;security&rdquo; in the subject. Reports are acknowledged within two working days and fixed before they are discussed publicly.
       </p>
     </section>
   );

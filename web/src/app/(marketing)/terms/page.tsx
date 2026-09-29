@@ -43,7 +43,7 @@ export default function TermsPage() {
       </section>
       <section>
         <h2>7. Privacy</h2>
-        <p>How we handle personal data is in the <Link href="/privacy">privacy policy</Link>, which is part of these terms. Business and Team customers who need a signed data processing agreement can request one at <a href="mailto:privacy@dockydoc.app">privacy@dockydoc.app</a>.</p>
+        <p>How we handle personal data is in the <Link href="/privacy">privacy policy</Link>, which is part of these terms. For Business and Team plans the <Link href="/dpa">data processing agreement</Link> is part of these terms and governs the personal data in the documents you upload. A countersigned copy is available on request from <a href="mailto:nj@excelleta.tech">nj@excelleta.tech</a>.</p>
       </section>
       <section>
         <h2>8. Availability and support</h2>
