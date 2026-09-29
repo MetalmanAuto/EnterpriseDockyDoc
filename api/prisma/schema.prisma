@@ -176,6 +176,7 @@ model User {
   apiKeys                ApiKey[]
   subscriptions          Subscription[]
   payments               Payment[]
+  promoRedemptions       PromoRedemption[]
 
   @@map("users")
 }
@@ -608,4 +609,42 @@ model WebhookEvent {
 
   @@unique([provider, eventId])
   @@map("webhook_events")
+}
+
+/// A code that gives a plan free for a number of months. Made by platform
+/// admins, redeemed once per person from the Billing page.
+model PromoCode {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  plan        WorkspacePlan
+  months      Int
+  /// How many people may redeem it; null means no limit.
+  maxUses     Int?
+  usedCount   Int           @default(0)
+  /// Last moment the code can be redeemed; null means no expiry.
+  expiresAt   DateTime?
+  note        String?
+  createdById String?
+  disabledAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id         String        @id @default(cuid())
+  codeId     String
+  userId     String
+  planBefore WorkspacePlan
+  planUntil  DateTime
+  redeemedAt DateTime      @default(now())
+
+  code PromoCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([codeId, userId])
+  @@index([userId])
+  @@map("promo_redemptions")
 }

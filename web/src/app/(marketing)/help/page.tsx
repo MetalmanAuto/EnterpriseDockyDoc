@@ -70,6 +70,7 @@ const SECTIONS: { id: string; title: string; items: { q: string; a: React.ReactN
     title: 'Plans and billing',
     items: [
       { q: 'How do I upgrade?', a: <>Open <Link href="/plans" className="underline">Plans</Link>, pick a plan and pay in rupees (Razorpay) or dollars (Paddle). The plan is active the moment the payment goes through.</> },
+      { q: 'I have a code', a: 'A code from DockyDoc puts a plan on your account free for the months it covers. Sign in, open Billing, type it under Have a code and press Apply. It works once per person, on an account without a paid subscription, and the plan drops back to Free when the months end with nothing deleted.' },
       { q: 'Can I cancel?', a: 'Any time, from the Billing page. Your plan runs until the end of the period you paid for, then moves to Free. Nothing is deleted.' },
       { q: 'Refunds?', a: <>Yearly plans have a 14-day money-back window. Monthly plans and top-ups are not refunded. The <Link href="/refunds" className="underline">refund policy</Link> has the details.</> },
       { q: 'Where is my invoice?', a: 'Razorpay or Paddle emails a tax invoice for every payment. The Billing page lists every payment with its reference.' },

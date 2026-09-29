@@ -83,3 +83,41 @@ export function setUserPlan(userId: string, plan: string, months?: number): Prom
     body: JSON.stringify(months ? { plan, months } : { plan }),
   });
 }
+
+// ---- promo codes ---------------------------------------------------- //
+
+export interface PromoCodeRow {
+  id: string;
+  code: string;
+  plan: string;
+  months: number;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  note: string | null;
+  disabledAt: string | null;
+  createdAt: string;
+  redemptions: { email: string; redeemedAt: string; planUntil: string }[];
+}
+
+export interface CreatePromoCodesInput {
+  plan: 'PERSONAL' | 'BUSINESS' | 'TEAM';
+  months: number;
+  count?: number;
+  maxUses?: number;
+  expiresAt?: string;
+  note?: string;
+  code?: string;
+}
+
+export function fetchPromoCodes(): Promise<PromoCodeRow[]> {
+  return apiFetch<PromoCodeRow[]>('/api/v1/admin/promo-codes');
+}
+
+export function createPromoCodes(input: CreatePromoCodesInput): Promise<PromoCodeRow[]> {
+  return apiFetch<PromoCodeRow[]>('/api/v1/admin/promo-codes', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function disablePromoCode(id: string): Promise<PromoCodeRow> {
+  return apiFetch<PromoCodeRow>(`/api/v1/admin/promo-codes/${encodeURIComponent(id)}/disable`, { method: 'POST' });
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@/context/UserContext';
+import PromoCodesPanel from '@/components/admin/PromoCodesPanel';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -98,6 +99,7 @@ export default function AdminPage() {
             </p>
           )}
           <PeopleTable users={data.users} />
+          <PromoCodesPanel />
           <WorkspacesTable workspaces={data.workspaces} />
           <ActivityFeed rows={data.recentActivity} />
         </>
