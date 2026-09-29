@@ -66,6 +66,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <p className="font-mono text-xs uppercase tracking-[0.12em] text-ink-3">Company</p>
             <FooterLink href="/terms">Terms of service</FooterLink>
             <FooterLink href="/privacy">Privacy policy</FooterLink>
+            <FooterLink href="/dpa">Data processing agreement</FooterLink>
             <FooterLink href="/refunds">Refunds and cancellation</FooterLink>
             <FooterLink href="/acceptable-use">Acceptable use</FooterLink>
             <p className="pt-3 text-ink-3 leading-relaxed">

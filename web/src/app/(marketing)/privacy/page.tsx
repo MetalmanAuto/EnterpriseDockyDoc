@@ -8,7 +8,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy policy"
-      updated="21 September 2026"
+      updated="29 September 2026"
       intro="DockyDoc exists to hold documents that are private by nature, so this policy is written to be read. It says what we collect, why, where it goes, how long we keep it, and how you get it back or delete it. Excelleta Tech Private Limited, New Delhi, India, is the data controller (and “data fiduciary” under Indian law)."
     >
       <section>
@@ -51,8 +51,9 @@ export default function PrivacyPage() {
       <section>
         <h2>5. Your rights</h2>
         <p>From Settings you can, at any time and without asking us: see everything we hold about you, download it (data export), correct your details, and delete your account and all its data. If you own a workspace with other members you are asked to hand it over or remove them first, so their data is not deleted by your choice.</p>
-        <p>You can also ask us to restrict or object to processing, and, in the EU and UK, complain to your data protection authority. Requests go to <a href="mailto:privacy@dockydoc.app">privacy@dockydoc.app</a> and are answered within 30 days.</p>
-        <p><strong>Grievance Officer (India, DPDP Act 2023):</strong> The Grievance Officer, Excelleta Tech Private Limited, Flat No. 706E, 7th Floor, Sector 19B Dwarka Front, Near MCD Toll, Dwarka, New Delhi 110075. Email <a href="mailto:privacy@dockydoc.app">privacy@dockydoc.app</a>. Grievances are acknowledged within 48 hours and resolved within 30 days.</p>
+        <p>You can also ask us to restrict or object to processing, and, in the EU and UK, complain to your data protection authority. Requests go to <a href="mailto:nj@excelleta.tech">nj@excelleta.tech</a> and are answered within 30 days.</p>
+        <p><strong>Grievance Officer (India, DPDP Act 2023):</strong> Nishant Jairath, Director, Excelleta Tech Private Limited, Flat No. 706E, 7th Floor, Sector 19B Dwarka Front, Near MCD Toll, Dwarka, New Delhi 110075. Email <a href="mailto:nj@excelleta.tech">nj@excelleta.tech</a>. Grievances are acknowledged within 48 hours and resolved within 30 days.</p>
+        <p><strong>Business customers:</strong> the documents you upload may contain other people's personal data. For those, you are the data fiduciary (controller) and Excelleta is your processor under the <Link href="/dpa">data processing agreement</Link>, which is part of the terms for Business and Team plans.</p>
         <p><strong>EU and UK representatives:</strong> named here once appointed; until then, write to the Grievance Officer above.</p>
       </section>
       <section>
