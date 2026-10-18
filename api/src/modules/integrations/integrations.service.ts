@@ -21,11 +21,16 @@ import type {
   IntegrationMeDto,
   IntegrationUploadDto,
   MatchedDocumentDto,
+  ReadDocumentsDto,
 } from './dto/integrations.dto';
 
 /** Below this the caller is told to ask the person which document they meant. */
 const CONFIDENT = 0.6;
 const DEFAULT_LINK_MINUTES = 15;
+/** Text returned with a find or fetch match when includeText is set. */
+const FIND_TEXT_CHARS = 20_000;
+/** Default text length for the read call. */
+const READ_TEXT_CHARS = 50_000;
 /** More than this and the resolver prompt gets long for no gain; searches narrow it first. */
 const MAX_CANDIDATES = 200;
 
@@ -43,6 +48,7 @@ type CandidateRow = {
   fileType: string;
   description: string | null;
   expiryDate: Date | null;
+  renewalDueDate: Date | null;
   updatedAt: Date;
   workspace: { id: string; name: string };
   tags: { tag: { name: string } }[];
@@ -96,11 +102,27 @@ export class IntegrationsService {
         const best = a.bestId ? byId.get(a.bestId) : undefined;
         return {
           ask: a.ask,
-          match: best ? { ...toDto(best), confidence: round(a.confidence) } : null,
+          match: best ? { ...toDto(best, dto.includeText ? FIND_TEXT_CHARS : 0), confidence: round(a.confidence) } : null,
           alternatives: a.alternativeIds.map((id) => byId.get(id)).filter((r): r is CandidateRow => !!r).map(toDto),
         };
       }),
     };
+  }
+
+  /**
+   * What is in a document, for a caller that wants to answer a question
+   * rather than hand the file over: the extracted fields and the text.
+   * Membership is checked per document; documents in the bin are refused.
+   */
+  async read(user: DevUserPayload, dto: ReadDocumentsDto): Promise<IntegrationDocumentDto[]> {
+    const limit = dto.maxTextChars ?? READ_TEXT_CHARS;
+    const out: IntegrationDocumentDto[] = [];
+    for (const id of dto.documentIds) {
+      await this.documents.getDownloadInfo(id, user);
+      const row = await this.prisma.document.findUniqueOrThrow({ where: { id }, include: CANDIDATE_INCLUDE });
+      out.push(toDto(row, dto.includeText === false ? 0 : limit));
+    }
+    return out;
   }
 
   /**
@@ -227,17 +249,29 @@ function toCandidate(r: CandidateRow): Candidate {
   };
 }
 
-function toDto(r: CandidateRow): IntegrationDocumentDto {
-  return {
+/** textChars 0 leaves the text out; otherwise it is included up to that many characters. */
+function toDto(r: CandidateRow, textChars = 0): IntegrationDocumentDto {
+  const details: Record<string, string> = {};
+  for (const m of r.metadata) if (m.value) details[m.key] = m.value;
+  const dto: IntegrationDocumentDto = {
     id: r.id,
     name: r.name,
     fileName: r.fileName,
     fileType: r.fileType,
     workspace: r.workspace,
     labels: r.tags.map((t) => t.tag.name),
+    description: r.description,
     expiryDate: r.expiryDate,
+    renewalDueDate: r.renewalDueDate,
+    details,
     updatedAt: r.updatedAt,
   };
+  if (textChars > 0) {
+    const text = r.searchContent?.extractedText ?? null;
+    dto.text = text ? text.slice(0, textChars) : text;
+    dto.textTruncated = !!text && text.length > textChars;
+  }
+  return dto;
 }
 
 function round(n: number): number {

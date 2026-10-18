@@ -28,6 +28,7 @@ import {
   IntegrationDocumentDto,
   IntegrationMeDto,
   IntegrationUploadDto,
+  ReadDocumentsDto,
 } from './dto/integrations.dto';
 
 /**
@@ -55,6 +56,14 @@ export class IntegrationsController {
   @ApiResponse({ status: 200, type: FindResultDto })
   find(@Body() dto: FindDocumentsDto, @CurrentUser() user: DevUserPayload): Promise<FindResultDto> {
     return this.integrations.find(user, dto);
+  }
+
+  @Post('read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'What is in documents, by id: the extracted fields and the text, to answer questions without downloading' })
+  @ApiResponse({ status: 200, type: [IntegrationDocumentDto] })
+  read(@Body() dto: ReadDocumentsDto, @CurrentUser() user: DevUserPayload): Promise<IntegrationDocumentDto[]> {
+    return this.integrations.read(user, dto);
   }
 
   @Post('deliver')

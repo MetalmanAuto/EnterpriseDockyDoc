@@ -43,7 +43,7 @@ Response, one item per document asked for:
   "items": [
     {
       "ask": "passport",
-      "match": { "id": "…", "name": "Alice passport", "fileName": "passport.pdf", "confidence": 0.95, "labels": ["passport", "travel"], "workspace": { "id": "…", "name": "Alice's Workspace" } },
+      "match": { "id": "…", "name": "Alice passport", "fileName": "passport.pdf", "confidence": 0.95, "labels": ["passport", "travel"], "workspace": { "id": "…", "name": "Alice's Workspace" }, "expiryDate": "2031-03-12T00:00:00Z", "details": { "documentType": "Passport", "holder": "Alice Chen", "passportNumber": "Z1234567", "issuer": "Passport Seva, Delhi" } },
       "alternatives": [],
       "delivery": { "url": "https://dockydoc.app/api/v1/public/shares/…/download", "fileName": "passport.pdf", "mimeType": "application/pdf", "expiresAt": "2026-09-17T18:45:00Z" },
       "needsChoice": false
@@ -58,6 +58,8 @@ Response, one item per document asked for:
   ]
 }
 ```
+
+Every document in `match` and `alternatives` carries `details`: the fields read from it or typed in by its owner, such as the document type, holder, issuer, registration or reference number and dates. That is usually enough to answer a question ("what is my GSTIN", "when does the fire NOC expire") without a download. Add `includeText: true` to get the text of the best match as well (up to 20,000 characters), or call `read` for the full text of a known document.
 
 Read it like this. When `delivery` is set, send the person the `url`; it needs
 no login and dies at `expiresAt` (default 15 minutes, up to a day). When
@@ -75,7 +77,8 @@ failed. Both return the same shape.
 | Call | Purpose |
 |---|---|
 | `GET /integrations/me` | Who the key belongs to, whether it can write, and their workspaces. Use it to check a key works. |
-| `POST /integrations/find` `{query, workspaceId?}` | Matching only, no links. Same items as `fetch` minus `delivery`. |
+| `POST /integrations/find` `{query, workspaceId?, includeText?}` | Matching only, no links. Same items as `fetch` minus `delivery`. |
+| `POST /integrations/read` `{documentIds[], includeText?, maxTextChars?}` | What is in documents you know the ids of: `details` (every extracted field, as key and value) and `text` (what was read from the file, 50,000 characters by default, `textTruncated` when cut). Use it to answer "what is my GST number" without sending the file. Up to 10 at a time. |
 | `POST /integrations/deliver` `{documentIds[], expiresInMinutes?}` | Links for documents you already know the ids of. Up to 10 at a time. |
 | `POST /integrations/upload` (multipart: `file`, `name?`, `description?`, `labels?`, `workspaceId?`) | Store a file as a new document. `labels` is comma-separated names, created if missing. Needs a key with write access. |
 
@@ -103,9 +106,10 @@ Tools:
 | Tool | Does |
 |---|---|
 | `whoami` | Same as `GET /integrations/me`. |
-| `find_documents` `{query, workspaceId?}` | Same as `POST /integrations/find`. |
+| `find_documents` `{query, workspaceId?, includeText?}` | Same as `POST /integrations/find`. |
+| `read_documents` `{documentIds, includeText?, maxTextChars?}` | Same as `POST /integrations/read`: the extracted fields and the text, for answering questions about a document. |
 | `get_download_links` `{documentIds, expiresInMinutes?}` | Same as `POST /integrations/deliver`. |
-| `fetch_documents` `{query, workspaceId?, expiresInMinutes?}` | Same as `POST /integrations/fetch`. The tool description tells the assistant to put alternatives to the person when `needsChoice` is true. |
+| `fetch_documents` `{query, workspaceId?, expiresInMinutes?, includeText?}` | Same as `POST /integrations/fetch`. The tool description tells the assistant to put alternatives to the person when `needsChoice` is true. |
 | `upload_document` `{fileName, mimeType, contentBase64, name?, labels?, workspaceId?}` | Same as `POST /integrations/upload`, with the file as base64. |
 
 ## 4. Clawdbot, or any WhatsApp bot
