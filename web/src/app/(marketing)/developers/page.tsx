@@ -94,9 +94,10 @@ Body:       JSON (Content-Type: application/json), except upload which is multip
           <thead><tr className="text-left text-xs text-ink-3"><th className="py-2 pr-4 font-medium">Call</th><th className="py-2 font-medium">Does</th></tr></thead>
           <tbody className="divide-y divide-stroke-soft align-top">
             <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">GET /integrations/me</td><td className="py-2 text-ink-2">Who the key belongs to, whether it can write, and their workspaces.</td></tr>
-            <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/find</td><td className="py-2 text-ink-2"><code>{'{query, workspaceId?}'}</code>. Matching only, no links. Same items as fetch minus delivery.</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/find</td><td className="py-2 text-ink-2"><code>{'{query, workspaceId?, includeText?}'}</code>. Matching only, no links. Same items as fetch minus delivery.</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/read</td><td className="py-2 text-ink-2"><code>{'{documentIds[], includeText?, maxTextChars?}'}</code>. What is in documents you know the ids of: <code>details</code>, every extracted field as key and value, and <code>text</code>, what was read from the file. For answering a question without sending the file.</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/deliver</td><td className="py-2 text-ink-2"><code>{'{documentIds[], expiresInMinutes?}'}</code>. Links for documents you already know the ids of. Up to 10 at a time.</td></tr>
-            <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/fetch</td><td className="py-2 text-ink-2"><code>{'{query, workspaceId?, expiresInMinutes?}'}</code>. Find and deliver in one call.</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/fetch</td><td className="py-2 text-ink-2"><code>{'{query, workspaceId?, expiresInMinutes?, includeText?}'}</code>. Find and deliver in one call. Every matched document carries <code>details</code>, the fields read from it; <code>includeText</code> adds its text.</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">POST /integrations/upload</td><td className="py-2 text-ink-2">multipart: <code>file</code>, <code>name?</code>, <code>description?</code>, <code>labels?</code> (comma-separated, created if missing), <code>workspaceId?</code>. Needs a key with write access. Files over 4 MB: send them to the API host directly, <code>https://dockydoc-api-staging.onrender.com/api/v1/integrations/upload</code>, same key.</td></tr>
           </tbody>
         </table>
@@ -153,6 +154,7 @@ for (const item of items) {
           <tbody className="divide-y divide-stroke-soft">
             <tr><td className="py-2 pr-4 font-mono text-xs">whoami</td><td className="py-2 text-ink-2">GET /integrations/me</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs">find_documents</td><td className="py-2 text-ink-2">POST /integrations/find</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs">read_documents</td><td className="py-2 text-ink-2">POST /integrations/read</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs">get_download_links</td><td className="py-2 text-ink-2">POST /integrations/deliver</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs">fetch_documents</td><td className="py-2 text-ink-2">POST /integrations/fetch. The tool description tells the assistant to put alternatives to the person when needsChoice is true.</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs">upload_document</td><td className="py-2 text-ink-2">POST /integrations/upload, with the file as base64.</td></tr>

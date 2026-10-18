@@ -64,9 +64,27 @@ export class McpController {
         inputSchema: {
           query: z.string().describe('The request in the person\'s own words'),
           workspaceId: z.string().optional().describe('Limit to one workspace; default is all of theirs'),
+          includeText: z.boolean().optional().describe('Also return the text of the best match, up to 20,000 characters'),
         },
       },
-      async ({ query, workspaceId }) => json(await this.integrations.find(user, { query, workspaceId })),
+      async ({ query, workspaceId, includeText }) => json(await this.integrations.find(user, { query, workspaceId, includeText })),
+    );
+
+    server.registerTool(
+      'read_documents',
+      {
+        description:
+          'What is in documents, by id: every extracted field (document type, holder, issuer, numbers, dates) as details, and the full text. ' +
+          'Use this to answer a question such as "what is my GST number" or "when does the fire NOC expire" without handing the file over. ' +
+          'Every document also carries details on find and fetch results; this adds the text.',
+        inputSchema: {
+          documentIds: z.array(z.string()).min(1).max(10),
+          includeText: z.boolean().optional().describe('Default true'),
+          maxTextChars: z.number().int().min(1000).max(200000).optional().describe('Default 50,000'),
+        },
+      },
+      async ({ documentIds, includeText, maxTextChars }) =>
+        json(await this.integrations.read(user, { documentIds, includeText, maxTextChars })),
     );
 
     server.registerTool(
@@ -93,10 +111,11 @@ export class McpController {
           query: z.string(),
           workspaceId: z.string().optional(),
           expiresInMinutes: z.number().int().min(1).max(1440).optional(),
+          includeText: z.boolean().optional().describe('Also return the text of each confident match'),
         },
       },
-      async ({ query, workspaceId, expiresInMinutes }) =>
-        json(await this.integrations.fetch(user, { query, workspaceId, expiresInMinutes })),
+      async ({ query, workspaceId, expiresInMinutes, includeText }) =>
+        json(await this.integrations.fetch(user, { query, workspaceId, expiresInMinutes, includeText })),
     );
 
     server.registerTool(

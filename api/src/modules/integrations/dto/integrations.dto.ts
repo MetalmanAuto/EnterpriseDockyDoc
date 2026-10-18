@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -22,6 +23,11 @@ export class FindDocumentsDto {
   @IsNotEmpty()
   @MaxLength(500)
   query!: string;
+
+  @ApiPropertyOptional({ description: 'Also return the text read from the best match, up to 20,000 characters, so the caller can answer questions about its contents without downloading it. Default false.' })
+  @IsOptional()
+  @IsBoolean()
+  includeText?: boolean;
 
   @ApiPropertyOptional({ description: 'Search one workspace only. Default: every workspace the key holder belongs to.' })
   @IsOptional()
@@ -89,8 +95,39 @@ export class IntegrationDocumentDto {
   @ApiProperty() fileType!: string;
   @ApiProperty() workspace!: { id: string; name: string };
   @ApiProperty({ type: [String] }) labels!: string[];
+  @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiPropertyOptional({ nullable: true }) expiryDate!: Date | null;
+  @ApiPropertyOptional({ nullable: true }) renewalDueDate!: Date | null;
+  @ApiProperty({
+    description: 'Every field read from the document or typed in by its owner, as key and value: document type, issuer, holder, reference or registration number, dates, and anything else found.',
+    example: { documentType: 'GST registration certificate', holder: 'Nishant Jairath', gstin: '07AAHCE4776H1ZC', issueDate: '2024-04-01' },
+  })
+  details!: Record<string, string>;
   @ApiProperty() updatedAt!: Date;
+  @ApiPropertyOptional({ nullable: true, description: 'The text read from the document, only when asked for (includeText, or the read call). Cut at the limit with textTruncated=true.' })
+  text?: string | null;
+  @ApiPropertyOptional() textTruncated?: boolean;
+}
+
+export class ReadDocumentsDto {
+  @ApiProperty({ type: [String], description: 'Documents to read, by id, up to 10' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  documentIds!: string[];
+
+  @ApiPropertyOptional({ description: 'Include the full text read from each document. Default true.' })
+  @IsOptional()
+  @IsBoolean()
+  includeText?: boolean;
+
+  @ApiPropertyOptional({ description: 'Longest text to return per document, 1,000 to 200,000 characters. Default 50,000.', default: 50000 })
+  @IsOptional()
+  @IsInt()
+  @Min(1000)
+  @Max(200000)
+  maxTextChars?: number;
 }
 
 export class MatchedDocumentDto extends IntegrationDocumentDto {
