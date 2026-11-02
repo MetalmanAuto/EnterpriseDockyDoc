@@ -142,6 +142,8 @@ say "Building and starting the web app on port $WEB_PORT"
 cd "$ROOT/web"
 [ -d node_modules ] || npm install --no-audit --no-fund --silent
 export API_URL="http://localhost:${API_PORT}"
+# The browser sends uploads and downloads straight to the API, so point it at the sandbox API, never the production one.
+export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 npx next build 2>&1 | grep -E '✓|Error' | head -3
 PORT="$WEB_PORT" DOCKYDOC_SANDBOX=web \
   setsid nohup npx next start > "$LOG_DIR/web.log" 2>&1 < /dev/null &

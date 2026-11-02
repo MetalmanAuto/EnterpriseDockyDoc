@@ -7,6 +7,15 @@ const API_URL =
     ? ''
     : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081');
 
+// File uploads and downloads go straight to the API instead of through the
+// same-origin proxy: Vercel buffers proxied bodies and refuses anything over
+// 4.5 MB, which left a 22 MB deed stuck on "Uploading". The API allows the
+// web app's origin in CORS and the Authorization header travels the same way.
+export const TRANSFER_URL = process.env.NEXT_PUBLIC_API_URL || API_URL;
+
+/** The largest file the API accepts, matching MAX_FILE_SIZE in documents.controller.ts. */
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 /**
  * DEV ONLY — the email used to impersonate a user via x-dev-user-email header.
  * Only sent when Clerk is not configured (i.e., NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is absent).
@@ -141,14 +150,20 @@ export async function apiUpload<T>(
 ): Promise<T> {
   const headers = await buildAuthHeaders();
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${TRANSFER_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new ApiError(0, 'The upload could not reach the server. Check your connection and try again.');
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 413) throw new ApiError(413, `That file is larger than the ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB limit.`);
     throw new ApiError(res.status, body?.message ?? res.statusText);
   }
 
@@ -161,7 +176,7 @@ export async function apiUpload<T>(
 export async function apiDownload(path: string, fallbackFileName: string): Promise<void> {
   const headers = await buildAuthHeaders();
 
-  const res = await fetch(`${API_URL}${path}`, { headers });
+  const res = await fetch(`${TRANSFER_URL}${path}`, { headers });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

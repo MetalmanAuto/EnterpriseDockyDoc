@@ -1,7 +1,7 @@
 /**
  * Document sharing API helpers.
  */
-import { apiFetch } from './api';
+import { apiFetch, TRANSFER_URL } from './api';
 import type {
   DocumentShares,
   ExternalShare,
@@ -71,7 +71,7 @@ export async function verifySharePassword(
  * For password-protected shares, include the access grant as a query param.
  */
 export function buildDownloadUrl(token: string, grant?: string): string {
-  const base = `${API_URL}/api/v1/public/shares/${token}/download`;
+  const base = `${TRANSFER_URL}/api/v1/public/shares/${token}/download`;
   return grant ? `${base}?grant=${encodeURIComponent(grant)}` : base;
 }
 
