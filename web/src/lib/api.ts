@@ -11,7 +11,21 @@ const API_URL =
 // same-origin proxy: Vercel buffers proxied bodies and refuses anything over
 // 4.5 MB, which left a 22 MB deed stuck on "Uploading". The API allows the
 // web app's origin in CORS and the Authorization header travels the same way.
-export const TRANSFER_URL = process.env.NEXT_PUBLIC_API_URL || API_URL;
+//
+// The Vercel project carries NEXT_PUBLIC_API_URL set to the placeholder
+// "https://your-api-name.onrender.com", which the proxy route (see
+// app/api/v1/[...path]/route.ts) already ignores for the same reason. Built
+// with it, every download and preview went to a host that does not exist.
+// So a placeholder or empty value falls back to the real API in production
+// builds and to the same-origin proxy in development.
+const PRODUCTION_API_URL = 'https://dockydoc-api-staging.onrender.com';
+const CONFIGURED_API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+export const TRANSFER_URL =
+  CONFIGURED_API_URL && !/your-api-name/i.test(CONFIGURED_API_URL)
+    ? CONFIGURED_API_URL
+    : process.env.NODE_ENV === 'production'
+      ? PRODUCTION_API_URL
+      : API_URL;
 
 /** The largest file the API accepts, matching MAX_FILE_SIZE in documents.controller.ts. */
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -176,7 +190,12 @@ export async function apiUpload<T>(
 export async function apiDownload(path: string, fallbackFileName: string): Promise<void> {
   const headers = await buildAuthHeaders();
 
-  const res = await fetch(`${TRANSFER_URL}${path}`, { headers });
+  let res: Response;
+  try {
+    res = await fetch(`${TRANSFER_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError(0, 'The download could not reach the server. Check your connection and try again.');
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

@@ -95,12 +95,20 @@ export default function DocumentPreviewCard({ documentId, versionNumber, fileNam
           headers.set('x-dev-user-email', DEV_EMAIL);
         }
 
-        const res = await fetch(
-          `${TRANSFER_URL}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
-          { headers },
-        );
+        let res: Response;
+        try {
+          res = await fetch(
+            `${TRANSFER_URL}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
+            { headers },
+          );
+        } catch {
+          throw new Error('The file could not be fetched from the server. Check your connection and reload.');
+        }
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (res.status === 401) throw new Error('Your session has expired. Reload the page to sign in again.');
+        if (res.status === 403) throw new Error('You do not have access to this file.');
+        if (res.status === 404) throw new Error('The file is missing from storage.');
+        if (!res.ok) throw new Error(`The server answered ${res.status}.`);
 
         const blob = await res.blob();
         if (cancelled) return;
