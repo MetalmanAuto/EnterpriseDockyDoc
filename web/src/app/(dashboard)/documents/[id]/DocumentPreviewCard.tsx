@@ -1,8 +1,11 @@
 'use client';
 
+import { TRANSFER_URL } from '@/lib/api';
+
 import { useEffect, useRef, useState } from 'react';
 
-const API_URL = ''; // Relative → Next.js /api/v1/* proxy → no CORS
+// The preview fetches the file itself, so it goes straight to the API like
+// downloads do: the Next.js proxy cannot carry files over 4.5 MB.
 const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_USER_EMAIL ?? 'alice@acmecorp.com';
 const IS_CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
@@ -93,7 +96,7 @@ export default function DocumentPreviewCard({ documentId, versionNumber, fileNam
         }
 
         const res = await fetch(
-          `${API_URL}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
+          `${TRANSFER_URL}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
           { headers },
         );
 

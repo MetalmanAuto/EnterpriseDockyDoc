@@ -102,6 +102,8 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders,
+    // The web app downloads files straight from the API and reads the file name off this header.
+    exposedHeaders: ['Content-Disposition', 'Content-Length'],
   });
 
   // ------------------------------------------------------------------ //
